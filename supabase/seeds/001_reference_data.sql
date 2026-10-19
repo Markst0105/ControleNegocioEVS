@@ -34,3 +34,30 @@ insert into locations (code, label) values ('CASA', 'Casa') on conflict (code) d
 insert into locations (code, label) values ('MALA', 'Mala') on conflict (code) do nothing;
 insert into locations (code, label) values ('BUFFER', 'Buffer') on conflict (code) do nothing;
 
+
+-- accounts discovered in the expense ledger (Lançamento Despesas 2023-07)
+insert into accounts (name) values ('BB Papai') on conflict (name) do nothing;
+insert into accounts (name) values ('Bradesco') on conflict (name) do nothing;
+insert into accounts (name) values ('Cash Jun') on conflict (name) do nothing;
+insert into accounts (name) values ('Cash Yumi') on conflict (name) do nothing;
+insert into accounts (name) values ('Crédito Art Salsa') on conflict (name) do nothing;
+insert into accounts (name) values ('Crédito Bom Tempero') on conflict (name) do nothing;
+insert into accounts (name) values ('Itaú') on conflict (name) do nothing;
+-- expense categories discovered in the ledger
+insert into expense_categories (name, scope) values ('Alimentação', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Compras', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Comunicação', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('EVS Mooca Custo Fixo', 'negocio_fixo') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('EVS Mooca Custo Variável', 'negocio_variavel') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Educação', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Herbalife Custo Fixo', 'negocio_fixo') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Herbalife Custo Variável', 'negocio_variavel') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Lazer', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Manutenção Carro', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Moradia', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Pagamentos/Investimentos', 'negocio_variavel') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Pessoal', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Reajuste', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Roupa', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Saúde', 'pessoal') on conflict (name) do nothing;
+insert into expense_categories (name, scope) values ('Transporte Carro', 'pessoal') on conflict (name) do nothing;
