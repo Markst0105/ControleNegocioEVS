@@ -9,13 +9,12 @@ database identifiers are in English.
 > product name in the interface is **Controle de Negócio**.
 
 > [!NOTE]
-> **Status: Phase 1 — first milestone complete.** Login, role-aware app shell,
-> Painel (monthly KPIs from `v_monthly_pnl`, open receivables, latest sales),
-> Vendas list (month filter, search, pagination) and Lançamento de venda are
-> live. The visual identity now follows the **Balcão** direction: desktop side
-> column, mobile top bar with a leaf-triggered panel, month masthead and an
-> editorial serif for section titles. The member area is a placeholder, and
-> client management, inventory, expenses and reservations come next.
+> **Status: Phase 2a — Clientes complete.** Login, role-aware app shell, Painel,
+> Vendas, Lançamento de venda and the client CRM are live. Clientes includes
+> search/pagination, name + phone/WhatsApp deduplication and an admin-only merge.
+> The visual identity follows the **Balcão** direction: desktop side column,
+> mobile top bar with a leaf-triggered panel, month masthead and an editorial
+> serif for section titles. Inventory, expenses and reservations come next.
 
 ## What it covers
 
@@ -48,7 +47,7 @@ Three roles, enforced in the database with Row-Level Security:
 
 ```
 src/            Next.js app (App Router, components, lib)
-  app/          routes: (auth)/login, (app)/painel, (app)/vendas
+  app/          routes: (auth)/login, (app)/painel, (app)/vendas, (app)/clientes
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
 docs/           phase-0-setup.md, design-system.md, design/ (identity study)
@@ -114,10 +113,9 @@ Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 
 > [!NOTE]
 > PostgREST aggregate selectors are disabled on this Supabase project, so sums
-> shown in the UI come from SQL functions — e.g. `open_receivables_total()` in
-> `supabase/migrations/20261018000003_open_receivables.sql`. Re-apply
-> migrations after pulling (`supabase db push`, or paste the file into the SQL
-> editor) so the function exists.
+> shown in the UI come from SQL functions/views — e.g. `open_receivables_total()`
+> and `v_client_overview`. Re-apply migrations after pulling (`supabase db push`,
+> or paste the new files into the SQL editor) so they exist.
 
 What this milestone includes:
 
@@ -126,11 +124,13 @@ What this milestone includes:
 - **Painel** — month masthead, monthly P&L KPIs, open receivables, latest sales;
 - **Vendas** — month filter, text search, pagination;
 - **Lançar venda** — client/product comboboxes, payment method with up to three
-  installments, discount handling, costs, PV, observation.
+  installments, discount handling, costs, PV, observation;
+- **Clientes** — search and pagination, create/edit with phone/WhatsApp
+  normalization, duplicate detection, purchase history/open balance and an
+  admin-only transactional merge.
 
-Client creation, expenses, inventory, MDO and reservations are the next
-milestones. The visual language is documented in
-[`docs/design-system.md`](docs/design-system.md).
+Inventory, expenses, MDO and reservations are the next milestones. The visual
+language is documented in [`docs/design-system.md`](docs/design-system.md).
 
 ## ETL (workbook → seeds)
 
@@ -178,6 +178,6 @@ new `braces`/`micromatch` release ships.
 - [x] **Phase 0** — PostgreSQL schema, RLS, ETL, seeds and validation
 - [x] **Phase 1** — Next.js app: auth gate, pt-BR app shell, Painel, Vendas and
       Lançamento de Vendas
-- [ ] **Phase 2** — clients (CRUD + phone/WhatsApp), expenses & P&L screens,
-      inventory and purchases
+- [x] **Phase 2a** — Clientes: CRUD, phone/WhatsApp, dedupe and merge
+- [ ] **Phase 2b** — expenses & P&L screens, inventory and purchases
 - [ ] **Phase 3** — MDO daily KPIs, reservations and the member area

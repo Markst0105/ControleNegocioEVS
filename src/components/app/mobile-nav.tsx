@@ -12,18 +12,24 @@ export function MobileNav({ role }: { role: Role }) {
   const pathname = usePathname();
   const items = navForRole(role);
   const newSaleActive = pathname === NEW_SALE_PATH;
+  const leftItems = items.slice(0, 2);
+  const rightItems = items.slice(2);
+  const columns = leftItems.length + rightItems.length + 1;
 
   return (
     <nav
       aria-label="Navegação principal"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line/80 bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
     >
-      <div className="grid grid-cols-3 items-end">
-        {items[0] ? (
-          <TabLink item={items[0]} pathname={pathname} />
-        ) : (
-          <span aria-hidden />
-        )}
+      <div
+        className="grid items-end"
+        style={{
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+        }}
+      >
+        {leftItems.map((item) => (
+          <TabLink key={item.href} item={item} pathname={pathname} />
+        ))}
 
         <Link
           href={NEW_SALE_PATH}
@@ -50,11 +56,9 @@ export function MobileNav({ role }: { role: Role }) {
           </span>
         </Link>
 
-        {items[1] ? (
-          <TabLink item={items[1]} pathname={pathname} />
-        ) : (
-          <span aria-hidden />
-        )}
+        {rightItems.map((item) => (
+          <TabLink key={item.href} item={item} pathname={pathname} />
+        ))}
       </div>
     </nav>
   );

@@ -71,7 +71,7 @@ export default async function VendasPage({
   let query = supabase
     .from("sales")
     .select(
-      "id, sold_on, client_name_raw, product_name_raw, deal_type_code, discount_pct, origin, amount_received, profit",
+      "id, sold_on, client_id, client_name_raw, product_name_raw, deal_type_code, discount_pct, origin, amount_received, profit",
       { count: "exact" },
     )
     .gte("sold_on", from)
@@ -231,15 +231,24 @@ export default async function VendasPage({
                         {formatDate(sale.sold_on)}
                       </TableCell>
                       <TableCell className="max-w-[190px] px-2 py-2.5 text-[13px]">
-                        <span
-                          className={
-                            sale.client_name_raw
-                              ? "block truncate font-medium"
-                              : "block truncate text-ink-soft"
-                          }
-                        >
-                          {sale.client_name_raw ?? "Balcão"}
-                        </span>
+                        {sale.client_id ? (
+                          <Link
+                            href={`/clientes/${sale.client_id}`}
+                            className="block truncate font-medium underline-offset-2 hover:underline"
+                          >
+                            {sale.client_name_raw ?? "Cliente"}
+                          </Link>
+                        ) : (
+                          <span
+                            className={
+                              sale.client_name_raw
+                                ? "block truncate font-medium"
+                                : "block truncate text-ink-soft"
+                            }
+                          >
+                            {sale.client_name_raw ?? "Balcão"}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="hidden max-w-[240px] px-2 py-2.5 text-[13px] text-ink-soft md:table-cell">
                         <span className="block truncate">

@@ -28,6 +28,7 @@ import { createSale, type SaleFormState } from "./actions";
 
 export type SaleFormData = {
   clients: { id: string; name: string }[];
+  initialClientId?: string;
   products: { id: string; name: string; sku: string; pv: number | null }[];
   dealTypes: { code: string; label: string; kind: string }[];
   paymentMethods: {
@@ -48,7 +49,7 @@ const initialState: SaleFormState = { error: null };
 export function VendaForm({ data }: { data: SaleFormData }) {
   const [state, formAction, pending] = useActionState(createSale, initialState);
 
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(data.initialClientId ?? "");
   const [productId, setProductId] = useState("");
   const [dealCode, setDealCode] = useState("0");
   const [paymentCode, setPaymentCode] = useState("$");

@@ -34,7 +34,14 @@ const DEAL_ORDER: Record<string, number> = {
   financial: 7,
 };
 
-export default async function NovaVendaPage() {
+type SearchParams = Promise<{ cliente?: string }>;
+
+export default async function NovaVendaPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
 
   const [clientsResult, productsResult, dealTypesResult, paymentMethodsResult] =
@@ -81,6 +88,11 @@ export default async function NovaVendaPage() {
       a.label.localeCompare(b.label, "pt-BR"),
   );
 
+  const clients = clientsResult.data ?? [];
+  const initialClientId = params.cliente
+    ? clients.find((client) => client.id === params.cliente)?.id
+    : undefined;
+
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-4">
@@ -101,7 +113,8 @@ export default async function NovaVendaPage() {
       <div className="mt-6">
         <VendaForm
           data={{
-            clients: clientsResult.data ?? [],
+            clients,
+            initialClientId,
             products: productsResult.data ?? [],
             dealTypes,
             paymentMethods,

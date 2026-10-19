@@ -1,4 +1,9 @@
-import { LayoutDashboard, ReceiptText, type LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  ReceiptText,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 import type { Role } from "@/lib/roles";
 
@@ -23,6 +28,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Vendas",
     shortLabel: "Vendas",
     icon: ReceiptText,
+    roles: ["admin", "operator"],
+  },
+  {
+    href: "/clientes",
+    label: "Clientes",
+    shortLabel: "Clientes",
+    icon: Users,
     roles: ["admin", "operator"],
   },
 ];
