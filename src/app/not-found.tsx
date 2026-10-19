@@ -5,7 +5,9 @@ export default function NotFound() {
     <main className="grid flex-1 place-items-center px-4 py-16">
       <div className="w-full max-w-sm text-center">
         <p className="num text-sm text-ink-soft">404</p>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight">Página não encontrada</h1>
+        <h1 className="mt-2 font-serif text-[30px] leading-none font-normal tracking-[-0.01em]">
+          Página não encontrada
+        </h1>
         <p className="mt-2 text-sm text-ink-soft">
           O endereço não existe ou foi movido. Confira o link e tente de novo.
         </p>

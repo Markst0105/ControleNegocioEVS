@@ -18,7 +18,9 @@ export default function AppError({
   return (
     <div className="grid place-items-center py-24">
       <div className="w-full max-w-sm text-center">
-        <h1 className="text-xl font-semibold tracking-tight">Algo deu errado</h1>
+        <h1 className="font-serif text-[30px] leading-none font-normal tracking-[-0.01em]">
+          Algo deu errado
+        </h1>
         <p className="mt-2 text-sm text-ink-soft">
           Não foi possível carregar esta página. Tente de novo; se persistir,
           avise o administrador.

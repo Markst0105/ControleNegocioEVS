@@ -1,15 +1,20 @@
-# BioAvalia
+# Controle de Negócio
 
 Web-based control system for a Herbalife distributor (EVS Mooca + CASA), replacing
 the `Controle do Negócio` spreadsheet. The workbook is imported once; after cutover
 the app is the single source of truth. The interface is pt-BR; code, comments and
 database identifiers are in English.
 
+> The repository folder and package ID keep the original `BioAvalia` name; the
+> product name in the interface is **Controle de Negócio**.
+
 > [!NOTE]
 > **Status: Phase 1 — first milestone complete.** Login, role-aware app shell,
 > Painel (monthly KPIs from `v_monthly_pnl`, open receivables, latest sales),
 > Vendas list (month filter, search, pagination) and Lançamento de venda are
-> live. The member area is a placeholder, and client management, inventory,
+> live. The visual identity now follows the **Balcão** direction: dark top bar,
+> leaf-triggered overlay panel, month masthead and an editorial serif for section
+> titles. The member area is a placeholder, and client management, inventory,
 > expenses and reservations come next.
 
 ## What it covers
@@ -34,7 +39,7 @@ Three roles, enforced in the database with Row-Level Security:
 | Layer | Choice |
 |-------|--------|
 | Web app | Next.js 16 (App Router) + TypeScript + `@supabase/ssr` |
-| UI | Tailwind CSS v4 + shadcn/ui, IBM Plex Sans/Mono, pt-BR |
+| UI | Tailwind CSS v4 + shadcn/ui, Bricolage Grotesque + Instrument Serif + IBM Plex Sans/Mono, pt-BR |
 | Database | Supabase (PostgreSQL) — SQL schema, RLS, reporting views |
 | ETL | Python 3 (standard library only) |
 | Deploy | Vercel |
@@ -46,7 +51,7 @@ src/            Next.js app (App Router, components, lib)
   app/          routes: (auth)/login, (app)/painel, (app)/vendas
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
-docs/           phase-0-setup.md, design-system.md
+docs/           phase-0-setup.md, design-system.md, design/ (identity study)
 etl/            workbook → SQL seeds (extract.py), schema checker, validation
 supabase/
   migrations/   schema + RLS/views (idempotent)
@@ -117,8 +122,8 @@ Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 What this milestone includes:
 
 - cookie-based Supabase session (proxy refreshes tokens and gates every route);
-- role-aware shell: desktop sidebar + mobile bottom nav;
-- **Painel** — monthly P&L KPIs, open receivables, latest sales;
+- role-aware shell: dark top bar, leaf-triggered overlay side panel, mobile bottom nav;
+- **Painel** — month masthead, monthly P&L KPIs, open receivables, latest sales;
 - **Vendas** — month filter, text search, pagination;
 - **Lançar venda** — client/product comboboxes, payment method with up to three
   installments, discount handling, costs, PV, observation.

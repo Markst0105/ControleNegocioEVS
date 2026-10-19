@@ -19,10 +19,12 @@ export function UserMenu({
   user,
   profile,
   compact = false,
+  tone = "light",
 }: {
   user: SessionUser;
   profile: Profile;
   compact?: boolean;
+  tone?: "light" | "dark";
 }) {
   const initials = (profile.name || user.email || "?")
     .trim()
@@ -30,26 +32,48 @@ export function UserMenu({
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+  const dark = tone === "dark";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          aria-label={`Conta de ${profile.name}`}
           className={cn(
-            "flex items-center gap-2.5 rounded-md p-1.5 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50",
+            "flex items-center gap-2.5 rounded-md p-1.5 text-left outline-none transition-colors focus-visible:ring-[3px]",
             compact ? "" : "w-full",
+            dark
+              ? "hover:bg-white/10 focus-visible:ring-citrus/40"
+              : "hover:bg-accent focus-visible:ring-ring/50",
           )}
         >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-ink text-[11px] font-medium text-paper">
+          <span
+            className={cn(
+              "flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium",
+              dark
+                ? "bg-paper text-moss-ink ring-1 ring-white/10"
+                : "bg-ink text-paper",
+            )}
+          >
             {initials}
           </span>
           {compact ? null : (
             <span className="min-w-0 leading-tight">
-              <span className="block truncate text-[13px] font-medium">
+              <span
+                className={cn(
+                  "block truncate text-[13px] font-medium",
+                  dark && "text-paper",
+                )}
+              >
                 {profile.name}
               </span>
-              <span className="block truncate text-[11px] text-ink-soft">
+              <span
+                className={cn(
+                  "block truncate text-[11px]",
+                  dark ? "text-paper/60" : "text-ink-soft",
+                )}
+              >
                 {ROLE_LABELS[profile.role]}
               </span>
             </span>

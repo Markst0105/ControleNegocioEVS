@@ -26,7 +26,9 @@ export default function ProfileNotice({
         <div className="flex justify-center">
           <Brand />
         </div>
-        <h1 className="mt-8 text-xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="mt-8 font-serif text-[30px] leading-none font-normal tracking-[-0.01em]">
+          {title}
+        </h1>
         <p className="mt-2 text-sm text-ink-soft">{description}</p>
         <div className="mt-6 flex justify-center">
           <SignOutButton />
