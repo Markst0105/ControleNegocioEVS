@@ -12,10 +12,10 @@ database identifiers are in English.
 > **Status: Phase 1 — first milestone complete.** Login, role-aware app shell,
 > Painel (monthly KPIs from `v_monthly_pnl`, open receivables, latest sales),
 > Vendas list (month filter, search, pagination) and Lançamento de venda are
-> live. The visual identity now follows the **Balcão** direction: dark top bar,
-> leaf-triggered overlay panel, month masthead and an editorial serif for section
-> titles. The member area is a placeholder, and client management, inventory,
-> expenses and reservations come next.
+> live. The visual identity now follows the **Balcão** direction: desktop side
+> column, mobile top bar with a leaf-triggered panel, month masthead and an
+> editorial serif for section titles. The member area is a placeholder, and
+> client management, inventory, expenses and reservations come next.
 
 ## What it covers
 
@@ -122,7 +122,7 @@ Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 What this milestone includes:
 
 - cookie-based Supabase session (proxy refreshes tokens and gates every route);
-- role-aware shell: dark top bar, leaf-triggered overlay side panel, mobile bottom nav;
+- role-aware shell: desktop side column, mobile top bar + leaf-triggered panel, bottom nav;
 - **Painel** — month masthead, monthly P&L KPIs, open receivables, latest sales;
 - **Vendas** — month filter, text search, pagination;
 - **Lançar venda** — client/product comboboxes, payment method with up to three

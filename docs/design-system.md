@@ -2,11 +2,11 @@
 
 A small, opinionated visual language for a daily-use business console. The
 guiding idea is **an instrument with a voice**: the ledger stays dense and fast,
-while the brand appears at the threshold — the top bar, the month masthead and
-the side panel — instead of decorating the data.
+while the brand appears at the threshold — the side column, the month masthead and
+the mobile panel — instead of decorating the data.
 
 The current identity follows the **Balcão** direction: warm ledger paper, deep
-moss chrome, a citrus marker, a leaf that opens an overlay panel, and an
+moss chrome, a citrus marker, a leaf that opens the mobile panel, and an
 editorial serif for headings. The month is the signature display element set in
 Bricolage Grotesque (the dominant KPI reuses that face); section titles
 deliberately use a different typeface.
@@ -20,8 +20,8 @@ components in `src/components/ui` and by the app components in
 
 1. **The ledger is the interface.** Tables, rows and totals are first-class;
    chrome recedes (hairline rules, flat surfaces, no drop shadows on data).
-2. **Identity at the threshold.** Brand colour lives in the top bar and the
-   overlay panel, not in every card. The working surface stays quiet.
+2. **Identity at the threshold.** Brand colour lives in the desktop side column
+   and the mobile panel, not in every card. The working surface stays quiet.
 3. **Instant feedback.** Hover/press states respond in 100–150 ms. No page-load
    choreography, no staggered entrances, no parallax.
 4. **Density with air.** 36–40 px table rows, 13 px table text, generous page
@@ -30,7 +30,7 @@ components in `src/components/ui` and by the app components in
    (Valor recebido, Custo do produto, Cartela, Negócio…). Native date inputs.
 6. **Accessible by default.** Real `<label>`s, `aria-current` on navigation,
    `aria-label` on icon-only controls, visible focus rings, 40 px controls on
-   mobile, focus-trapped and Escape-closable panel.
+   mobile, focus-trapped and Escape-closable mobile panel.
 
 ## Color tokens
 
@@ -46,9 +46,10 @@ All tokens are CSS custom properties defined on `:root`. Page background is
 | `--line` | `#dcdecd` | Hairline borders, table rules |
 | `--line-strong` | `#c7cab6` | Input borders |
 | `--moss` | `#2f5d3d` | Brand mark, positive results, EVS stripe |
-| `--moss-ink` | `#21452d` | Top bar, overlay panel, text on moss tints |
+| `--moss-ink` | `#21452d` | Desktop side column, mobile top bar/panel, text on moss tints |
 | `--moss-soft` | `#e2ede3` | Active nav tint (light contexts), EVS chip |
-| `--citrus` | `#b9c43e` | Accent — month marker, primary CTA, attention |
+| `--citrus` | `#b9c43e` | Accent — primary CTA, attention |
+| `--marker` | `#c3cf3f` | Month marker only — exact accent from direction A |
 | `--citrus-ink` | `#6b771f` | Text on citrus tint |
 | `--citrus-soft` | `#f1f4d5` | Discount chip, selection |
 | `--steel` | `#35566c` | Info, focus ring, CASA stripe |
@@ -64,8 +65,9 @@ Semantic aliases (`--background`, `--foreground`, `--card`, `--primary`,
 only for now**; the `.dark` variant hook exists but no dark tokens are shipped.
 
 Color is used semantically, never decoratively: moss for money-positive, brand
-and EVS; rust for money-negative; steel for focus and CASA; citrus only for the
-month marker, primary calls to action and discount/PV attention.
+and EVS; rust for money-negative; steel for focus and CASA; citrus for primary
+calls to action and discount/PV attention; `--marker` for the month marker band
+only.
 
 ## Typography
 
@@ -100,26 +102,33 @@ align when scanning.
 Instrument Serif has only one weight. Do not apply `font-semibold` to serif
 titles; use size and the surrounding rule to establish hierarchy.
 
+The month marker (`.month-mark`, used on the `<mark>` inside the month `h1`) is a
+solid `--marker` band behind the lower 30% of the word, starting 12% above the
+box bottom. It is a partial marker, not a filled highlight.
+
 ## Layout & shape
 
-- **Top bar (all breakpoints)**: 56 px sticky, `--moss-ink`, cream wordmark. The
-  leaf mark is the panel trigger; the primary CTA (“Lançar venda”) sits at the
-  right on `sm+`, alongside the compact account menu.
-- **Side panel**: 304 px (never wider than the viewport minus 48 px), fixed to
-  the left, `--moss-ink`, portaled above a 50% ink scrim with a two-pixel blur
-  and a strong drop shadow. It overlays the page; the page never reflows or
-  changes width. `scrollbar-gutter: stable` on `html` prevents scrollbar-induced
-  shifts. The panel contains the brand, a full-width citrus CTA, navigation and
-  a small footer; clicking a link closes it. Escape and the scrim close it;
-  focus is trapped and returned to the leaf button.
-- **Content**: one column, max 1120 px, page padding 16–32 px. No persistent
-  desktop sidebar.
-- **Mobile**: the same top bar and panel, plus a fixed bottom navigation with
-  the primary action raised in a citrus circle; content gets 112 px bottom
-  padding to clear the nav. Safe-area insets respected.
-- **Painel masthead**: “Mês corrente” eyebrow, large month with a citrus marker,
-  year in soft ink, an “Em aberto” stamp and the update date in mono. No page
-  title “Painel” — navigation provides that context.
+- **Desktop side column**: 232 px, sticky, full height, `--moss-ink`. It carries
+  the brand, the full-width citrus “Lançar venda” CTA, navigation and the account
+  menu at the bottom. The page content sits to its right; the column is part of
+  the layout, not an overlay.
+- **Mobile top bar**: 56 px sticky, `--moss-ink`, cream wordmark. The leaf mark is
+  the panel trigger; the compact account menu sits at the right. The primary
+  action lives in the bottom navigation and in the panel.
+- **Mobile side panel**: 304 px (never wider than the viewport minus 48 px),
+  fixed to the left, `--moss-ink`, portaled above a 50% ink scrim with a
+  two-pixel blur and a strong drop shadow. It overlays the page; the page never
+  reflows or changes width. `scrollbar-gutter: stable` on `html` prevents
+  scrollbar-induced shifts. The panel mirrors the desktop column: brand, citrus
+  CTA, navigation and account menu. Clicking a link closes it. Escape and the
+  scrim close it; focus is trapped and returned to the leaf button.
+- **Content**: one column, max 1120 px, page padding 16–32 px.
+- **Mobile**: the top bar and panel, plus a fixed bottom navigation with the
+  primary action raised in a citrus circle; content gets 112 px bottom padding to
+  clear the nav. Safe-area insets respected.
+- **Painel masthead**: “Painel · mês corrente” eyebrow, large month with the
+  partial `--marker` band, year in soft ink, an “Em aberto” stamp and the update
+  date in mono. No page title “Painel” — navigation provides that context.
 - **KPI strip**: a single `dl` on `--paper` with 1 px `--line` gaps and top/bottom
   rules. No cards; the dominant ganho value is display type, the other three are
   mono. On mobile the first and last cells span both columns.
@@ -131,12 +140,14 @@ titles; use size and the surrounding rule to establish hierarchy.
 - **Radius**: 8 px for inputs/buttons/form sections (`--radius`), 4 px for chips
   and stamps; tables and KPI bands are square.
 - **Bold primary actions**: “Lançar venda” and “Registrar venda” use weight 700.
-  Other buttons stay at 500.
+  Citrus CTA labels use `--primary-foreground` (pastel white), as requested; other
+  buttons stay at 500.
 
 ## Motion
 
-- The side panel slides in from the left in 300 ms and out in 200 ms; the scrim
-  fades. This is the only large motion in the app.
+- The mobile side panel slides in from the left in 300 ms and out in 200 ms; the
+  scrim fades. The desktop side column is static. This is the only large motion
+  in the app.
 - Feedback only: color/background transitions (120–150 ms), button press scale
   0.98, leaf press scale 0.95, dropdown/popover origin-aware fades from
   shadcn/tw-animate-css.
@@ -165,12 +176,12 @@ from the server action, never raw database errors.
 - shadcn/ui (new-york style) is the base; components are owned source in
   `src/components/ui` and themed exclusively through tokens.
 - App-level components live in `src/components/app`:
-  `Brand`, `AppShell`, `SidePanel`, `SidebarNav`, `MobileNav`, `UserMenu`,
-  `PageHeader`, `OriginBadge`/`DealBadge`, `Combobox` (Popover + Command),
-  `FlashToast`.
+  `Brand`, `AppShell`, `AppSidebar`, `SidePanel`, `SidebarNav`, `MobileNav`,
+  `UserMenu`, `PageHeader`, `OriginBadge`/`DealBadge`, `Combobox`
+  (Popover + Command), `FlashToast`.
 - `BrandMark` is the leaf logo: moss square/cream leaf by default, cream square/
-  moss leaf on dark chrome (`tone="paper"`). In the top bar it is the panel
-  trigger, not a static logo.
+  moss leaf on dark chrome (`tone="paper"`). It is static in the desktop side
+  column and the mobile panel; in the mobile top bar it is the panel trigger.
 - Origin chips: `EVS` moss tint, `CASA` steel tint, reinforced by the row stripe.
   Deal chips are neutral outlines; a discount renders a citrus `−14%` chip next
   to it.

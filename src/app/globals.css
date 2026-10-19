@@ -25,6 +25,7 @@
   --citrus: #b9c43e; /* acento — PV, atenção */
   --citrus-ink: #6b771f;
   --citrus-soft: #f1f4d5;
+  --marker: #c3cf3f; /* marca-texto do mês — cor exata da direção A */
   --steel: #35566c; /* informativo — CASA, foco */
   --steel-ink: #2a4759;
   --steel-soft: #e3edf2;
@@ -168,18 +169,24 @@
   letter-spacing: -0.01em;
 }
 
-/* Marca-texto do mês (direção Balcão). */
-@utility marker {
-  background-color: transparent;
-  background-image: linear-gradient(
-    180deg,
-    transparent 56%,
-    var(--citrus) 56%,
-    var(--citrus) 88%,
-    transparent 88%
-  );
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
+/* Marca-texto do mês (direção Balcão): apenas a faixa inferior da palavra. */
+@utility month-mark {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  padding: 0 8px 0 2px;
+  background: transparent;
+  color: inherit;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 12%;
+    height: 30%;
+    background: var(--marker);
+    z-index: -1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
