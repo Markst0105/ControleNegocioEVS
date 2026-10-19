@@ -33,7 +33,7 @@ export function MobileNav({ role }: { role: Role }) {
         >
           <span
             className={cn(
-              "flex size-9 items-center justify-center rounded-full text-[#1d291c] transition-transform duration-150 motion-safe:active:scale-95",
+              "flex size-9 items-center justify-center rounded-full text-primary-foreground transition-transform duration-150 motion-safe:active:scale-95",
               "bg-citrus",
               newSaleActive && "ring-2 ring-moss-ink/20",
             )}

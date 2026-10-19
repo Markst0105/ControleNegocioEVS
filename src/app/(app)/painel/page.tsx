@@ -103,7 +103,7 @@ export default async function PainelPage() {
             Painel · mês corrente
           </p>
           <h1 className="mt-1.5 font-display text-[44px] leading-[0.95] font-semibold tracking-[-0.045em] sm:text-[58px]">
-            <mark className="marker px-1.5 text-inherit">{monthName}</mark>{" "}
+            <mark className="month-mark">{monthName}</mark>{" "}
             <span className="text-[20px] font-normal tracking-[-0.02em] text-ink-soft sm:text-[23px]">
               {year}
             </span>

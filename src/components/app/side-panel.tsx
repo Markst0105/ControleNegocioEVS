@@ -7,12 +7,19 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { Brand, BrandMark } from "./brand";
 import { SidebarNav } from "./sidebar-nav";
+import { UserMenu } from "./user-menu";
 
 import { Button } from "@/components/ui/button";
+import type { Profile, SessionUser } from "@/lib/auth";
 import { NEW_SALE_PATH } from "@/lib/nav";
-import type { Role } from "@/lib/roles";
 
-export function SidePanel({ role }: { role: Role }) {
+export function SidePanel({
+  user,
+  profile,
+}: {
+  user: SessionUser;
+  profile: Profile;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -60,7 +67,7 @@ export function SidePanel({ role }: { role: Role }) {
           <div className="px-4 pt-5">
             <Button
               asChild
-              className="h-10 w-full gap-2 bg-citrus font-bold text-[#1d291c] hover:bg-citrus/90"
+              className="h-10 w-full gap-2 bg-citrus font-bold text-primary-foreground hover:bg-citrus/90"
             >
               <Link href={NEW_SALE_PATH} onClick={() => setOpen(false)}>
                 <Plus />
@@ -70,17 +77,13 @@ export function SidePanel({ role }: { role: Role }) {
           </div>
 
           <SidebarNav
-            role={role}
+            role={profile.role}
             tone="dark"
             onNavigate={() => setOpen(false)}
           />
 
-          <div className="mt-auto border-t border-white/10 px-5 py-4">
-            <p className="text-[10.5px] leading-relaxed text-paper/45">
-              Controle de Negócio
-              <br />
-              EVS Mooca + Casa
-            </p>
+          <div className="mt-auto border-t border-white/10 px-2 py-3">
+            <UserMenu user={user} profile={profile} tone="dark" />
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

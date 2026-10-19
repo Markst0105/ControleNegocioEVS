@@ -59,7 +59,7 @@ export function UserMenu({
             {initials}
           </span>
           {compact ? null : (
-            <span className="min-w-0 leading-tight">
+            <span className="min-w-0 flex-1 leading-tight">
               <span
                 className={cn(
                   "block truncate text-[13px] font-medium",
@@ -71,7 +71,7 @@ export function UserMenu({
               <span
                 className={cn(
                   "block truncate text-[11px]",
-                  dark ? "text-paper/60" : "text-ink-soft",
+                  dark ? "text-paper/70" : "text-ink-soft",
                 )}
               >
                 {ROLE_LABELS[profile.role]}
