@@ -107,6 +107,13 @@ Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 `src/lib/supabase/database.types.ts` from the Supabase project; requires
 `SUPABASE_PROJECT_ID` and a logged-in Supabase CLI).
 
+> [!NOTE]
+> PostgREST aggregate selectors are disabled on this Supabase project, so sums
+> shown in the UI come from SQL functions — e.g. `open_receivables_total()` in
+> `supabase/migrations/20261018000003_open_receivables.sql`. Re-apply
+> migrations after pulling (`supabase db push`, or paste the file into the SQL
+> editor) so the function exists.
+
 What this milestone includes:
 
 - cookie-based Supabase session (proxy refreshes tokens and gates every route);
@@ -147,6 +154,19 @@ frozen: after cutover the app is the source of truth.
   views (`v_monthly_pnl`, `v_stock_on_hand`, `v_monthly_kpis`, …).
 - Imported history: 161 products, 557 clients, 18,182 sales, 17,971 installments,
   1,629 inventory movements, 110 expenses, 730 MDO days.
+
+## Security notes
+
+`npm audit` reports five high-severity advisories, all from one development-only
+chain: `braces@3.0.3` ← `micromatch` ← `fast-glob` ← `@next/eslint-plugin-next`
+← `eslint-config-next`. They do not affect the deployed app
+(`npm audit --omit=dev` reports zero), are never bundled by `next build`, and
+require attacker-controlled glob patterns to exploit.
+
+There is no patched `braces` release yet — 3.0.3 is the latest — and npm's
+suggested "fix" downgrades `eslint-config-next` to v14, which would break the
+Next 16 lint setup. The advisories are accepted and should be revisited when a
+new `braces`/`micromatch` release ships.
 
 ## Roadmap
 
