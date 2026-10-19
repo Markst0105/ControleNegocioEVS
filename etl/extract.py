@@ -244,6 +244,9 @@ for r, cells in sheet("Novos Preços HLF"):
     name = cells.get("B")
     if not sku or not name:
         continue
+    # skip repeated print headers ("#SKU | Produto | PV | ..." at page breaks)
+    if str(sku).strip().lstrip("#").strip().lower() == "sku":
+        continue
     hlf_products[str(sku)] = {
         "sku": str(sku), "name": str(name),
         "pv": cells.get("C"),
@@ -264,6 +267,9 @@ for r, cells in sheet("Tabela de Preços"):
         continue
     sku = str(sku).strip()
     if sku.lower() in ("sku",):
+        continue
+    # row 2 is a column-number legend (A=SKU | B=2 | C=3 | D=4 | M=13 ...)
+    if str(name).strip().isdigit() and sku.isdigit():
         continue
     ic_raw = cells.get("M")
     tabela_products[sku] = {
@@ -405,6 +411,9 @@ for r, cells in sheet("Lançamento de Venda"):
     deal_code = cells.get("D")
     product_name = cells.get("E")
     origin = cells.get("G")
+    if origin:
+        # normalize case variants ('casa'/'Casa' -> 'CASA')
+        origin = str(origin).strip().upper()
     stock_disc = cells.get("H")
     obs = cells.get("F")
     amount = cells.get("I")
@@ -543,7 +552,10 @@ for r, cells in product_rows:
         dm = re.search(r"(\d{1,2})/(\d{1,2})", str(label))
         if dm:
             day, mon = int(dm.group(1)), int(dm.group(2))
-            moved_on = f"2025-{mon:02d}-{day:02d}"  # legacy data; year best-effort
+            if 1 <= mon <= 12 and 1 <= day <= 31:
+                # clamp month-end labels like "31/4" (April has 30 days)
+                last = (datetime.date(2025, mon % 12 + 1, 1) - datetime.timedelta(days=1)).day
+                moved_on = f"2025-{mon:02d}-{min(day, last):02d}"  # legacy data; year best-effort
         emit("005_movements",
              f"insert into inventory_movements (product_id, moved_on, type, location_to, qty, event_label, created_by) "
              f"select (select id from products where sku = {sql_str(sku)} limit 1), "
@@ -582,23 +594,25 @@ for r, cells in sheet("Lançamento Despesas"):
         scope_sql = sql_str(EXPENSE_SCOPE[str(cat)])
     elif cat and str(cat) in EXPENSE_PERSONAL_DEFAULT:
         scope_sql = sql_str("pessoal")
+    cat_sub = f"(select id from expense_categories where name = {sql_str(cat)} limit 1)" if cat else "NULL"
+    acct_sub = f"(select id from accounts where name = {sql_str(acct)} limit 1)" if acct else "NULL"
     emit("006_expenses",
-         f"insert into expenses (incurred_on, description, account_id, amount, scope, legacy_row, created_by) "
-         f"values ({sql_date(inc)}, {sql_str(desc)}, "
-         f"(select id from accounts where name = {sql_str(acct)} limit 1), {sql_num(amt)}, {scope_sql}, {r}, "
+         f"insert into expenses (incurred_on, description, category_id, account_id, amount, scope, legacy_row, created_by) "
+         f"values ({sql_date(inc)}, {sql_str(desc)}, {cat_sub}, {acct_sub}, {sql_num(amt)}, {scope_sql}, {r}, "
          f"(select id from auth.users limit 1));")
     expense_counter += 1
 
-# seed accounts & categories found
-emit("006_expenses", "-- accounts discovered in ledger")
+# accounts & categories are reference data: emit them into 001 so they exist
+# before ANY dependent row (006 expenses looks them up by name).
+emit("001_reference_data", "")
+emit("001_reference_data", "-- accounts discovered in the expense ledger (Lançamento Despesas 2023-07)")
 for name in sorted(account_names):
-    emit("006_expenses", f"insert into accounts (name) values ({sql_str(name)}) on conflict (name) do nothing;")
-emit("006_expenses", "-- categories discovered in ledger")
+    emit("001_reference_data", f"insert into accounts (name) values ({sql_str(name)}) on conflict (name) do nothing;")
+emit("001_reference_data", "-- expense categories discovered in the ledger")
 for name in sorted(category_names):
-    scope = EXPENSE_SCOPE.get(name, "pessoal" if name in EXPENSE_PERSONAL_DEFAULT else "pessoal")
-    emit("006_expenses",
+    scope = EXPENSE_SCOPE.get(name, "pessoal")
+    emit("001_reference_data",
          f"insert into expense_categories (name, scope) values ({sql_str(name)}, {sql_str(scope)}) on conflict (name) do nothing;")
-emit("006_expenses", "")
 print(f"expenses: {expense_counter}")
 print(f"accounts: {sorted(account_names)}")
 print(f"categories: {sorted(category_names)}")
@@ -618,20 +632,24 @@ MDO_COLS = {
 
 mdo_counter = 0
 mdo_first = mdo_last = None
+mdo_col_names = list(MDO_COLS.values())
 for r, cells in sheet("MDO-Dia"):
     if r < 6:
         continue
     d = serial_to_date(cells.get("A"))
     if d is None:
         continue
+    # skip template rows that carry a date but zero KPI values
+    if not any(cells.get(c) is not None for c in MDO_COLS):
+        continue
     if mdo_first is None:
         mdo_first = d
     mdo_last = d
-    vals = ", ".join(f"{col} = {sql_num(cells.get(col))}" for col in MDO_COLS if cells.get(col) is not None)
+    vals = ", ".join(f"{MDO_COLS[col]} = {sql_num(cells.get(col))}" for col in MDO_COLS if cells.get(col) is not None)
+    conflict = f"on conflict (kpi_date) do update set {vals};" if vals else "on conflict (kpi_date) do nothing;"
     emit("007_mdo_kpis",
-         f"insert into daily_kpis (kpi_date, {', '.join(MDO_COLS.values()) if False else ''}) "
-         f"values ({sql_date(d)}, {', '.join(sql_num(cells.get(c)) for c in MDO_COLS)}) "
-         f"on conflict (kpi_date) do update set {vals};")
+         f"insert into daily_kpis (kpi_date, {', '.join(mdo_col_names)}) "
+         f"values ({sql_date(d)}, {', '.join(sql_num(cells.get(c)) for c in MDO_COLS)}) {conflict}")
     mdo_counter += 1
 
 emit("007_mdo_kpis", "")
@@ -684,8 +702,28 @@ report.append("- Sales rows without a date in column A were skipped.")
 report.append("- Inventory movement dates are best-effort (year 2025 assumed from column-header text).")
 report.append("- `product_components` (composed EVS items cost build-up) is left empty; the admin defines components in the app.")
 report.append("- Expense scope is inferred from category; rows without a scope marker default to `pessoal`.")
+report.append("- `supabase/seed.sql` is the combined copy of seeds 001–007 used by `supabase db push --include-seed` / `supabase db reset`.")
+report.append("- `etl/check_seed_schema.py` statically validates the seeds against the schema (tables, columns, arity, NULLs, lookups).")
 report.append("")
 
 with open(os.path.join(ROOT, "etl", "validation_report.md"), "w", encoding="utf-8") as fh:
     fh.write("\n".join(report))
 print("\nwrote etl/validation_report.md")
+
+# ---------------------------------------------------------------------------
+# 9. Combined seed file (supabase/seed.sql)
+#    Used by `supabase db reset` (local) and `supabase db push --include-seed`.
+# ---------------------------------------------------------------------------
+combined_path = os.path.join(ROOT, "supabase", "seed.sql")
+with open(combined_path, "w", encoding="utf-8") as fh:
+    fh.write("-- ============================================================================\n")
+    fh.write("-- BioAvalia — combined seed (GENERATED by etl/extract.py; do not edit by hand)\n")
+    fh.write("-- Applies seeds 001..007 in dependency order.\n")
+    fh.write("-- Executed by: `supabase db reset` (local) / `supabase db push --include-seed`.\n")
+    fh.write("-- WARNING: ledger rows have no natural unique key — DO NOT run twice.\n")
+    fh.write("-- ============================================================================\n\n")
+    for name in sorted(seeds):
+        fh.write(f"-- ===== {name}.sql =====================================================\n\n")
+        fh.write("\n".join(seeds[name]))
+        fh.write("\n\n")
+print("wrote", combined_path)

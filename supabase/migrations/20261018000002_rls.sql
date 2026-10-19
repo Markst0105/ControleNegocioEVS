@@ -1,6 +1,7 @@
 -- ============================================================================
 -- BioAvalia — Row Level Security
 -- Roles: admin / operator / member (stored in profiles.role)
+-- All statements are idempotent (safe to re-run).
 -- ============================================================================
 
 alter table profiles enable row level security;
@@ -27,23 +28,32 @@ alter table daily_kpis enable row level security;
 alter table herbalife_statements enable row level security;
 alter table audit_log enable row level security;
 
--- helper: current user's role
+-- ---------------------------------------------------------------------------
+-- Role helper.
+-- SECURITY DEFINER is REQUIRED: policies on `profiles` call this function,
+-- and the function itself reads `profiles`. Without definer rights Postgres
+-- would re-evaluate the policies on the inner SELECT and recurse infinitely.
+-- ---------------------------------------------------------------------------
 create or replace function current_user_role()
 returns text
-language plpgsql
+language sql
 stable
+security definer
+set search_path = public, pg_temp
 as $$
-declare
-    v_role text;
-begin
-    select role into v_role
-    from profiles
-    where id = auth.uid();
-    return coalesce(v_role,'member');
-end;
+    select coalesce(
+        (select role from profiles where id = auth.uid()),
+        'member'
+    );
 $$;
 
--- ---------- admin: everything ----------
+revoke all on function current_user_role() from public;
+grant execute on function current_user_role() to authenticated, anon;
+
+-- ---------------------------------------------------------------------------
+-- admin: full access to everything
+-- ---------------------------------------------------------------------------
+drop policy if exists admin_all on profiles;
 create policy admin_all on profiles
     for all using (current_user_role() = 'admin')
     with check (current_user_role() = 'admin');
@@ -52,99 +62,138 @@ do $$
 declare t text;
 begin
     for t in (
-        select tablename from pg_tables where schemaname='public'
-          and tablename <> 'profiles'
+        select tablename from pg_tables
+        where schemaname = 'public' and tablename <> 'profiles'
     ) loop
-        execute format($f$
-            create policy admin_all_%I on public.%I
-            for all using (current_user_role() = 'admin')
-            with check (current_user_role() = 'admin')
-        $f$, t, t);
+        execute format('drop policy if exists admin_all on public.%I', t);
+        execute format(
+            'create policy admin_all on public.%I for all using (current_user_role() = ''admin'') with check (current_user_role() = ''admin'')',
+            t
+        );
     end loop;
 end $$;
 
--- ---------- operator ----------
--- catalog: read
-create policy operator_catalog_read on products for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on product_prices for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on product_components for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on payment_methods for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on deal_types for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on item_classes for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on expense_categories for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on accounts for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on locations for select using (current_user_role() = 'operator');
-create policy operator_catalog_read on counterparties for select using (current_user_role() = 'operator');
+-- ---------------------------------------------------------------------------
+-- operator (EVS floor staff): catalog, clients, sales, inventory, MDO,
+-- reservations. NO access to personal expenses, royalties, audit.
+-- ---------------------------------------------------------------------------
 
--- clients: full
-create policy operator_clients_all on clients for all using (current_user_role() = 'operator')
-    with check (current_user_role() = 'operator');
+do $$
+declare t text;
+begin
+    for t in (
+        select unnest(array['products','product_prices','product_components','payment_methods',
+                            'deal_types','item_classes','expense_categories','accounts',
+                            'locations','counterparties','client_aliases'])
+    ) loop
+        execute format('drop policy if exists operator_read on public.%I', t);
+        execute format(
+            'create policy operator_read on public.%I for select using (current_user_role() = ''operator'')',
+            t
+        );
+    end loop;
+end $$;
 
--- sales: full (floor staff enters everything)
-create policy operator_sales_all on sales for all using (current_user_role() = 'operator')
-    with check (current_user_role() = 'operator');
-create policy operator_sale_payments_all on sale_payments for all using (current_user_role() = 'operator')
-    with check (current_user_role() = 'operator');
-
--- inventory + MDO: full
-create policy operator_inventory_all on inventory_movements for all using (current_user_role() = 'operator')
-    with check (current_user_role() = 'operator');
-create policy operator_stock_counts_all on stock_counts for all using (current_user_role() = 'operator')
-    with check (current_user_role() = 'operator');
-create policy operator_daily_kpis_all on daily_kpis for all using (current_user_role() = 'operator')
-    with check (current_user_role() = 'operator');
-
--- reservations: full (operator converts member reservations)
-create policy operator_reservations_all on reservations for all using (current_user_role() = 'operator')
-    with check (current_user_role() = 'operator');
-create policy operator_reservation_items_all on reservation_items for all using (current_user_role() = 'operator')
-    with check (current_user_role() = 'operator');
-
--- NO operator access to: expenses (scope-based below), herbalife_statements, audit_log, profiles (own only)
-
--- expenses: operator sees only negocio scope; never pessoal
-create policy operator_expenses_negocio on expenses
-    for select using (current_user_role() = 'operator' and scope in ('negocio_fixo','negocio_variavel'));
-
--- ---------- member ----------
--- own profile read/update
-create policy member_own_profile on profiles
+-- profiles: own row (any role) + operators may read member rows (reservations UI)
+drop policy if exists own_profile_read on profiles;
+create policy own_profile_read on profiles
     for select using (id = auth.uid());
-create policy member_update_own_profile on profiles
+
+drop policy if exists own_profile_update on profiles;
+create policy own_profile_update on profiles
     for update using (id = auth.uid())
     with check (id = auth.uid());
 
--- catalog: read via view is enforced at the view level; base tables restricted
-create policy member_products_read on products for select using (current_user_role() = 'member' and is_active = true);
-create policy member_prices_read on product_prices for select using (current_user_role() = 'member');
-create policy member_components_read on product_components for select using (current_user_role() = 'member');
+drop policy if exists operator_read_members on profiles;
+create policy operator_read_members on profiles
+    for select using (current_user_role() = 'operator' and role = 'member');
 
--- clients: read names only (needed for reservations)
-create policy member_clients_read on clients for select using (current_user_role() = 'member');
+-- clients: full
+drop policy if exists operator_clients_all on clients;
+create policy operator_clients_all on clients
+    for all using (current_user_role() = 'operator')
+    with check (current_user_role() = 'operator');
 
--- reservations: member creates own, reads own
+-- sales + payments: full (floor staff enters everything)
+drop policy if exists operator_sales_all on sales;
+create policy operator_sales_all on sales
+    for all using (current_user_role() = 'operator')
+    with check (current_user_role() = 'operator');
+
+drop policy if exists operator_sale_payments_all on sale_payments;
+create policy operator_sale_payments_all on sale_payments
+    for all using (current_user_role() = 'operator')
+    with check (current_user_role() = 'operator');
+
+-- inventory + MDO: full
+drop policy if exists operator_inventory_all on inventory_movements;
+create policy operator_inventory_all on inventory_movements
+    for all using (current_user_role() = 'operator')
+    with check (current_user_role() = 'operator');
+
+drop policy if exists operator_stock_counts_all on stock_counts;
+create policy operator_stock_counts_all on stock_counts
+    for all using (current_user_role() = 'operator')
+    with check (current_user_role() = 'operator');
+
+drop policy if exists operator_daily_kpis_all on daily_kpis;
+create policy operator_daily_kpis_all on daily_kpis
+    for all using (current_user_role() = 'operator')
+    with check (current_user_role() = 'operator');
+
+-- reservations: full (operators confirm/convert member reservations)
+drop policy if exists operator_reservations_all on reservations;
+create policy operator_reservations_all on reservations
+    for all using (current_user_role() = 'operator')
+    with check (current_user_role() = 'operator');
+
+drop policy if exists operator_reservation_items_all on reservation_items;
+create policy operator_reservation_items_all on reservation_items
+    for all using (current_user_role() = 'operator')
+    with check (current_user_role() = 'operator');
+
+-- expenses: operator sees only business scope; never pessoal
+drop policy if exists operator_expenses_negocio on expenses;
+create policy operator_expenses_negocio on expenses
+    for select using (
+        current_user_role() = 'operator'
+        and scope in ('negocio_fixo','negocio_variavel')
+    );
+
+-- ---------------------------------------------------------------------------
+-- member (client): catalog + own reservations + own profile. Nothing else.
+-- ---------------------------------------------------------------------------
+
+drop policy if exists member_reservations_own on reservations;
 create policy member_reservations_own on reservations
     for all using (member_id = auth.uid() and current_user_role() = 'member')
     with check (member_id = auth.uid() and current_user_role() = 'member');
+
+drop policy if exists member_reservation_items_own on reservation_items;
 create policy member_reservation_items_own on reservation_items
     for all using (
-        exists (select 1 from reservations r where r.id = reservation_items.reservation_id and r.member_id = auth.uid())
-        and current_user_role() = 'member'
+        current_user_role() = 'member'
+        and exists (select 1 from reservations r
+                    where r.id = reservation_items.reservation_id
+                      and r.member_id = auth.uid())
     )
     with check (
-        exists (select 1 from reservations r where r.id = reservation_items.reservation_id and r.member_id = auth.uid())
-        and current_user_role() = 'member'
+        current_user_role() = 'member'
+        and exists (select 1 from reservations r
+                    where r.id = reservation_items.reservation_id
+                      and r.member_id = auth.uid())
     );
 
--- sales: member sees only sales they created (rare) — mainly informational
-create policy member_own_sales on sales
-    for select using (created_by = auth.uid() and current_user_role() = 'member');
+-- member: no direct access to sales/expenses/payments/inventory/statements/audit.
+-- Members read the catalog through v_catalog_member (owned by postgres,
+-- definer semantics → bypasses base-table RLS).
 
--- member: no access to expenses / payments / inventory / statements / audit
+-- ---------------------------------------------------------------------------
+-- Views
+-- ---------------------------------------------------------------------------
 
--- ==== Member-facing catalog view (no cost/margin columns) ====================
-
-create view v_catalog_member as
+-- member-safe catalog: no cost/margin columns
+create or replace view v_catalog_member as
 select
     p.id,
     p.sku,
@@ -165,13 +214,11 @@ join product_prices pp on pp.product_id = p.id
      )
 where p.is_active = true;
 
-alter view v_catalog_member owner to postgres;
 grant select on v_catalog_member to authenticated;
 
--- ==== Derived views (security_invoker so RLS applies through them) ============
-
+-- derived views: security_invoker so caller RLS applies through them
 create or replace view v_stock_on_hand
-security_invoker = true
+with (security_invoker = true)
 as
 select
     p.id as product_id,
@@ -184,7 +231,7 @@ left join inventory_movements im on im.product_id = p.id
 group by p.id, p.sku, p.name, im.location_to;
 
 create or replace view v_receivables_schedule
-security_invoker = true
+with (security_invoker = true)
 as
 select
     sp.due_on,
@@ -193,11 +240,12 @@ select
 from sale_payments sp
 join sales s on s.id = sp.sale_id
 where sp.received_on is null
+  and sp.due_on is not null
 group by sp.due_on
 order by sp.due_on;
 
 create or replace view v_monthly_sales_by_deal_type
-security_invoker = true
+with (security_invoker = true)
 as
 select
     date_trunc('month', s.sold_on)::date as month,
@@ -215,7 +263,7 @@ group by 1,2,3
 order by 1 desc, 2;
 
 create or replace view v_monthly_expenses_by_category
-security_invoker = true
+with (security_invoker = true)
 as
 select
     date_trunc('month', e.incurred_on)::date as month,
@@ -228,7 +276,7 @@ group by 1,2,3
 order by 1 desc, 2;
 
 create or replace view v_monthly_kpis
-security_invoker = true
+with (security_invoker = true)
 as
 select
     date_trunc('month', d.kpi_date)::date as month,
@@ -245,7 +293,7 @@ group by 1
 order by 1 desc;
 
 create or replace view v_monthly_pnl
-security_invoker = true
+with (security_invoker = true)
 as
 with sales_m as (
     select date_trunc('month', sold_on)::date as month,

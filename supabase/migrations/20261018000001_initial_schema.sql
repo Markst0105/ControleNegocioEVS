@@ -8,7 +8,7 @@
 create extension if not exists pgcrypto;
 
 -- ==== Profiles (app users) ====================================================
-create table profiles (
+create table if not exists profiles (
     id            uuid primary key references auth.users(id) on delete cascade,
     name          text not null,
     role          text not null
@@ -21,7 +21,7 @@ comment on table profiles is 'App users. admin = full access; operator = floor s
 
 -- ==== Reference data ==========================================================
 
-create table payment_methods (
+create table if not exists payment_methods (
     code          text primary key,        -- $  P  TK  1  2  3  NP  NTT ...
     label         text not null,           -- Dinheiro / PIX / Cartela / Crédito 1x / ...
     kind          text not null
@@ -34,7 +34,7 @@ create table payment_methods (
 
 comment on column payment_methods.code is 'Single-letter codes from the spreadsheet: $=Dinheiro, P=PIX, TK=cartela, 1/2/3=crédito parcelas, NP=não pagou, NTT=não trouxe ticket';
 
-create table deal_types (
+create table if not exists deal_types (
     code          text primary key,        -- 0  CONS  NEG  BRINDE  LEVOU  TROUXE  0.25 ...
     label         text not null,
     kind          text not null
@@ -48,7 +48,7 @@ create table deal_types (
 
 comment on column deal_types.code is 'Column D of Lançamento de Venda. CONS=consumo próprio, NEG=negócio, BRINDE=brinde, LEVOU=empréstimo saída, TROUXE=devolução, numerics = desconto %';
 
-create table item_classes (
+create table if not exists item_classes (
     code           text primary key,      -- N.I  N.E  E.A  E.X  E.AC  E.AF  N.IF
     label          text not null,
     family         text not null,         -- N.I / N.E / E.A / E.X  (for "E.A*" wildcard rollups)
@@ -59,7 +59,7 @@ create table item_classes (
 
 comment on column item_classes.family is 'Used to aggregate MDO "Espaço" classes (E.A + E.AC + E.AF) just like the workbook"s E.A* wildcard';
 
-create table expense_categories (
+create table if not exists expense_categories (
     id          uuid primary key default gen_random_uuid(),
     name        text not null unique,    -- Alimentação / EVS Mooca Custo Fixo / ...
     scope       text not null
@@ -69,7 +69,7 @@ create table expense_categories (
     created_at  timestamptz default now()
 );
 
-create table accounts (
+create table if not exists accounts (
     id      uuid primary key default gen_random_uuid(),
     name    text not null unique,        -- Cash Jun / Itaú / Crédito Art Salsa
     is_bank boolean default true,
@@ -77,7 +77,7 @@ create table accounts (
     created_at timestamptz default now()
 );
 
-create table locations (
+create table if not exists locations (
     id     uuid primary key default gen_random_uuid(),
     code   text unique not null,         -- EVS  CASA  MALA  BUFFER
     label  text not null,
@@ -85,7 +85,7 @@ create table locations (
     created_at timestamptz default now()
 );
 
-create table counterparties (
+create table if not exists counterparties (
     id          uuid primary key default gen_random_uuid(),
     name        text not null unique,    -- Amanda, Paula, Sá, Geicy, Shoudi, Yumi ...
     role_hint   text,                    -- cliente / distribuidora / funcionário
@@ -95,7 +95,7 @@ create table counterparties (
 
 -- ==== Catalog =================================================================
 
-create table products (
+create table if not exists products (
     id               uuid primary key default gen_random_uuid(),
     sku              text unique not null,     -- #148K / apd / cmp05 ...
     name             text not null,
@@ -111,7 +111,7 @@ create table products (
     updated_at       timestamptz default now()
 );
 
-create table product_prices (
+create table if not exists product_prices (
     id          uuid primary key default gen_random_uuid(),
     product_id  uuid not null references products(id) on delete cascade,
     tier_code   text not null,                  -- retail / t0.25 / t0.35 / t0.42 / t0.5 / bronze / prata / ouro
@@ -124,7 +124,7 @@ create table product_prices (
 
 comment on column product_prices.tier_code is 'Replaces the VLOOKUP→Novos Preços HLF chain. versioned by valid_from';
 
-create table product_components (
+create table if not exists product_components (
     parent_id uuid not null references products(id) on delete cascade,
     child_id  uuid not null references products(id) on delete cascade,
     qty       numeric(10,4) not null default 1,
@@ -136,7 +136,7 @@ comment on table product_components is 'Composed EVS items (aces, waffles, soups
 
 -- ==== Clients =================================================================
 
-create table clients (
+create table if not exists clients (
     id               uuid primary key default gen_random_uuid(),
     name             text not null,
     name_normalized  text not null unique,
@@ -147,7 +147,7 @@ create table clients (
     updated_at       timestamptz default now()
 );
 
-create table client_aliases (
+create table if not exists client_aliases (
     raw_name  text primary key,     -- "Abel (Pai Taise)" / "Abel (pai da Taise)"
     client_id uuid not null references clients(id) on delete cascade,
     created_at timestamptz default now()
@@ -157,7 +157,7 @@ comment on table client_aliases is 'Absorbs spelling variants found in the ledge
 
 -- ==== Sales (Lançamento de Venda) =============================================
 
-create table sales (
+create table if not exists sales (
     id                uuid primary key default gen_random_uuid(),
     sold_on           date not null,
     client_id         uuid references clients(id) on delete set null,
@@ -184,18 +184,18 @@ create table sales (
     created_by        uuid references auth.users(id)
 );
 
-create index idx_sales_date on sales(sold_on);
-create index idx_sales_client on sales(client_id);
-create index idx_sales_product on sales(product_id);
-create index idx_sales_created_by on sales(created_by);
+create index if not exists idx_sales_date on sales(sold_on);
+create index if not exists idx_sales_client on sales(client_id);
+create index if not exists idx_sales_product on sales(product_id);
+create index if not exists idx_sales_created_by on sales(created_by);
 
 -- ==== Installments / receivables (columns R,S / T,U / V,W) ====================
 
-create table sale_payments (
+create table if not exists sale_payments (
     id           uuid primary key default gen_random_uuid(),
     sale_id      uuid not null references sales(id) on delete cascade,
     installment  int not null check (installment in (1,2,3)),
-    due_on       date not null,
+    due_on       date,                       -- NULL when the source row has an amount but no due date
     amount       numeric(12,2) not null default 0,
     method_code  text references payment_methods(code),
     fee_pct      numeric(5,4) default 0,
@@ -204,13 +204,13 @@ create table sale_payments (
     unique (sale_id, installment)
 );
 
-create index idx_sale_payments_due on sale_payments(due_on);
+create index if not exists idx_sale_payments_due on sale_payments(due_on);
 
 comment on table sale_payments is 'Informational receivable schedule. MDO-Dia "A Receber (Cartões)" = sum(amount) grouped by due_on';
 
 -- ==== Reservations (member reserves products; operator converts to sale) ======
 
-create table reservations (
+create table if not exists reservations (
     id              uuid primary key default gen_random_uuid(),
     member_id       uuid not null references profiles(id) on delete cascade,
     status          text not null
@@ -220,10 +220,10 @@ create table reservations (
     converted_sale_id uuid references sales(id)
 );
 
-create index idx_reservations_member on reservations(member_id);
-create index idx_reservations_status on reservations(status);
+create index if not exists idx_reservations_member on reservations(member_id);
+create index if not exists idx_reservations_status on reservations(status);
 
-create table reservation_items (
+create table if not exists reservation_items (
     id          uuid primary key default gen_random_uuid(),
     reservation_id uuid not null references reservations(id) on delete cascade,
     product_id  uuid not null references products(id),
@@ -235,7 +235,7 @@ create table reservation_items (
 
 -- ==== Expenses (Lançamento Despesas / Despesas Totais) ========================
 
-create table expenses (
+create table if not exists expenses (
     id             uuid primary key default gen_random_uuid(),
     incurred_on    date not null,
     description    text not null,
@@ -249,15 +249,15 @@ create table expenses (
     created_by     uuid references auth.users(id)
 );
 
-create index idx_expenses_date on expenses(incurred_on);
-create index idx_expenses_category on expenses(category_id);
+create index if not exists idx_expenses_date on expenses(incurred_on);
+create index if not exists idx_expenses_category on expenses(category_id);
 
 -- ==== Inventory (Estoque) =====================================================
 
-create table inventory_movements (
+create table if not exists inventory_movements (
     id             uuid primary key default gen_random_uuid(),
     product_id     uuid not null references products(id) on delete cascade,
-    moved_on       date not null,
+    moved_on       date,                       -- NULL for undated legacy rows (snapshot/initial stock)
     type           text not null
                      check (type in ('purchase','sale','transfer','loan_out','loan_in','return','adjustment','count')),
     location_from  text,
@@ -270,11 +270,11 @@ create table inventory_movements (
     created_by     uuid references auth.users(id)
 );
 
-create index idx_inventory_product on inventory_movements(product_id);
-create index idx_inventory_date on inventory_movements(moved_on);
-create index idx_inventory_sale on inventory_movements(sale_id);
+create index if not exists idx_inventory_product on inventory_movements(product_id);
+create index if not exists idx_inventory_date on inventory_movements(moved_on);
+create index if not exists idx_inventory_sale on inventory_movements(sale_id);
 
-create table stock_counts (
+create table if not exists stock_counts (
     id          uuid primary key default gen_random_uuid(),
     location    text not null,
     counted_on  date not null,
@@ -284,7 +284,7 @@ create table stock_counts (
 
 -- ==== MDO daily manual KPIs (MDO-Dia columns B..AF) ==========================
 
-create table daily_kpis (
+create table if not exists daily_kpis (
     id                 uuid primary key default gen_random_uuid(),
     kpi_date           date unique not null,
     -- activities & quantities
@@ -316,11 +316,11 @@ create table daily_kpis (
     created_by         uuid references auth.users(id)
 );
 
-create index idx_daily_kpis_date on daily_kpis(kpi_date);
+create index if not exists idx_daily_kpis_date on daily_kpis(kpi_date);
 
 -- ==== Herbalife monthly statements (Consolidado N/O/P/Q) ======================
 
-create table herbalife_statements (
+create table if not exists herbalife_statements (
     month       date primary key,   -- first day of month
     royalty_usd numeric(12,2),
     royalty_fx  numeric(12,4),
@@ -332,7 +332,7 @@ create table herbalife_statements (
 
 -- ==== Audit log ===============================================================
 
-create table audit_log (
+create table if not exists audit_log (
     id          uuid primary key default gen_random_uuid(),
     table_name  text not null,
     row_id      uuid,
@@ -357,17 +357,30 @@ $$;
 
 -- trigger registration (per table)
 do $$
+declare t text;
 begin
     for t in (
         select tablename from pg_tables where schemaname='public'
           and tablename in ('products','clients','sales','expenses','inventory_movements','daily_kpis','reservations','reservation_items','herbalife_statements')
     ) loop
         execute format($f$
+            drop trigger if exists trg_%I_updated_at on public.%I;
             create trigger trg_%I_updated_at
             before update on public.%I
             for each row execute function fn_set_updated_at()
-        $f$, t.tablename, t.tablename);
+        $f$, t, t, t, t);
     end loop;
+end $$;
+
+-- ==== Circumstantial constraints (added after both tables exist) ==============
+
+do $$
+begin
+    if not exists (select 1 from pg_constraint where conname = 'sales_reservation_id_fkey') then
+        alter table sales
+            add constraint sales_reservation_id_fkey
+            foreign key (reservation_id) references reservations(id) on delete set null;
+    end if;
 end $$;
 
 -- tier price lookup (replaces VLOOKUP+ROUNDUP chain)
@@ -391,4 +404,4 @@ end;
 $$;
 
 -- ==== Row Level Security ======================================================
--- NOTE: enable per table in 002_rls.sql (separate migration for clarity)
+-- NOTE: enable per table in the follow-up migration (20261018000002_rls.sql)
