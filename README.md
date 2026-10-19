@@ -6,10 +6,11 @@ the app is the single source of truth. The interface is pt-BR; code, comments an
 database identifiers are in English.
 
 > [!NOTE]
-> **Status: Phase 0 complete.** Database schema, RLS, ETL and the full import are
-> built and verified end-to-end (19/19 RLS checks, 100/100 workbook-validation
-> checks, seed loaded against a real PostgreSQL instance). Phase 1 — the Next.js
-> web app — is next.
+> **Status: Phase 1 — first milestone complete.** Login, role-aware app shell,
+> Painel (monthly KPIs from `v_monthly_pnl`, open receivables, latest sales),
+> Vendas list (month filter, search, pagination) and Lançamento de venda are
+> live. The member area is a placeholder, and client management, inventory,
+> expenses and reservations come next.
 
 ## What it covers
 
@@ -32,8 +33,8 @@ Three roles, enforced in the database with Row-Level Security:
 
 | Layer | Choice |
 |-------|--------|
-| Web app | Next.js (App Router) + TypeScript — *Phase 1* |
-| UI | Tailwind CSS + shadcn/ui, pt-BR |
+| Web app | Next.js 16 (App Router) + TypeScript + `@supabase/ssr` |
+| UI | Tailwind CSS v4 + shadcn/ui, IBM Plex Sans/Mono, pt-BR |
 | Database | Supabase (PostgreSQL) — SQL schema, RLS, reporting views |
 | ETL | Python 3 (standard library only) |
 | Deploy | Vercel |
@@ -41,13 +42,17 @@ Three roles, enforced in the database with Row-Level Security:
 ## Repository layout
 
 ```
-docs/          phase-0-setup.md — step-by-step Supabase setup
-etl/           workbook → SQL seeds (extract.py), schema checker, validation
+src/            Next.js app (App Router, components, lib)
+  app/          routes: (auth)/login, (app)/painel, (app)/vendas
+  components/   ui (shadcn) + app (shell, nav, combobox, badges…)
+  lib/          Supabase clients, auth, formatting, nav
+docs/           phase-0-setup.md, design-system.md
+etl/            workbook → SQL seeds (extract.py), schema checker, validation
 supabase/
-  migrations/  schema + RLS/views (idempotent)
-  seeds/       generated data, one file per step
-  seed.sql     combined seed used by `db push --include-seed` / `db reset`
-  tests/       RLS smoke test (self-rolling-back)
+  migrations/   schema + RLS/views (idempotent)
+  seeds/        generated data, one file per step
+  seed.sql      combined seed used by `db push --include-seed` / `db reset`
+  tests/        RLS smoke test (self-rolling-back)
 ```
 
 ## Getting started
@@ -71,6 +76,49 @@ Python 3.10+ only if you need to re-run the ETL.
 > Load the seed **once**. Ledger rows (sales, installments, inventory movements,
 > expenses, MDO days) have no natural unique key, so running the seed twice
 > duplicates them. Migrations, in contrast, are idempotent and safe to re-apply.
+
+## Running the web app
+
+Prerequisites: Node.js 20.9+ and the Supabase project loaded as above.
+
+```bash
+npm install
+
+# Supabase → Project Settings → API keys
+cp .env.example .env.local
+# fill NEXT_PUBLIC_SUPABASE_URL and
+# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (the legacy anon key also works)
+
+npm run dev          # http://localhost:3000
+```
+
+Sign in with the admin user created in
+[`docs/phase-0-setup.md`](docs/phase-0-setup.md). To add an operator, create the
+user in Supabase Auth and insert their profile:
+
+```sql
+insert into public.profiles (id, name, role)
+select id, 'Nome', 'operator' from auth.users where email = 'email@exemplo.com'
+on conflict (id) do update set name = excluded.name, role = excluded.role;
+```
+
+Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
+`npm run typecheck`, and `npm run db:types` (regenerate
+`src/lib/supabase/database.types.ts` from the Supabase project; requires
+`SUPABASE_PROJECT_ID` and a logged-in Supabase CLI).
+
+What this milestone includes:
+
+- cookie-based Supabase session (proxy refreshes tokens and gates every route);
+- role-aware shell: desktop sidebar + mobile bottom nav;
+- **Painel** — monthly P&L KPIs, open receivables, latest sales;
+- **Vendas** — month filter, text search, pagination;
+- **Lançar venda** — client/product comboboxes, payment method with up to three
+  installments, discount handling, costs, PV, observation.
+
+Client creation, expenses, inventory, MDO and reservations are the next
+milestones. The visual language is documented in
+[`docs/design-system.md`](docs/design-system.md).
 
 ## ETL (workbook → seeds)
 
@@ -103,5 +151,8 @@ frozen: after cutover the app is the source of truth.
 ## Roadmap
 
 - [x] **Phase 0** — PostgreSQL schema, RLS, ETL, seeds and validation
-- [ ] **Phase 1** — Next.js app: auth gate, pt-BR app shell and “Lançamento de Vendas”
-- [ ] **Phase 2+** — remaining modules: inventory, expenses & P&L, dashboards, reservations
+- [x] **Phase 1** — Next.js app: auth gate, pt-BR app shell, Painel, Vendas and
+      Lançamento de Vendas
+- [ ] **Phase 2** — clients (CRUD + phone/WhatsApp), expenses & P&L screens,
+      inventory and purchases
+- [ ] **Phase 3** — MDO daily KPIs, reservations and the member area
