@@ -42,6 +42,8 @@ export type Database = {
           name_normalized: string;
           phone: string | null;
           whatsapp: string | null;
+          phone_normalized: string | null;
+          whatsapp_normalized: string | null;
           notes: string | null;
           created_at: string | null;
           updated_at: string | null;
@@ -52,6 +54,8 @@ export type Database = {
           name_normalized: string;
           phone?: string | null;
           whatsapp?: string | null;
+          phone_normalized?: string | null;
+          whatsapp_normalized?: string | null;
           notes?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
@@ -62,9 +66,29 @@ export type Database = {
           name_normalized?: string;
           phone?: string | null;
           whatsapp?: string | null;
+          phone_normalized?: string | null;
+          whatsapp_normalized?: string | null;
           notes?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      client_aliases: {
+        Row: {
+          raw_name: string;
+          client_id: string;
+          created_at: string | null;
+        };
+        Insert: {
+          raw_name: string;
+          client_id: string;
+          created_at?: string | null;
+        };
+        Update: {
+          raw_name?: string;
+          client_id?: string;
+          created_at?: string | null;
         };
         Relationships: [];
       };
@@ -290,6 +314,25 @@ export type Database = {
       };
     };
     Views: {
+      v_client_overview: {
+        Row: {
+          id: string;
+          name: string;
+          name_normalized: string;
+          phone: string | null;
+          whatsapp: string | null;
+          phone_normalized: string | null;
+          whatsapp_normalized: string | null;
+          notes: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+          sales_count: number;
+          total_spent: number;
+          last_purchase_on: string | null;
+          open_amount: number;
+        };
+        Relationships: [];
+      };
       v_monthly_pnl: {
         Row: {
           month: string | null;
@@ -315,6 +358,10 @@ export type Database = {
       };
     };
     Functions: {
+      merge_clients: {
+        Args: { p_source: string; p_target: string };
+        Returns: undefined;
+      };
       open_receivables_total: {
         Args: Record<PropertyKey, never>;
         Returns: number;

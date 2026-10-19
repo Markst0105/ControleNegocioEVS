@@ -187,6 +187,12 @@ from the server action, never raw database errors.
   to it.
 - Empty states use the shadcn `Empty` pattern with a single clear action; their
   title uses Instrument Serif and the action is bold.
+- **Clientes** follows the Vendas ledger pattern: a full-bleed table with client
+  name, stacked phone/WhatsApp, last purchase, purchase count and open balance.
+  The detail page uses a four-cell KPI band, a two-column contact/notes block and
+  a recent-purchase table. Forms reuse the flat VendaForm field grid with inline
+  hints. Duplicate contacts appear in a rust alert with links to the existing records;
+  admin merge uses the destructive style and an explicit confirmation.
 - Loading uses a 16 px ring spinner; buttons show inline “Entrando…” /
   “Registrando…” with the spinner and disable while pending.
 
