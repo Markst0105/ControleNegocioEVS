@@ -344,7 +344,9 @@ export function VendaForm({ data }: { data: SaleFormData }) {
         <section className="rounded-lg border border-line bg-surface">
           <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
             <div>
-              <h2 className="text-sm font-medium">Parcelas a receber</h2>
+              <h2 className="font-serif text-[20px] leading-none font-normal">
+                Parcelas a receber
+              </h2>
               <p className="mt-0.5 text-[11px] text-ink-soft">
                 Vencimento e valor de cada parcela (até 3).
               </p>
@@ -426,7 +428,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
       ) : null}
 
       <details className="group rounded-lg border border-line bg-surface">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 font-serif text-[19px] leading-none font-normal select-none [&::-webkit-details-marker]:hidden">
           Custos e observações
           <ChevronDown className="size-4 text-ink-soft transition-transform group-open:rotate-180" />
         </summary>
@@ -475,7 +477,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
         <Button
           type="submit"
           disabled={pending}
-          className="h-10 transition-transform motion-safe:active:scale-[0.98] sm:w-44"
+          className="h-10 font-bold transition-transform motion-safe:active:scale-[0.98] sm:w-44"
         >
           {pending ? (
             <span className="inline-flex items-center gap-2">

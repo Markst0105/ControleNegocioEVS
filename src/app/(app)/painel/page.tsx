@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
 
 import { DealBadge, OriginBadge } from "@/components/app/badges";
-import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -28,8 +26,10 @@ import {
   formatMonth,
   monthFirstDay,
   nextMonthFirstDay,
+  todayISO,
 } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Painel",
@@ -90,66 +90,87 @@ export default async function PainelPage() {
   const ganho = pnl?.ganho_liquido ?? 0;
   const ganhoPositive = ganho >= 0;
 
-  return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Painel"
-        description={`Mês atual · ${formatMonth(month)}`}
-        actions={
-          <Button asChild className="hidden lg:inline-flex">
-            <Link href="/vendas/nova">
-              <Plus />
-              Lançar venda
-            </Link>
-          </Button>
-        }
-      />
+  const monthLabel = formatMonth(month);
+  const [monthNameRaw = monthLabel, year = ""] = monthLabel.split(" de ");
+  const monthName =
+    monthNameRaw.charAt(0).toUpperCase() + monthNameRaw.slice(1);
 
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-4">
-        <div className="bg-surface p-4">
-          <dt className="text-xs font-medium text-ink-soft">Ganho líquido</dt>
+  return (
+    <div className="flex flex-col gap-8 lg:gap-10">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11.5px] font-medium text-ink-soft">
+            Painel · mês corrente
+          </p>
+          <h1 className="mt-1.5 font-display text-[44px] leading-[0.95] font-semibold tracking-[-0.045em] sm:text-[58px]">
+            <mark className="marker px-1.5 text-inherit">{monthName}</mark>{" "}
+            <span className="text-[20px] font-normal tracking-[-0.02em] text-ink-soft sm:text-[23px]">
+              {year}
+            </span>
+          </h1>
+        </div>
+
+        <div className="flex shrink-0 flex-row items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-sm border border-moss/35 px-2 py-1 text-[10px] font-medium tracking-[0.08em] text-moss-ink uppercase">
+            <span aria-hidden className="size-1.5 rounded-full bg-citrus" />
+            Em aberto
+          </span>
+          <span className="num text-[10.5px] text-ink-soft">
+            atualizado em {formatDate(todayISO())}
+          </span>
+        </div>
+      </header>
+
+      <dl className="grid grid-cols-2 gap-px border-y border-line bg-line lg:grid-cols-[2.05fr_1fr_1fr_1fr]">
+        <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1 lg:pl-0">
+          <dt className="text-[11.5px] font-medium text-ink-soft">
+            Ganho líquido
+          </dt>
           <dd
-            className={
-              ganhoPositive
-                ? "num mt-1.5 text-[22px] font-medium tracking-tight text-moss-ink"
-                : "num mt-1.5 text-[22px] font-medium tracking-tight text-rust-ink"
-            }
+            className={cn(
+              "mt-2 font-display text-[32px] leading-none font-semibold tracking-[-0.035em] whitespace-nowrap sm:text-[38px]",
+              ganhoPositive ? "text-moss-ink" : "text-rust-ink",
+            )}
           >
             {formatMoney(ganho)}
           </dd>
-          <p className="mt-1 text-[11px] text-ink-soft">
+          <p className="mt-2 text-[10.5px] text-ink-soft">
             Vendas + bônus − custos do mês
           </p>
         </div>
 
-        <div className="bg-surface p-4">
-          <dt className="text-xs font-medium text-ink-soft">Vendas no mês</dt>
-          <dd className="num mt-1.5 text-[22px] font-medium tracking-tight">
+        <div className="bg-paper px-4 py-5 sm:px-5">
+          <dt className="text-[11.5px] font-medium text-ink-soft">
+            Vendas no mês
+          </dt>
+          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
             {formatInt(salesCount)}
           </dd>
-          <p className="mt-1 text-[11px] text-ink-soft">lançamentos registrados</p>
+          <p className="mt-2 text-[10.5px] text-ink-soft">
+            lançamentos registrados
+          </p>
         </div>
 
-        <div className="bg-surface p-4">
-          <dt className="text-xs font-medium text-ink-soft">PV no mês</dt>
-          <dd className="num mt-1.5 text-[22px] font-medium tracking-tight">
+        <div className="bg-paper px-4 py-5 sm:px-5">
+          <dt className="text-[11.5px] font-medium text-ink-soft">PV no mês</dt>
+          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
             {formatDecimal(pnl?.pv_total ?? 0)}
           </dd>
-          <p className="mt-1 text-[11px] text-ink-soft">pontos de volume</p>
+          <p className="mt-2 text-[10.5px] text-ink-soft">pontos de volume</p>
         </div>
 
-        <div className="bg-surface p-4">
-          <dt className="text-xs font-medium text-ink-soft">A receber</dt>
-          <dd className="num mt-1.5 text-[22px] font-medium tracking-tight">
+        <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1">
+          <dt className="text-[11.5px] font-medium text-ink-soft">A receber</dt>
+          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
             {formatMoney(openReceivables)}
           </dd>
-          <p className="mt-1 text-[11px] text-ink-soft">parcelas em aberto</p>
+          <p className="mt-2 text-[10.5px] text-ink-soft">parcelas em aberto</p>
         </div>
       </dl>
 
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 className="text-sm font-semibold tracking-tight">
+          <h2 className="font-serif text-[25px] leading-none font-normal tracking-[-0.01em] sm:text-[28px]">
             Últimos lançamentos
           </h2>
           <Link
@@ -161,49 +182,63 @@ export default async function PainelPage() {
         </div>
 
         {recent.length === 0 ? (
-          <Empty className="border border-line bg-surface">
+          <Empty className="rounded-none border-y border-line bg-paper py-12">
             <EmptyHeader>
-              <EmptyTitle>Nenhum lançamento ainda</EmptyTitle>
+              <EmptyTitle className="font-serif text-[24px] font-normal">
+                Nenhum lançamento ainda
+              </EmptyTitle>
               <EmptyDescription>
                 Registre a primeira venda para começar o controle.
               </EmptyDescription>
             </EmptyHeader>
-            <Button asChild size="sm">
+            <Button asChild size="sm" className="font-bold">
               <Link href="/vendas/nova">Lançar venda</Link>
             </Button>
           </Empty>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          <div className="border-t border-ink/70">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-8 pl-3 text-[11px] font-medium text-ink-soft">
+                <TableRow className="border-b-ink/70 hover:bg-transparent">
+                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
                     Data
                   </TableHead>
-                  <TableHead className="h-8 text-[11px] font-medium text-ink-soft">
+                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
                     Cliente
                   </TableHead>
-                  <TableHead className="hidden h-8 text-[11px] font-medium text-ink-soft md:table-cell">
+                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft md:table-cell">
                     Produto
                   </TableHead>
-                  <TableHead className="hidden h-8 text-[11px] font-medium text-ink-soft sm:table-cell">
+                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft sm:table-cell">
                     Negócio
                   </TableHead>
-                  <TableHead className="h-8 text-[11px] font-medium text-ink-soft">
+                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
                     Origem
                   </TableHead>
-                  <TableHead className="h-8 pr-3 text-right text-[11px] font-medium text-ink-soft">
+                  <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
                     Valor
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {recent.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="num px-2 py-1.5 pl-3 text-[13px] whitespace-nowrap text-ink-soft">
+                  <TableRow
+                    key={sale.id}
+                    className="border-line/80 hover:bg-moss-soft/25"
+                  >
+                    <TableCell
+                      className={cn(
+                        "num border-l-[3px] py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft",
+                        sale.origin === "CASA"
+                          ? "border-l-steel"
+                          : sale.origin === "EVS"
+                            ? "border-l-moss"
+                            : "border-l-line-strong",
+                      )}
+                    >
                       {formatDate(sale.sold_on)}
                     </TableCell>
-                    <TableCell className="max-w-[190px] px-2 py-1.5 text-[13px]">
+                    <TableCell className="max-w-[190px] px-2 py-2.5 text-[13px]">
                       <span
                         className={
                           sale.client_name_raw
@@ -214,12 +249,12 @@ export default async function PainelPage() {
                         {sale.client_name_raw ?? "Balcão"}
                       </span>
                     </TableCell>
-                    <TableCell className="hidden max-w-[240px] px-2 py-1.5 text-[13px] text-ink-soft md:table-cell">
+                    <TableCell className="hidden max-w-[240px] px-2 py-2.5 text-[13px] text-ink-soft md:table-cell">
                       <span className="block truncate">
                         {sale.product_name_raw ?? "—"}
                       </span>
                     </TableCell>
-                    <TableCell className="hidden px-2 py-1.5 sm:table-cell">
+                    <TableCell className="hidden px-2 py-2.5 sm:table-cell">
                       <DealBadge
                         label={
                           sale.deal_type_code
@@ -229,10 +264,10 @@ export default async function PainelPage() {
                         discountPct={sale.discount_pct}
                       />
                     </TableCell>
-                    <TableCell className="px-2 py-1.5">
+                    <TableCell className="px-2 py-2.5">
                       <OriginBadge origin={sale.origin} />
                     </TableCell>
-                    <TableCell className="num px-2 py-1.5 pr-3 text-right text-[13px] whitespace-nowrap">
+                    <TableCell className="num px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap">
                       {formatMoney(sale.amount_received)}
                     </TableCell>
                   </TableRow>

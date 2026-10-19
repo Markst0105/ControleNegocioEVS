@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { DealBadge, OriginBadge } from "@/components/app/badges";
 import { FlashToast } from "@/components/app/flash-toast";
@@ -33,6 +33,7 @@ import {
   nextMonthFirstDay,
 } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Vendas",
@@ -115,18 +116,7 @@ export default async function VendasPage({
         {params.ok ? <FlashToast message="Venda registrada." /> : null}
       </Suspense>
 
-      <PageHeader
-        title="Vendas"
-        description={formatMonth(mes)}
-        actions={
-          <Button asChild className="hidden lg:inline-flex">
-            <Link href="/vendas/nova">
-              <Plus />
-              Lançar venda
-            </Link>
-          </Button>
-        }
-      />
+      <PageHeader title="Vendas" description={formatMonth(mes)} />
 
       <form
         method="get"
@@ -176,9 +166,9 @@ export default async function VendasPage({
       </form>
 
       {total === 0 ? (
-        <Empty className="border border-line bg-surface">
+        <Empty className="rounded-none border-y border-line bg-paper py-12">
           <EmptyHeader>
-            <EmptyTitle>
+            <EmptyTitle className="font-serif text-[24px] font-normal">
               {filtered ? "Nenhum resultado" : "Nenhum lançamento neste mês"}
             </EmptyTitle>
             <EmptyDescription>
@@ -187,35 +177,35 @@ export default async function VendasPage({
                 : "Registre a primeira venda do mês para começar."}
             </EmptyDescription>
           </EmptyHeader>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="font-bold">
             <Link href="/vendas/nova">Lançar venda</Link>
           </Button>
         </Empty>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          <div className="border-t border-ink/70">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-8 pl-3 text-[11px] font-medium text-ink-soft">
+                <TableRow className="border-b-ink/70 hover:bg-transparent">
+                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
                     Data
                   </TableHead>
-                  <TableHead className="h-8 text-[11px] font-medium text-ink-soft">
+                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
                     Cliente
                   </TableHead>
-                  <TableHead className="hidden h-8 text-[11px] font-medium text-ink-soft md:table-cell">
+                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft md:table-cell">
                     Produto
                   </TableHead>
-                  <TableHead className="hidden h-8 text-[11px] font-medium text-ink-soft lg:table-cell">
+                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft lg:table-cell">
                     Negócio
                   </TableHead>
-                  <TableHead className="h-8 text-[11px] font-medium text-ink-soft">
+                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
                     Origem
                   </TableHead>
-                  <TableHead className="h-8 text-right text-[11px] font-medium text-ink-soft">
+                  <TableHead className="h-9 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
                     Valor
                   </TableHead>
-                  <TableHead className="hidden h-8 pr-3 text-right text-[11px] font-medium text-ink-soft sm:table-cell">
+                  <TableHead className="hidden h-9 pr-3 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft sm:table-cell">
                     Lucro
                   </TableHead>
                 </TableRow>
@@ -224,11 +214,23 @@ export default async function VendasPage({
                 {sales?.map((sale) => {
                   const profit = sale.profit;
                   return (
-                    <TableRow key={sale.id}>
-                      <TableCell className="num px-2 py-1.5 pl-3 text-[13px] whitespace-nowrap text-ink-soft">
+                    <TableRow
+                      key={sale.id}
+                      className="border-line/80 hover:bg-moss-soft/25"
+                    >
+                      <TableCell
+                        className={cn(
+                          "num border-l-[3px] py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft",
+                          sale.origin === "CASA"
+                            ? "border-l-steel"
+                            : sale.origin === "EVS"
+                              ? "border-l-moss"
+                              : "border-l-line-strong",
+                        )}
+                      >
                         {formatDate(sale.sold_on)}
                       </TableCell>
-                      <TableCell className="max-w-[190px] px-2 py-1.5 text-[13px]">
+                      <TableCell className="max-w-[190px] px-2 py-2.5 text-[13px]">
                         <span
                           className={
                             sale.client_name_raw
@@ -239,12 +241,12 @@ export default async function VendasPage({
                           {sale.client_name_raw ?? "Balcão"}
                         </span>
                       </TableCell>
-                      <TableCell className="hidden max-w-[240px] px-2 py-1.5 text-[13px] text-ink-soft md:table-cell">
+                      <TableCell className="hidden max-w-[240px] px-2 py-2.5 text-[13px] text-ink-soft md:table-cell">
                         <span className="block truncate">
                           {sale.product_name_raw ?? "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="hidden px-2 py-1.5 lg:table-cell">
+                      <TableCell className="hidden px-2 py-2.5 lg:table-cell">
                         <DealBadge
                           label={
                             sale.deal_type_code
@@ -254,17 +256,17 @@ export default async function VendasPage({
                           discountPct={sale.discount_pct}
                         />
                       </TableCell>
-                      <TableCell className="px-2 py-1.5">
+                      <TableCell className="px-2 py-2.5">
                         <OriginBadge origin={sale.origin} />
                       </TableCell>
-                      <TableCell className="num px-2 py-1.5 text-right text-[13px] whitespace-nowrap">
+                      <TableCell className="num px-2 py-2.5 text-right text-[13px] whitespace-nowrap">
                         {formatMoney(sale.amount_received)}
                       </TableCell>
                       <TableCell
                         className={
                           profit !== null && profit < 0
-                            ? "num hidden px-2 py-1.5 pr-3 text-right text-[13px] whitespace-nowrap text-rust-ink sm:table-cell"
-                            : "num hidden px-2 py-1.5 pr-3 text-right text-[13px] whitespace-nowrap text-ink-soft sm:table-cell"
+                            ? "num hidden px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap text-rust-ink sm:table-cell"
+                            : "num hidden px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap text-ink-soft sm:table-cell"
                         }
                       >
                         {formatMoney(profit)}

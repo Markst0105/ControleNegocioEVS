@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
-   BioAvalia — design tokens
+   Controle de Negócio — design tokens
    Console de controle do negócio (EVS Mooca + Casa). Ver docs/design-system.md
    --------------------------------------------------------------------------- */
 :root {
@@ -73,6 +73,8 @@
 @theme inline {
   --font-sans: var(--font-plex-sans);
   --font-mono: var(--font-plex-mono);
+  --font-display: var(--font-bricolage);
+  --font-serif: var(--font-instrument-serif);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -139,6 +141,8 @@
 
   html {
     @apply font-sans;
+    /* O painel lateral usa Dialog modal; mantém a largura do conteúdo estável. */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -162,6 +166,20 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+/* Marca-texto do mês (direção Balcão). */
+@utility marker {
+  background-color: transparent;
+  background-image: linear-gradient(
+    180deg,
+    transparent 56%,
+    var(--citrus) 56%,
+    var(--citrus) 88%,
+    transparent 88%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {

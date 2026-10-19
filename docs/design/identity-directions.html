@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle de Negócio · direções de identidade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&amp;family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Fraunces:opsz,wght@9..144,400..700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Instrument+Serif&amp;display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------ */
+/* Página de comparação — fora do app                                  */
+/* ------------------------------------------------------------------ */
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: #e8e9e1; color: #1c211c; font-family: "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.page { max-width: 1280px; margin: 0 auto; padding: 56px 28px 110px; }
+.page-kicker { margin: 0 0 10px; font-size: 12px; color: #596055; }
+.page h1 { margin: 0; font-family: "Bricolage Grotesque", "Archivo", sans-serif; font-size: clamp(34px, 4.6vw, 54px); line-height: 1.02; letter-spacing: -.035em; font-weight: 650; }
+.lede { margin: 14px 0 0; max-width: 66ch; font-size: 15px; line-height: 1.55; color: #4f564e; }
+.instruction { margin: 10px 0 0; max-width: 68ch; font-size: 12.5px; line-height: 1.6; color: #6a7167; }
+.rec { margin: 24px 0 0; padding: 12px 16px; border-left: 3px solid #c3cf3f; background: #f3f4e9; font-size: 13px; line-height: 1.55; max-width: 76ch; }
+.jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+.jump a { font-size: 12px; color: #2c332c; border: 1px solid #c9ccc0; background: #f4f5ed; padding: 7px 11px; border-radius: 3px; text-decoration: none; }
+.jump a:hover { border-color: #1c211c; }
+.direction { margin-top: 76px; scroll-margin-top: 24px; }
+.direction-head { display: grid; grid-template-columns: minmax(200px, .55fr) 1.45fr; gap: 18px 40px; align-items: end; margin-bottom: 18px; }
+.direction-kicker { margin: 0 0 4px; font-size: 11px; color: #6a7167; }
+.direction-head h2 { margin: 0; font-family: "Bricolage Grotesque", "Archivo", sans-serif; font-size: 30px; letter-spacing: -.03em; font-weight: 600; }
+.direction-notes { font-size: 13px; line-height: 1.6; color: #4f564e; }
+.direction-notes p { margin: 0; }
+.direction-notes p + p { margin-top: 6px; }
+.direction-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: #6a7167; }
+.swatches { display: inline-flex; gap: 4px; }
+.swatches i { width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(0,0,0,.12); display: block; }
+.tile { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid #c9ccc0; box-shadow: 0 1px 2px rgba(20,25,20,.06), 0 36px 70px -50px rgba(20,25,20,.55); }
+.tile input, .tile button { font: inherit; }
+.tile a { text-decoration: none; }
+.page-foot { margin-top: 84px; padding-top: 24px; border-top: 1px solid #c9ccc0; font-size: 12.5px; color: #5b6258; line-height: 1.65; max-width: 80ch; }
+.page-foot p { margin: 0; }
+.page-foot p + p { margin-top: 8px; }
+.page-foot strong { color: #1c211c; }
+@media (max-width: 760px) {
+  .page { padding: 32px 16px 70px; }
+  .direction-head { grid-template-columns: 1fr; gap: 8px; }
+  .direction { margin-top: 56px; }
+}
+/* ------------------------------------------------------------------ */
+/* A — Balcão: balcão da loja + talão; dois lugares                    */
+/* ------------------------------------------------------------------ */
+.tile-a { --a-paper: #f1f1e6; --a-surface: #faf9f1; --a-ink: #172018; --a-soft: #5c6457; --a-line: #d9dcc9; --a-line2: #bec3ad; --a-moss: #22432f; --a-moss2: #2f5d3d; --a-citrus: #c3cf3f; --a-citrus-soft: #eef2c9; --a-steel: #3c5f74; background: var(--a-paper); color: var(--a-ink); font-family: "IBM Plex Sans", sans-serif; position: relative; }
+.a-shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 820px; }
+.a-content { min-width: 0; }
+.a-rail { background: var(--a-moss); color: #eef1e5; padding: 22px 16px; display: flex; flex-direction: column; gap: 24px; }
+.a-wordmark { font-family: "Bricolage Grotesque", sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -.035em; color: #f4f6e9; line-height: 1.05; }
+.a-tagline { display: block; font-size: 10.5px; color: #b9c6b4; margin-top: 5px; }
+.a-cta { height: 40px; border: 0; border-radius: 4px; background: var(--a-citrus); color: #1d291c; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.a-cta:active { transform: scale(.98); }
+.a-nav { display: flex; flex-direction: column; gap: 2px; }
+.a-nav a { color: #c9d4c4; font-size: 13.5px; font-weight: 500; padding: 9px 10px; border-radius: 4px; }
+.a-nav a.is-active { background: rgba(244,246,233,.1); color: #fff; }
+.a-user { margin-top: auto; display: flex; gap: 10px; align-items: center; border-top: 1px solid rgba(244,246,233,.14); padding-top: 14px; }
+.a-avatar { width: 30px; height: 30px; border-radius: 50%; background: #f4f6e9; color: var(--a-moss); font-size: 11px; font-weight: 600; display: grid; place-items: center; flex: none; }
+.a-user strong { display: block; font-size: 12.5px; font-weight: 500; color: #f0f3e7; }
+.a-user small { display: block; font-size: 10.5px; color: #a8b7a3; margin-top: 1px; }
+.a-main { padding: 30px 34px 74px; min-width: 0; }
+.a-mobilebar { display: none; }
+.a-month { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.a-eyebrow { margin: 0 0 4px; font-size: 11.5px; color: var(--a-soft); }
+.a-month h2 { margin: 0; font-family: "Bricolage Grotesque", sans-serif; font-size: clamp(38px, 5vw, 56px); line-height: 1; letter-spacing: -.035em; font-weight: 650; }
+.a-month h2 span { font-size: 22px; font-weight: 400; letter-spacing: -.01em; color: var(--a-soft); margin-left: 6px; }
+.a-month mark { background: linear-gradient(180deg, transparent 58%, var(--a-citrus) 58%, var(--a-citrus) 88%, transparent 88%); color: inherit; padding: 0 8px 0 2px; }
+.a-month-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; padding-bottom: 4px; }
+.a-stamp { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--a-moss2); color: var(--a-moss2); padding: 5px 8px; border-radius: 2px; background: rgba(255,255,255,.35); }
+.a-updated { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--a-soft); }
+.a-kpis { display: grid; grid-template-columns: 2.1fr 1fr 1fr 1fr; gap: 1px; background: var(--a-line); border-top: 1px solid var(--a-line); border-bottom: 1px solid var(--a-line); margin-top: 26px; }
+.a-kpi { background: var(--a-paper); padding: 18px; display: flex; flex-direction: column; gap: 3px; }
+.a-kpi:first-child { padding-left: 0; }
+.a-kpi-label { font-size: 11.5px; color: var(--a-soft); }
+.a-kpi-big { font-family: "Bricolage Grotesque", sans-serif; font-size: 38px; line-height: 1.05; letter-spacing: -.03em; font-weight: 600; margin-top: 4px; white-space: nowrap; }
+.a-kpi strong:not(.a-kpi-big) { font-family: "IBM Plex Mono", monospace; font-size: 18px; font-weight: 500; letter-spacing: -.02em; white-space: nowrap; }
+.a-kpi small { font-size: 10.5px; color: var(--a-soft); }
+.a-delta { font-size: 11px; color: var(--a-moss2); font-weight: 500; }
+.a-section { margin-top: 30px; }
+.a-section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.a-section h3 { margin: 0; font-family: "Instrument Serif", Georgia, serif; font-size: 24px; font-weight: 400; letter-spacing: -.01em; }
+.a-section-head a { font-size: 12px; color: var(--a-soft); border-bottom: 1px solid var(--a-line2); padding-bottom: 1px; }
+.a-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.a-table th { text-align: left; font-size: 10.5px; font-weight: 500; color: var(--a-soft); padding: 8px 10px; border-bottom: 1px solid var(--a-ink); }
+.a-table th.num, .a-table td.num { text-align: right; }
+.a-table td { padding: 11px 10px; border-bottom: 1px solid var(--a-line); vertical-align: middle; }
+.a-table td:first-child { border-left: 3px solid transparent; padding-left: 8px; }
+.a-table tr.evs td:first-child { border-left-color: var(--a-moss2); }
+.a-table tr.casa td:first-child { border-left-color: var(--a-steel); }
+.a-table .date { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--a-soft); white-space: nowrap; width: 64px; }
+.a-table .client { font-weight: 500; white-space: nowrap; }
+.a-table .product { color: var(--a-soft); max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a-table td.num { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; white-space: nowrap; }
+.a-chip { display: inline-block; font-size: 10.5px; padding: 2px 6px; border: 1px solid var(--a-line2); border-radius: 2px; color: var(--a-soft); white-space: nowrap; }
+.a-chip.discount { background: var(--a-citrus-soft); border-color: transparent; color: #5d6718; font-weight: 600; }
+.a-local { font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .05em; color: var(--a-soft); }
+.a-form { margin-top: 28px; border-top: 1px solid var(--a-ink); padding-top: 18px; }
+.a-form h3 { margin: 0 0 12px; font-family: "Instrument Serif", Georgia, serif; font-size: 22px; font-weight: 400; letter-spacing: -.01em; }
+.a-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.a-field { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--a-soft); }
+.a-input { height: 38px; width: 100%; border: 1px solid var(--a-line2); border-radius: 4px; background: var(--a-surface); padding: 0 10px; font-size: 13px; color: var(--a-ink); }
+.a-input:focus { outline: 2px solid rgba(47,93,61,.2); border-color: var(--a-moss2); }
+.a-form-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+.a-hint { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--a-soft); }
+.a-submit { height: 40px; padding: 0 18px; border: 0; border-radius: 4px; background: var(--a-moss); color: #f4f6e9; font-weight: 600; font-size: 13px; cursor: pointer; }
+.a-submit:active { transform: scale(.98); }
+.a-toast { position: absolute; right: 24px; bottom: 20px; display: flex; gap: 10px; align-items: center; background: var(--a-ink); color: #f3f5e9; padding: 10px 14px; border-left: 3px solid var(--a-citrus); border-radius: 3px; box-shadow: 0 18px 40px -24px rgba(10,20,12,.7); }
+.a-toast strong { display: block; font-size: 12px; font-weight: 600; }
+.a-toast small { display: block; font-size: 10.5px; color: #b9c1b2; margin-top: 1px; }
+.a-toast-check { width: 20px; height: 20px; border-radius: 50%; background: var(--a-citrus); color: #1d291c; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: none; }
+@media (max-width: 1200px) {
+  .a-kpis { grid-template-columns: repeat(3, 1fr); }
+  .a-kpi:first-child { grid-column: 1 / -1; padding-left: 18px; }
+}
+@media (max-width: 1100px) {
+  .a-table .product { display: none; }
+}
+@media (max-width: 900px) {
+  .a-shell { grid-template-columns: 1fr; }
+  .a-rail { display: none; }
+  .a-mobilebar { display: flex; align-items: center; justify-content: space-between; background: var(--a-moss); padding: 12px 16px; }
+  .a-main { padding: 20px 16px 40px; }
+  .a-kpis { grid-template-columns: 1fr 1fr; }
+  .a-kpi:first-child { grid-column: 1 / -1; padding-left: 18px; }
+  .a-kpi:last-child { grid-column: 1 / -1; }
+  .a-kpi-big { font-size: 30px; }
+  .a-form-grid { grid-template-columns: 1fr 1fr; }
+  .a-table .product, .a-table .deal { display: none; }
+  .a-toast { display: none; }
+}
+@media (max-width: 560px) {
+  .a-month { flex-direction: column; align-items: flex-start; }
+  .a-month-meta { align-items: flex-start; }
+  .a-form-grid { grid-template-columns: 1fr; }
+  .a-kpi-big { font-size: 25px; }
+  .a-table .local { display: none; }
+}
+/* ------------------------------------------------------------------ */
+/* B — Rótulo: rótulo de produto / farmácia, precisão e ar             */
+/* ------------------------------------------------------------------ */
+.tile-b { --b-bg: #f2f4ec; --b-surface: #fffef9; --b-ink: #13211a; --b-soft: #59665d; --b-line: #d6dcd2; --b-line2: #b8c0b6; --b-green: #173f2b; --b-green-soft: #e2ede4; --b-citrus: #d6e14e; --b-steel: #39596b; background: var(--b-bg); color: var(--b-ink); font-family: "Archivo", sans-serif; position: relative; }
+.b-topbar { height: 56px; background: var(--b-green); color: #f0f3e6; display: flex; align-items: center; gap: 32px; padding: 0 28px; }
+.b-wordmark { font-family: "Instrument Serif", Georgia, serif; font-size: 26px; letter-spacing: -.01em; line-height: 1; }
+.b-topbar nav { display: flex; gap: 22px; margin-left: auto; }
+.b-topbar a { color: #c8d5c9; font-size: 12.5px; padding: 18px 0; }
+.b-topbar a.is-active { color: #fff; box-shadow: inset 0 -2px 0 var(--b-citrus); }
+.b-user { width: 28px; height: 28px; border-radius: 50%; background: #f0f3e6; color: var(--b-green); display: grid; place-items: center; font-size: 10.5px; font-weight: 600; flex: none; }
+.b-main { max-width: 1060px; margin: 0 auto; padding: 36px 28px 70px; }
+.b-month { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; border-bottom: 1px solid var(--b-line2); padding-bottom: 18px; }
+.b-label { margin: 0; font-size: 11.5px; color: var(--b-soft); }
+.b-month h2 { margin: 6px 0 0; font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: clamp(44px, 6vw, 66px); line-height: .95; letter-spacing: -.02em; }
+.b-status { font-size: 12px; color: var(--b-soft); text-align: right; }
+.b-status strong { display: block; color: var(--b-ink); font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.b-status small { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+.b-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--b-citrus); margin-right: 6px; box-shadow: 0 0 0 3px rgba(214,225,78,.24); vertical-align: 1px; }
+.b-summary { display: grid; grid-template-columns: 1.5fr 1fr; gap: 32px; align-items: end; padding: 30px 0 26px; }
+.b-kicker { font-size: 12px; color: var(--b-soft); display: block; }
+.b-summary-main strong { display: block; font-family: "Instrument Serif", Georgia, serif; font-size: clamp(44px, 5vw, 58px); font-weight: 400; line-height: 1; letter-spacing: -.02em; margin-top: 6px; }
+.b-note { display: inline-block; margin-top: 10px; font-size: 11.5px; color: var(--b-green); background: var(--b-green-soft); padding: 4px 8px; border-radius: 3px; }
+.b-figures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--b-line); border: 1px solid var(--b-line); margin: 0; }
+.b-figures div { background: var(--b-bg); padding: 10px; }
+.b-figures dt { font-size: 10.5px; color: var(--b-soft); }
+.b-figures dd { margin: 4px 0 0; font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 500; letter-spacing: -.02em; white-space: nowrap; }
+.b-section { margin-top: 20px; }
+.b-section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.b-section h3 { font-family: "Instrument Serif", Georgia, serif; font-size: 30px; font-weight: 400; margin: 0; letter-spacing: -.01em; }
+.b-section-head a { font-size: 12px; color: var(--b-green); border-bottom: 1px solid rgba(23,63,43,.3); }
+.b-table-wrap { background: var(--b-surface); border-top: 2px solid var(--b-green); }
+.b-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.b-table th { font-size: 10.5px; font-weight: 500; color: var(--b-soft); padding: 10px 12px; border-bottom: 1px solid var(--b-line); text-align: left; }
+.b-table td { padding: 12px; border-bottom: 1px solid var(--b-line); }
+.b-table tr:last-child td { border-bottom: 0; }
+.b-table .date { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--b-soft); white-space: nowrap; }
+.b-table .client { font-weight: 500; white-space: nowrap; }
+.b-table .product { color: var(--b-soft); }
+.b-table td.num { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; white-space: nowrap; }
+.b-local { display: inline-flex; align-items: center; gap: 6px; font-family: "IBM Plex Mono", monospace; font-size: 10px; color: var(--b-soft); }
+.b-local::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--b-green); }
+.b-local.casa::before { background: var(--b-steel); }
+.b-deal { font-size: 11.5px; color: var(--b-soft); }
+.b-deal.discount { color: #40500c; background: var(--b-citrus); padding: 2px 5px; border-radius: 2px; font-weight: 600; }
+.b-form { margin-top: 28px; background: var(--b-surface); border: 1px solid var(--b-line); border-radius: 6px; padding: 18px 20px 20px; }
+.b-form h3 { margin: 0 0 14px; font-family: "Instrument Serif", Georgia, serif; font-size: 26px; font-weight: 400; }
+.b-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.b-field { display: flex; flex-direction: column; gap: 5px; font-size: 10.5px; color: var(--b-soft); }
+.b-field input { height: 40px; width: 100%; border: 1px solid var(--b-line2); border-radius: 5px; padding: 0 10px; font-family: "Archivo", sans-serif; font-size: 13px; color: var(--b-ink); background: #fdfefb; }
+.b-field input:focus { outline: 2px solid rgba(23,63,43,.16); border-color: var(--b-green); }
+.b-form-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.b-hint { font-family: "IBM Plex Mono", monospace; font-size: 10px; color: var(--b-soft); }
+.b-submit { height: 40px; padding: 0 18px; border: 0; border-radius: 5px; background: var(--b-green); color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; }
+.b-submit:active { transform: scale(.98); }
+.b-toast { position: absolute; right: 24px; bottom: 20px; display: flex; gap: 8px; align-items: center; background: var(--b-green); color: #f4f6e9; font-size: 12px; padding: 10px 14px; border-radius: 4px; box-shadow: 0 14px 34px -18px rgba(10,25,15,.55); }
+.b-toast span { color: var(--b-citrus); font-weight: 700; }
+.b-cta { height: 34px; padding: 0 12px; border: 0; border-radius: 4px; background: var(--b-citrus); color: #1d291c; font-family: "Archivo", sans-serif; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.b-cta:active { transform: scale(.98); }
+@media (max-width: 1120px) {
+  .b-summary { grid-template-columns: 1fr; gap: 20px; }
+}
+@media (max-width: 900px) {
+  .b-topbar { padding: 0 16px; }
+  .b-topbar nav { display: none; }
+  .b-user { margin-left: auto; }
+  .b-main { padding: 24px 16px 56px; }
+  .b-summary { grid-template-columns: 1fr; gap: 20px; }
+  .b-form-grid { grid-template-columns: 1fr 1fr; }
+  .b-table .product, .b-table .deal { display: none; }
+  .b-toast { display: none; }
+}
+@media (max-width: 560px) {
+  .b-month { flex-direction: column; align-items: flex-start; }
+  .b-status { text-align: left; }
+  .b-figures { grid-template-columns: 1fr; }
+  .b-figures dd { font-size: 14px; }
+  .b-form-grid { grid-template-columns: 1fr; }
+  .b-table .local { display: none; }
+}
+/* ------------------------------------------------------------------ */
+/* C — Fechamento: folha de fechamento, livro-caixa, carimbo           */
+/* ------------------------------------------------------------------ */
+.tile-c { --c-paper: #f3f2ea; --c-surface: #fbfaf4; --c-ink: #191d18; --c-soft: #5d6259; --c-line: #d6d8cc; --c-line2: #b9bdb0; --c-green: #23452f; --c-rust: #a33d26; --c-citrus: #c9d23f; background: var(--c-paper); color: var(--c-ink); font-family: "IBM Plex Sans", sans-serif; position: relative; }
+.c-topbar { display: flex; align-items: center; gap: 26px; padding: 16px 36px; border-bottom: 1px solid var(--c-ink); }
+.c-wordmark { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 14px; letter-spacing: -.01em; }
+.c-topbar nav { display: flex; gap: 20px; margin-left: auto; }
+.c-topbar a { font-size: 12px; color: var(--c-soft); padding: 4px 0; }
+.c-topbar a.is-active { color: var(--c-ink); border-bottom: 1px solid var(--c-ink); }
+.c-date { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--c-soft); margin-left: 22px; }
+.c-cta { height: 28px; padding: 0 10px; border: 1px solid var(--c-ink); background: transparent; color: var(--c-ink); font-family: "IBM Plex Sans", sans-serif; font-size: 11px; font-weight: 500; cursor: pointer; }
+.c-cta:active { transform: scale(.98); }
+.c-main { max-width: 1080px; margin: 0 auto; padding: 38px 36px 80px; }
+.c-cover { display: grid; grid-template-columns: 1.35fr 1fr; gap: 48px; align-items: end; padding-bottom: 26px; border-bottom: 1px solid var(--c-ink); }
+.c-overline { margin: 0 0 8px; font-size: 11.5px; color: var(--c-soft); }
+.c-cover h2 { margin: 0; font-family: "Fraunces", Georgia, serif; font-size: clamp(48px, 6.4vw, 76px); line-height: .92; font-weight: 500; letter-spacing: -.035em; font-variation-settings: "opsz" 72; }
+.c-sub { margin: 14px 0 0; font-size: 12.5px; color: var(--c-soft); max-width: 36ch; line-height: 1.5; }
+.c-cover-right { display: flex; flex-direction: column; gap: 16px; align-items: flex-end; }
+.c-stamp { border: 2px double var(--c-green); color: var(--c-green); font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .14em; padding: 5px 10px; transform: rotate(-1.5deg); }
+.c-figures { width: 100%; margin: 0; }
+.c-figures div { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; padding: 8px 0; border-bottom: 1px dotted var(--c-line2); }
+.c-figures dt { font-size: 11px; color: var(--c-soft); }
+.c-figures dd { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 14px; white-space: nowrap; }
+.c-figures div.result { padding-top: 0; }
+.c-figures div.result dt { color: var(--c-ink); font-weight: 500; }
+.c-figures div.result dd { font-family: "Fraunces", Georgia, serif; font-size: 27px; font-weight: 500; letter-spacing: -.02em; }
+.c-figures div:last-child { border-bottom: 0; padding-bottom: 0; }
+.c-section { margin-top: 28px; }
+.c-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--c-ink); padding-bottom: 8px; }
+.c-section h3 { margin: 0; font-family: "Fraunces", Georgia, serif; font-size: 26px; font-weight: 500; letter-spacing: -.02em; }
+.c-count { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--c-soft); font-weight: 400; letter-spacing: 0; margin-left: 6px; }
+.c-section-head a { font-size: 12px; color: var(--c-ink); border-bottom: 1px solid var(--c-line2); }
+.c-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.c-table th { text-align: left; font-size: 10px; font-weight: 500; color: var(--c-soft); padding: 10px 8px 8px; border-bottom: 1px solid var(--c-line); }
+.c-table td { padding: 9px 8px; border-bottom: 1px solid var(--c-line); }
+.c-table .date { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--c-soft); white-space: nowrap; }
+.c-table .client { font-weight: 500; white-space: nowrap; }
+.c-table .product { color: var(--c-soft); }
+.c-table td.num { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; white-space: nowrap; }
+.c-local { font-family: "IBM Plex Mono", monospace; font-size: 9.5px; letter-spacing: .06em; color: var(--c-soft); }
+.c-deal { font-size: 10.5px; color: var(--c-soft); }
+.c-deal.discount { color: #4b580d; background: linear-gradient(180deg, transparent 30%, rgba(201,210,63,.55) 30%, rgba(201,210,63,.55) 92%, transparent 92%); padding: 0 2px; }
+.c-form { margin-top: 30px; display: grid; grid-template-columns: .8fr 2.2fr; gap: 36px; border-top: 1px solid var(--c-ink); padding-top: 18px; }
+.c-form-head h3 { font-family: "Fraunces", Georgia, serif; font-size: 26px; font-weight: 500; margin: 0 0 6px; letter-spacing: -.02em; }
+.c-form-head p { font-size: 11.5px; color: var(--c-soft); margin: 0; max-width: 26ch; line-height: 1.5; }
+.c-form-right { display: flex; flex-direction: column; gap: 14px; }
+.c-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+.c-field { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--c-soft); }
+.c-field input { border: 0; border-bottom: 1px solid var(--c-line2); background: transparent; height: 32px; padding: 0 2px; font-size: 13px; color: var(--c-ink); border-radius: 0; }
+.c-field input:focus { outline: 0; border-bottom: 2px solid var(--c-green); }
+.c-form-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.c-hint { font-family: "IBM Plex Mono", monospace; font-size: 10px; color: var(--c-soft); }
+.c-submit { height: 38px; padding: 0 16px; border: 0; border-radius: 2px; background: var(--c-ink); color: #f6f4ea; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.c-submit:active { transform: scale(.98); }
+.c-toast { position: absolute; right: 32px; bottom: 22px; display: flex; gap: 10px; align-items: center; background: var(--c-surface); border: 1px solid var(--c-ink); border-left: 3px solid var(--c-green); padding: 9px 12px; font-size: 11.5px; box-shadow: 0 20px 40px -30px rgba(0,0,0,.45); }
+.c-toast-mark { color: var(--c-green); font-weight: 700; }
+.c-toast-time { font-family: "IBM Plex Mono", monospace; font-size: 10px; color: var(--c-soft); }
+@media (max-width: 900px) {
+  .c-topbar { padding: 12px 16px; gap: 14px; }
+  .c-topbar nav { display: none; }
+  .c-date { margin-left: auto; }
+  .c-main { padding: 24px 16px 48px; }
+  .c-cover { grid-template-columns: 1fr; gap: 24px; }
+  .c-cover-right { align-items: flex-start; }
+  .c-form { grid-template-columns: 1fr; gap: 18px; }
+  .c-table .product, .c-table .deal { display: none; }
+  .c-toast { display: none; }
+}
+@media (max-width: 560px) {
+  .c-form-grid { grid-template-columns: 1fr; }
+  .c-table .local { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <p class="page-kicker">Controle de Negócio · estudo de identidade</p>
+    <h1>Três direções para o mesmo conteúdo</h1>
+    <p class="lede">A estrutura atual funciona, mas ficou anônima: uma só voz tipográfica, superfícies iguais e cor só nos chips. As três direções abaixo usam os mesmos dados de exemplo para você comparar o que muda de fato: tipografia, hierarquia, cor e o gesto que dá personalidade.</p>
+    <p class="instruction">A direção A foi escolhida. A implementação final no app mantém a paleta e o mês, mas troca o trilho fixo por um painel suspenso aberto pela folha, adota o nome Controle de Negócio e usa Instrument Serif nos títulos de seção e de página. Esta página fica como registro do estudo; a fonte da verdade é o app.</p>
+    <p class="rec"><strong>Direção escolhida:</strong> A (Balcão), com o tratamento de mês da direção C. Ela mantém a densidade operacional, cria um ponto focal claro e usa EVS/CASA como estrutura, não como etiqueta.</p>
+    <nav class="jump">
+      <a href="#a">A. Balcão</a>
+      <a href="#b">B. Rótulo</a>
+      <a href="#c">C. Fechamento</a>
+    </nav>
+  </header>
+
+  <section class="direction" id="a">
+    <div class="direction-head">
+      <div>
+        <p class="direction-kicker">Direção A</p>
+        <h2>Balcão</h2>
+      </div>
+      <div class="direction-notes">
+        <p>O app como balcão de loja: trilho verde profundo, ação principal em citrus, mês como manchete e a origem virando faixa na linha. A cultura do talão entra na estrutura, não como enfeite.</p>
+        <p class="direction-meta"><span class="swatches"><i style="background:#22432f"></i><i style="background:#c3cf3f"></i><i style="background:#3c5f74"></i><i style="background:#f1f1e6"></i></span> Bricolage (mês/marca) · Instrument Serif (títulos) · IBM Plex Sans/Mono</p>
+      </div>
+    </div>
+
+    <div class="tile tile-a">
+      <div class="a-shell">
+        <aside class="a-rail">
+          <div>
+            <div class="a-wordmark">Controle de Negócio</div>
+            <span class="a-tagline">EVS Mooca + Casa</span>
+          </div>
+          <button class="a-cta" type="button">+ Lançar venda</button>
+          <nav class="a-nav">
+            <a class="is-active" href="#a">Painel</a>
+            <a href="#a">Vendas</a>
+            <a href="#a">Clientes</a>
+          </nav>
+          <div class="a-user">
+            <span class="a-avatar">MO</span>
+            <span><strong>Marcos Oliveira</strong><small>Administrador</small></span>
+          </div>
+        </aside>
+        <div class="a-content">
+          <div class="a-mobilebar">
+            <div>
+              <div class="a-wordmark">Controle de Negócio</div>
+              <span class="a-tagline">EVS Mooca + Casa</span>
+            </div>
+            <span class="a-avatar">MO</span>
+          </div>
+          <div class="a-main">
+            <header class="a-month">
+              <div>
+                <p class="a-eyebrow">Mês corrente</p>
+                <h2><mark>Outubro</mark> <span>2026</span></h2>
+              </div>
+              <div class="a-month-meta">
+                <span class="a-stamp">Em aberto</span>
+                <span class="a-updated">atualizado hoje, 14h32</span>
+              </div>
+            </header>
+
+            <section class="a-kpis">
+              <div class="a-kpi">
+                <span class="a-kpi-label">Ganho líquido</span>
+                <strong class="a-kpi-big">R$ 4.812,40</strong>
+                <span class="a-delta">↑ 12% sobre setembro</span>
+              </div>
+              <div class="a-kpi">
+                <span class="a-kpi-label">Vendas</span>
+                <strong>128</strong>
+                <small>lançamentos</small>
+              </div>
+              <div class="a-kpi">
+                <span class="a-kpi-label">PV</span>
+                <strong>1.953,80</strong>
+                <small>pontos</small>
+              </div>
+              <div class="a-kpi">
+                <span class="a-kpi-label">A receber</span>
+                <strong>R$ 2.340,00</strong>
+                <small>8 parcelas</small>
+              </div>
+            </section>
+
+            <section class="a-section">
+              <div class="a-section-head">
+                <h3>Últimos lançamentos</h3>
+                <a href="#a">Ver todas</a>
+              </div>
+              <table class="a-table">
+                <thead>
+                  <tr><th>Data</th><th>Cliente</th><th class="product">Produto</th><th class="deal">Negócio</th><th class="local">Local</th><th class="num">Valor</th></tr>
+                </thead>
+                <tbody>
+                  <tr class="evs">
+                    <td class="date">19/10</td>
+                    <td class="client">Ana Paula Souza</td>
+                    <td class="product">Herbalife24 Rebuild Strength</td>
+                    <td class="deal"><span class="a-chip">Negócio</span></td>
+                    <td class="local"><span class="a-local">EVS</span></td>
+                    <td class="num">R$ 249,00</td>
+                  </tr>
+                  <tr class="casa">
+                    <td class="date">19/10</td>
+                    <td class="client">Balcão</td>
+                    <td class="product">Chá Termogênico</td>
+                    <td class="deal"><span class="a-chip">Venda</span></td>
+                    <td class="local"><span class="a-local">CASA</span></td>
+                    <td class="num">R$ 89,90</td>
+                  </tr>
+                  <tr class="evs">
+                    <td class="date">18/10</td>
+                    <td class="client">Marcos Lima</td>
+                    <td class="product">Shake Nutricional</td>
+                    <td class="deal"><span class="a-chip">Desconto</span> <span class="a-chip discount">−14%</span></td>
+                    <td class="local"><span class="a-local">EVS</span></td>
+                    <td class="num">R$ 172,00</td>
+                  </tr>
+                  <tr class="evs">
+                    <td class="date">18/10</td>
+                    <td class="client">Juliana Reis</td>
+                    <td class="product">Cartela 10 sessões</td>
+                    <td class="deal"><span class="a-chip">Cartela</span></td>
+                    <td class="local"><span class="a-local">EVS</span></td>
+                    <td class="num">R$ 450,00</td>
+                  </tr>
+                  <tr class="casa">
+                    <td class="date">17/10</td>
+                    <td class="client">Fernanda Alves</td>
+                    <td class="product">Multivitamínico</td>
+                    <td class="deal"><span class="a-chip">Brinde</span></td>
+                    <td class="local"><span class="a-local">CASA</span></td>
+                    <td class="num">R$ 0,00</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="a-form">
+              <h3>Lançar venda</h3>
+              <div class="a-form-grid">
+                <label class="a-field">Data<input class="a-input" value="19/10/2026" readonly></label>
+                <label class="a-field">Cliente<input class="a-input" value="Ana Paula Souza" readonly></label>
+                <label class="a-field">Produto<input class="a-input" value="Herbalife24 Rebuild Strength" readonly></label>
+                <label class="a-field">Forma de pagamento<input class="a-input" value="PIX" readonly></label>
+                <label class="a-field">Valor recebido<input class="a-input" value="R$ 249,00" readonly></label>
+                <label class="a-field">PV<input class="a-input" value="48,60" readonly></label>
+              </div>
+              <div class="a-form-foot">
+                <span class="a-hint">Ctrl + Enter para salvar</span>
+                <button class="a-submit" type="button">Registrar venda</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <div class="a-toast">
+        <span class="a-toast-check">✓</span>
+        <span><strong>Venda registrada</strong><small>Ana Paula Souza · R$ 249,00</small></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="direction" id="b">
+    <div class="direction-head">
+      <div>
+        <p class="direction-kicker">Direção B</p>
+        <h2>Rótulo</h2>
+      </div>
+      <div class="direction-notes">
+        <p>A linguagem do rótulo de produto: barra verde, serifa editorial, metadados precisos e o citrus como marca-texto. Mais marca e mais ar, com a mesma densidade de informação.</p>
+        <p class="direction-meta"><span class="swatches"><i style="background:#173f2b"></i><i style="background:#d6e14e"></i><i style="background:#39596b"></i><i style="background:#f2f4ec"></i></span> Instrument Serif · Archivo · Plex Mono</p>
+      </div>
+    </div>
+
+    <div class="tile tile-b">
+      <header class="b-topbar">
+        <div class="b-wordmark">Controle de Negócio</div>
+        <nav>
+          <a class="is-active" href="#b">Painel</a>
+          <a href="#b">Vendas</a>
+          <a href="#b">Clientes</a>
+        </nav>
+        <button class="b-cta" type="button">+ Lançar venda</button>
+        <span class="b-user">MO</span>
+      </header>
+      <div class="b-main">
+        <header class="b-month">
+          <div>
+            <p class="b-label">Fechamento do mês</p>
+            <h2>Outubro 2026</h2>
+          </div>
+          <div class="b-status">
+            <strong><span class="b-dot"></span>Em aberto</strong>
+            <small>atualizado 19/10 às 14h32</small>
+          </div>
+        </header>
+
+        <section class="b-summary">
+          <div class="b-summary-main">
+            <span class="b-kicker">Ganho líquido</span>
+            <strong>R$ 4.812,40</strong>
+            <span class="b-note">+12% sobre setembro</span>
+          </div>
+          <dl class="b-figures">
+            <div><dt>Vendas</dt><dd>128</dd></div>
+            <div><dt>PV</dt><dd>1.953,80</dd></div>
+            <div><dt>A receber</dt><dd>R$ 2.340,00</dd></div>
+          </dl>
+        </section>
+
+        <section class="b-section">
+          <div class="b-section-head">
+            <h3>Últimos lançamentos</h3>
+            <a href="#b">Ver todas</a>
+          </div>
+          <div class="b-table-wrap">
+            <table class="b-table">
+              <thead>
+                <tr><th>Data</th><th>Cliente</th><th class="product">Produto</th><th class="deal">Negócio</th><th class="local">Local</th><th class="num">Valor</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="date">19/10</td>
+                  <td class="client">Ana Paula Souza</td>
+                  <td class="product">Herbalife24 Rebuild Strength</td>
+                  <td class="deal"><span class="b-deal">Negócio</span></td>
+                  <td class="local"><span class="b-local">EVS</span></td>
+                  <td class="num">R$ 249,00</td>
+                </tr>
+                <tr>
+                  <td class="date">19/10</td>
+                  <td class="client">Balcão</td>
+                  <td class="product">Chá Termogênico</td>
+                  <td class="deal"><span class="b-deal">Venda</span></td>
+                  <td class="local"><span class="b-local casa">CASA</span></td>
+                  <td class="num">R$ 89,90</td>
+                </tr>
+                <tr>
+                  <td class="date">18/10</td>
+                  <td class="client">Marcos Lima</td>
+                  <td class="product">Shake Nutricional</td>
+                  <td class="deal"><span class="b-deal">Desconto</span> <span class="b-deal discount">−14%</span></td>
+                  <td class="local"><span class="b-local">EVS</span></td>
+                  <td class="num">R$ 172,00</td>
+                </tr>
+                <tr>
+                  <td class="date">18/10</td>
+                  <td class="client">Juliana Reis</td>
+                  <td class="product">Cartela 10 sessões</td>
+                  <td class="deal"><span class="b-deal">Cartela</span></td>
+                  <td class="local"><span class="b-local">EVS</span></td>
+                  <td class="num">R$ 450,00</td>
+                </tr>
+                <tr>
+                  <td class="date">17/10</td>
+                  <td class="client">Fernanda Alves</td>
+                  <td class="product">Multivitamínico</td>
+                  <td class="deal"><span class="b-deal">Brinde</span></td>
+                  <td class="local"><span class="b-local casa">CASA</span></td>
+                  <td class="num">R$ 0,00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="b-form">
+          <h3>Lançar venda</h3>
+          <div class="b-form-grid">
+            <label class="b-field">Data<input value="19/10/2026" readonly></label>
+            <label class="b-field">Cliente<input value="Ana Paula Souza" readonly></label>
+            <label class="b-field">Produto<input value="Herbalife24 Rebuild Strength" readonly></label>
+            <label class="b-field">Forma de pagamento<input value="PIX" readonly></label>
+            <label class="b-field">Valor recebido<input value="R$ 249,00" readonly></label>
+            <label class="b-field">PV<input value="48,60" readonly></label>
+          </div>
+          <div class="b-form-foot">
+            <span class="b-hint">Enter salva · Esc limpa</span>
+            <button class="b-submit" type="button">Registrar venda</button>
+          </div>
+        </section>
+      </div>
+      <div class="b-toast"><span>✓</span> Venda registrada</div>
+    </div>
+  </section>
+
+  <section class="direction" id="c">
+    <div class="direction-head">
+      <div>
+        <p class="direction-kicker">Direção C</p>
+        <h2>Fechamento</h2>
+      </div>
+      <div class="direction-notes">
+        <p>O mês como folha de fechamento: capa editorial, réguas de livro-caixa, carimbo de situação e campos que são linhas para preencher. A identidade mais forte e a mais distante de um dashboard genérico.</p>
+        <p class="direction-meta"><span class="swatches"><i style="background:#23452f"></i><i style="background:#c9d23f"></i><i style="background:#191d18"></i><i style="background:#f3f2ea"></i></span> Fraunces · IBM Plex Sans/Mono</p>
+      </div>
+    </div>
+
+    <div class="tile tile-c">
+      <header class="c-topbar">
+        <span class="c-wordmark">Controle de Negócio</span>
+        <nav>
+          <a class="is-active" href="#c">Painel</a>
+          <a href="#c">Vendas</a>
+          <a href="#c">Clientes</a>
+          <a href="#c">Despesas</a>
+        </nav>
+        <button class="c-cta" type="button">Lançar venda</button>
+        <span class="c-date">19.10.2026</span>
+      </header>
+      <div class="c-main">
+        <header class="c-cover">
+          <div>
+            <p class="c-overline">EVS Mooca + Casa</p>
+            <h2>Outubro<br>de 2026</h2>
+            <p class="c-sub">Mês em aberto. 128 lançamentos até hoje, 19 de outubro.</p>
+          </div>
+          <div class="c-cover-right">
+            <span class="c-stamp">EM ABERTO</span>
+            <dl class="c-figures">
+              <div class="result"><dt>Ganho líquido</dt><dd>R$ 4.812,40</dd></div>
+              <div><dt>Vendas</dt><dd>128</dd></div>
+              <div><dt>PV</dt><dd>1.953,80</dd></div>
+              <div><dt>A receber</dt><dd>R$ 2.340,00</dd></div>
+            </dl>
+          </div>
+        </header>
+
+        <section class="c-section">
+          <div class="c-section-head">
+            <h3>Lançamentos do mês <span class="c-count">5 de 128</span></h3>
+            <a href="#c">Ver todos</a>
+          </div>
+          <table class="c-table">
+            <thead>
+              <tr><th>Data</th><th>Cliente</th><th class="product">Produto</th><th class="deal">Negócio</th><th class="local">Local</th><th class="num">Valor</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="date">19/10</td>
+                <td class="client">Ana Paula Souza</td>
+                <td class="product">Herbalife24 Rebuild Strength</td>
+                <td class="deal"><span class="c-deal">Negócio</span></td>
+                <td class="local"><span class="c-local">EVS</span></td>
+                <td class="num">R$ 249,00</td>
+              </tr>
+              <tr>
+                <td class="date">19/10</td>
+                <td class="client">Balcão</td>
+                <td class="product">Chá Termogênico</td>
+                <td class="deal"><span class="c-deal">Venda</span></td>
+                <td class="local"><span class="c-local">CASA</span></td>
+                <td class="num">R$ 89,90</td>
+              </tr>
+              <tr>
+                <td class="date">18/10</td>
+                <td class="client">Marcos Lima</td>
+                <td class="product">Shake Nutricional</td>
+                <td class="deal"><span class="c-deal">Desconto</span> <span class="c-deal discount">−14%</span></td>
+                <td class="local"><span class="c-local">EVS</span></td>
+                <td class="num">R$ 172,00</td>
+              </tr>
+              <tr>
+                <td class="date">18/10</td>
+                <td class="client">Juliana Reis</td>
+                <td class="product">Cartela 10 sessões</td>
+                <td class="deal"><span class="c-deal">Cartela</span></td>
+                <td class="local"><span class="c-local">EVS</span></td>
+                <td class="num">R$ 450,00</td>
+              </tr>
+              <tr>
+                <td class="date">17/10</td>
+                <td class="client">Fernanda Alves</td>
+                <td class="product">Multivitamínico</td>
+                <td class="deal"><span class="c-deal">Brinde</span></td>
+                <td class="local"><span class="c-local">CASA</span></td>
+                <td class="num">R$ 0,00</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="c-form">
+          <div class="c-form-head">
+            <h3>Lançar venda</h3>
+            <p>Preencha como no livro-caixa. Cada campo é uma linha.</p>
+          </div>
+          <div class="c-form-right">
+            <div class="c-form-grid">
+              <label class="c-field">Data<input value="19/10/2026" readonly></label>
+              <label class="c-field">Cliente<input value="Ana Paula Souza" readonly></label>
+              <label class="c-field">Produto<input value="Herbalife24 Rebuild Strength" readonly></label>
+              <label class="c-field">Forma de pagamento<input value="PIX" readonly></label>
+              <label class="c-field">Valor recebido<input value="R$ 249,00" readonly></label>
+              <label class="c-field">PV<input value="48,60" readonly></label>
+            </div>
+            <div class="c-form-foot">
+              <span class="c-hint">Enter salva · Esc limpa</span>
+              <button class="c-submit" type="button">Registrar venda</button>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="c-toast"><span class="c-toast-mark">✓</span><span>Venda registrada</span><span class="c-toast-time">14h32</span></div>
+    </div>
+  </section>
+
+  <footer class="page-foot">
+    <p><strong>Como escolher:</strong> ignore detalhes que podem ser ajustados depois. Olhe para a temperatura geral, a hierarquia e o gesto que você reconheceria fora do app. As três mantêm a mesma densidade e os mesmos fluxos.</p>
+    <p><strong>Próximo passo:</strong> escolhida a direção (ou a combinação), eu levo os tokens para o app, atualizo o <code>design-system.md</code> e aplico em login, shell, Painel, Vendas e Nova venda. Depois disso, cada módulo novo nasce dentro da identidade.</p>
+  </footer>
+</div>
+</body>
+</html>
