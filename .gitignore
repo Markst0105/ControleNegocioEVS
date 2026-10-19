@@ -1,0 +1,59 @@
+# ---------------------------------------------------------------------------
+# Dependencies and build output (Node / Next.js)
+# ---------------------------------------------------------------------------
+node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+.vercel/
+
+# ---------------------------------------------------------------------------
+# Environment / secrets
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# Supabase CLI local state — supabase/config.toml and supabase/seed.sql are
+# part of the project and stay tracked
+supabase/.temp/
+supabase/.branches/
+
+# ---------------------------------------------------------------------------
+# Private business data — never commit
+# ---------------------------------------------------------------------------
+*.xlsx
+*.xls
+*.xlsm
+
+# ---------------------------------------------------------------------------
+# Local agent/tooling state (machine-specific)
+# ---------------------------------------------------------------------------
+.agents/
+skills-lock.json
+.ai-jail
+ai-jail*
+
+# ---------------------------------------------------------------------------
+# OS / editor junk
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+*:Zone.Identifier
+.idea/
+.vscode/
+*.swp
+
+# ---------------------------------------------------------------------------
+# Logs and test output
+# ---------------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
