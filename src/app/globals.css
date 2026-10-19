@@ -1,0 +1,176 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   BioAvalia — design tokens
+   Console de controle do negócio (EVS Mooca + Casa). Ver docs/design-system.md
+   --------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* superfícies e tinta */
+  --paper: #f2f3ea; /* fundo da página */
+  --surface: #fafbf6; /* superfícies elevadas (cards, menus, tabelas) */
+  --ink: #1a1f1a; /* texto principal */
+  --ink-soft: #5b6355; /* texto secundário */
+  --line: #dcdecd; /* linhas finas / bordas */
+  --line-strong: #c7cab6; /* bordas de campos */
+
+  /* marca e estados */
+  --moss: #2f5d3d; /* primária — negócio/positivo */
+  --moss-ink: #21452d;
+  --moss-soft: #e2ede3;
+  --citrus: #b9c43e; /* acento — PV, atenção */
+  --citrus-ink: #6b771f;
+  --citrus-soft: #f1f4d5;
+  --steel: #35566c; /* informativo — CASA, foco */
+  --steel-ink: #2a4759;
+  --steel-soft: #e3edf2;
+  --rust: #a33d26; /* negativo — custos, perdas, destrutivo */
+  --rust-ink: #7e2d1b;
+  --rust-soft: #f7e4dd;
+
+  /* mapeamento semântico (shadcn/ui) */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--moss);
+  --primary-foreground: #f6f9f2;
+  --secondary: #e9ebdc;
+  --secondary-foreground: var(--ink);
+  --muted: #e9ebdc;
+  --muted-foreground: var(--ink-soft);
+  --accent: #ecefe1;
+  --accent-foreground: var(--ink);
+  --destructive: var(--rust);
+  --destructive-foreground: #fdf6f3;
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--steel);
+  --chart-1: var(--moss);
+  --chart-2: var(--citrus);
+  --chart-3: var(--steel);
+  --chart-4: var(--rust);
+  --chart-5: var(--ink-soft);
+  --radius: 0.5rem;
+
+  /* reservados (uso futuro do componente sidebar do shadcn) */
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--moss);
+  --sidebar-primary-foreground: #f6f9f2;
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--steel);
+}
+
+@theme inline {
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-moss: var(--moss);
+  --color-moss-ink: var(--moss-ink);
+  --color-moss-soft: var(--moss-soft);
+  --color-citrus: var(--citrus);
+  --color-citrus-ink: var(--citrus-ink);
+  --color-citrus-soft: var(--citrus-soft);
+  --color-steel: var(--steel);
+  --color-steel-ink: var(--steel-ink);
+  --color-steel-soft: var(--steel-soft);
+  --color-rust: var(--rust);
+  --color-rust-ink: var(--rust-ink);
+  --color-rust-soft: var(--rust-soft);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-size: 0.9375rem; /* 15px — leitura confortável em pt-BR */
+    line-height: 1.5;
+  }
+
+  ::selection {
+    background: var(--citrus-soft);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline-color: color-mix(in oklab, var(--ring) 55%, transparent);
+  }
+}
+
+/* Números, códigos e datas: sempre Plex Mono com algarismos tabulares. */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
