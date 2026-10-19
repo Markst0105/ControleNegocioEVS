@@ -315,7 +315,10 @@ export type Database = {
       };
     };
     Functions: {
-      [_ in never]: never;
+      open_receivables_total: {
+        Args: Record<PropertyKey, never>;
+        Returns: number;
+      };
     };
     Enums: {
       [_ in never]: never;

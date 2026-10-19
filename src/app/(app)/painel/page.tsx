@@ -50,10 +50,7 @@ export default async function PainelPage() {
         .select("id", { count: "exact", head: true })
         .gte("sold_on", from)
         .lt("sold_on", to),
-      supabase
-        .from("v_receivables_schedule")
-        .select("amount_due.sum()")
-        .returns<{ sum: number | null }[]>(),
+      supabase.rpc("open_receivables_total"),
       supabase
         .from("sales")
         .select(
@@ -68,7 +65,6 @@ export default async function PainelPage() {
   const firstError = [
     pnlResult.error,
     countResult.error,
-    receivablesResult.error,
     recentResult.error,
     dealTypesResult.error,
   ].find(Boolean);
@@ -76,9 +72,16 @@ export default async function PainelPage() {
     throw new Error(firstError.message);
   }
 
+  // Não derruba o Painel se a migração da função ainda não foi aplicada.
+  if (receivablesResult.error) {
+    console.error("painel: falha ao calcular valores a receber", receivablesResult.error);
+  }
+
   const pnl = pnlResult.data;
   const salesCount = countResult.count ?? 0;
-  const openReceivables = Number(receivablesResult.data?.[0]?.sum ?? 0);
+  const openReceivables = receivablesResult.error
+    ? null
+    : Number(receivablesResult.data ?? 0);
   const recent = recentResult.data ?? [];
   const dealLabels = new Map(
     (dealTypesResult.data ?? []).map((deal) => [deal.code, deal.label]),
