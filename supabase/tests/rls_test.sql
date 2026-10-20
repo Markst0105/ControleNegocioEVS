@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BioAvalia — RLS smoke tests (admin / operator / member)
 --
--- Prerequisites: both migrations applied and seeds loaded.
+-- Prerequisites: all migrations applied and seeds loaded.
 --
 -- Run with psql (recommended):
 --     psql "$DATABASE_URL" -f supabase/tests/rls_test.sql
@@ -69,7 +69,8 @@ select
     (select count(*) from public.expenses
       where scope in ('negocio_fixo','negocio_variavel'))                   as expenses_negocio,
     (select count(*) from public.expenses where scope = 'pessoal')          as expenses_pessoal,
-    (select count(*) from public.v_catalog_member)                          as catalog;
+    (select count(*) from public.v_catalog_member)                          as catalog,
+    (select count(*) from public.v_price_catalog)                           as price_catalog;
 
 create temp table rls_results (ord int, test text, pass boolean);
 grant all on pg_temp.rls_results to authenticated;
@@ -143,6 +144,48 @@ values ('c0000000-0000-4000-8000-000000000003', 'open');
 
 insert into pg_temp.rls_results
 select 19, 'membro: cria reserva própria', (select count(*) from public.reservations) = 2;
+
+-- operator maintains the supplier directory
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'b0000000-0000-4000-8000-000000000002')::text,
+                  true);
+
+insert into public.counterparties (name, role_hint, active)
+values ('Fornecedor RLS', 'supplier', true);
+
+insert into pg_temp.rls_results
+select 20, 'operador: cadastra fornecedor',
+       (select count(*) from public.counterparties where name = 'Fornecedor RLS') = 1;
+
+update public.counterparties set active = false where name = 'Fornecedor RLS';
+
+insert into pg_temp.rls_results
+select 21, 'operador: edita fornecedor',
+       (select active from public.counterparties where name = 'Fornecedor RLS') = false;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'c0000000-0000-4000-8000-000000000003')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 22, 'membro: NÃO vê fornecedores', (select count(*) from public.counterparties) = 0;
+
+-- operator reads the price catalog; the security_invoker view keeps it from members
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'b0000000-0000-4000-8000-000000000002')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 23, 'operador: vê a tabela de preços',
+       (select count(*) from public.v_price_catalog) = (select price_catalog from rls_truth);
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'c0000000-0000-4000-8000-000000000003')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 24, 'membro: NÃO vê a tabela de preços',
+       (select count(*) from public.v_price_catalog) = 0;
 
 -- ---------------------------------------------------------------------------
 -- 3. results

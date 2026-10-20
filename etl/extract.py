@@ -23,6 +23,7 @@ import datetime
 import re
 import os
 from collections import OrderedDict, Counter
+from decimal import Decimal, InvalidOperation
 
 ROOT = "/home/user/BioAvalia"
 XLSX = os.path.join(ROOT, "Controle do Negócio 2026-10.xlsx")
@@ -132,6 +133,33 @@ def sql_num(v):
     if v is None or v == "":
         return "NULL"
     return str(v)
+
+
+def sql_decimal(v):
+    """Fixed-point number for money columns (rejects labels and blank cells)."""
+    if v is None or str(v).strip() == "":
+        return "NULL"
+    try:
+        return format(Decimal(str(v).strip()), "f")
+    except (InvalidOperation, ValueError):
+        return "NULL"
+
+
+def sku_key(v):
+    """SKU lookup is case-insensitive: the workbook mixes #497K and #497k."""
+    return str(v).strip().lower()
+
+
+def product_kind(item_class, pv, row):
+    if item_class in ("E.A", "E.AC", "E.AF", "E.X"):
+        return "access"
+    if pv is None:
+        return "supply"
+    if row >= 178:
+        return "complement"
+    if item_class == "N.E":
+        return "ne"
+    return "ni"
 
 
 def sql_date(v):
@@ -247,8 +275,8 @@ for r, cells in sheet("Novos Preços HLF"):
     # skip repeated print headers ("#SKU | Produto | PV | ..." at page breaks)
     if str(sku).strip().lstrip("#").strip().lower() == "sku":
         continue
-    hlf_products[str(sku)] = {
-        "sku": str(sku), "name": str(name),
+    hlf_products[sku_key(sku)] = {
+        "sku": str(sku).strip(), "name": str(name),
         "pv": cells.get("C"),
         "retail": cells.get("D"),
         "t0.25": cells.get("E"), "t0.35": cells.get("F"),
@@ -256,7 +284,21 @@ for r, cells in sheet("Novos Preços HLF"):
         "bronze": cells.get("I"), "prata": cells.get("J"), "ouro": cells.get("K"),
     }
 
-# 2b. Tabela de Preços (sheet4) - SKU, name, PV, item class, plus composed items
+# 2b. Tabela de Preços (sheet4) - SKU, name, PV, item class, plus composed items.
+# The price columns E-L hold retail, 25%, 35%, 42%, 50%, Bronze, Prata and Ouro.
+# Their header labels J-L are stale (0.14/0.23/0.32), but the values match the
+# membership tiers in Novos Preços HLF.
+TABELA_PRICE_COLS = OrderedDict([
+    ("E", "retail"),
+    ("F", "t0.25"),
+    ("G", "t0.35"),
+    ("H", "t0.42"),
+    ("I", "t0.5"),
+    ("J", "bronze"),
+    ("K", "prata"),
+    ("L", "ouro"),
+])
+
 tabela_products = {}
 for r, cells in sheet("Tabela de Preços"):
     if r < 2:
@@ -271,66 +313,82 @@ for r, cells in sheet("Tabela de Preços"):
     # row 2 is a column-number legend (A=SKU | B=2 | C=3 | D=4 | M=13 ...)
     if str(name).strip().isdigit() and sku.isdigit():
         continue
-    ic_raw = cells.get("M")
-    tabela_products[sku] = {
-        "sku": sku, "name": str(name).strip(),
+    tabela_products[sku_key(sku)] = {
+        "sku": sku, "name": str(name).strip(), "row": r,
         "pv": cells.get("D") or cells.get("P"),
-        "item_class": ic_raw,
-        "kind": "access" if r >= 118 else "ni",
+        "item_class": cells.get("M"),
         "portions": cells.get("O"),
         "portion_label": cells.get("N"),
+        "prices": {tier: cells.get(col) for col, tier in TABELA_PRICE_COLS.items()},
     }
 
-# merge: hlf products as base, overlay tabela info
+# merge: HLF is the master list; Tabela de Preços adds composed items, item
+# class/portions and a fallback price only where HLF has no value.
 products = {}
-for sku, p in hlf_products.items():
-    products[sku] = {
-        "sku": sku, "name": p["name"], "kind": "ni",
+for key, p in hlf_products.items():
+    products[key] = {
+        "sku": p["sku"], "name": p["name"], "kind": "ni",
         "item_class": "N.I", "pv": p["pv"],
         "retail": p["retail"],
         "t0.25": p["t0.25"], "t0.35": p["t0.35"], "t0.42": p["t0.42"],
         "t0.5": p["t0.5"], "bronze": p["bronze"], "prata": p["prata"], "ouro": p["ouro"],
     }
-for sku, p in tabela_products.items():
-    if sku in products:
-        prod = products[sku]
+
+for key, p in tabela_products.items():
+    prices = {
+        tier: raw for tier, raw in p["prices"].items()
+        if sql_decimal(raw) != "NULL"
+    }
+    if key in products:
+        prod = products[key]
         if p["item_class"]:
             prod["item_class"] = p["item_class"]
-        if p["kind"]:
-            prod["kind"] = p["kind"]
         if p["pv"] is not None:
             prod["pv"] = p["pv"]
+            prod["kind"] = product_kind(prod["item_class"], prod["pv"], p["row"])
         if p["portions"]:
             prod["portions_per_pack"] = int(float(p["portions"]))
         if p["portion_label"]:
             prod["portion_label"] = p["portion_label"]
+        for tier, raw in prices.items():
+            if prod.get(tier) is None:
+                prod[tier] = raw
     else:
-        products[sku] = {
-            "sku": sku, "name": p["name"], "kind": p["kind"],
-            "item_class": p["item_class"] or "N.I", "pv": p["pv"],
+        item_class = p["item_class"] or ("N.I" if p["pv"] is not None else None)
+        product = {
+            "sku": p["sku"], "name": p["name"],
+            "kind": product_kind(item_class, p["pv"], p["row"]),
+            "item_class": item_class, "pv": p["pv"],
             "portions_per_pack": int(float(p["portions"])) if p["portions"] else 1,
             "portion_label": p["portion_label"],
         }
+        # Supplies, packaging and financial placeholders have no retail price.
+        # Their E-L values are batch costs or free-text labels, not shelf prices.
+        if p["pv"] is not None and sql_decimal(p["prices"].get("retail")) != "NULL":
+            product.update(prices)
+        products[key] = product
 
 TIER_COLS = ["retail", "t0.25", "t0.35", "t0.42", "t0.5", "bronze", "prata", "ouro"]
 TIER_CODES = ["retail", "t0.25", "t0.35", "t0.42", "t0.5", "bronze", "prata", "ouro"]
 
-for sku, p in products.items():
+for p in products.values():
+    sku = p["sku"]
     emit("002_products",
          f"insert into products (sku, name, kind, item_class, pv, portions_per_pack, portion_label, is_active) "
          f"values ({sql_str(sku)}, {sql_str(p['name'])}, {sql_str(p['kind'])}, {sql_str(p['item_class'])}, "
          f"{sql_num(p['pv'])}, {sql_num(p.get('portions_per_pack', 1))}, {sql_str(p.get('portion_label'))}, true) "
          f"on conflict (sku) do update set name = excluded.name, item_class = excluded.item_class;")
     for tier, code in zip(TIER_COLS, TIER_CODES):
-        val = p.get(tier)
-        if val is not None and val != "":
+        price = sql_decimal(p.get(tier))
+        if price != "NULL":
             emit("002_products",
                  f"insert into product_prices (product_id, tier_code, price, valid_from) "
-                 f"select id, {sql_str(code)}, {sql_num(val)}, '2025-01-01' from products where sku = {sql_str(sku)} "
+                 f"select id, {sql_str(code)}, {price}, '2025-01-01' from products where sku = {sql_str(sku)} "
                  f"on conflict (product_id, tier_code, valid_from) do nothing;")
 
 emit("002_products", "")
-print(f"products: {len(products)}")
+priced = sum(1 for p in products.values() if sql_decimal(p.get("retail")) != "NULL")
+print(f"products: {len(products)} (with retail price: {priced})")
 
 # ---------------------------------------------------------------------------
 # 3. Clients (from sales sheet column B)
@@ -495,7 +553,7 @@ emit("004_sales", "-- fix product_id from SKU")
 emit("004_sales", "create temp table sale_sku_map (legacy_row int, sku text);")
 for lr, sku in SKU_MAP_ROWS:
     emit("004_sales", f"insert into sale_sku_map values ({lr}, {sql_str(sku)});")
-emit("004_sales", "update sales s set product_id = p.id from sale_sku_map m join products p on p.sku = m.sku where s.legacy_row = m.legacy_row;")
+emit("004_sales", "update sales s set product_id = p.id from sale_sku_map m join products p on lower(p.sku) = lower(m.sku) where s.legacy_row = m.legacy_row;")
 emit("004_sales", "drop table sale_sku_map;")
 
 emit("004_sales", "")
@@ -558,7 +616,7 @@ for r, cells in product_rows:
                 moved_on = f"2025-{mon:02d}-{min(day, last):02d}"  # legacy data; year best-effort
         emit("005_movements",
              f"insert into inventory_movements (product_id, moved_on, type, location_to, qty, event_label, created_by) "
-             f"select (select id from products where sku = {sql_str(sku)} limit 1), "
+             f"select (select id from products where lower(sku) = lower({sql_str(sku)}) limit 1), "
              f"{sql_date(moved_on)}, {sql_str(mtype)}, {sql_str(tag)}, {sql_num(qty)}, {sql_str(label)}, "
              f"(select id from auth.users limit 1);")
         movement_counter += 1
@@ -678,6 +736,7 @@ report.append("")
 
 report.append("## Counts")
 report.append(f"- Products: {len(products)}")
+report.append(f"- Products with retail price: {priced} / {len(products)}")
 report.append(f"- Clients (normalized): {len(clients)} / raw variants: {len(aliases)}")
 report.append(f"- Sales: {sale_counter}")
 report.append(f"- Installments: {payment_counter}")
@@ -700,6 +759,8 @@ report.append("- `Estoque (emprestimos 2)` (hidden legacy ledger, since 2012) is
 report.append("- `Acompanhamento ND` and `Análise Organizacional` (hidden) are NOT imported.")
 report.append("- Sales rows without a date in column A were skipped.")
 report.append("- Inventory movement dates are best-effort (year 2025 assumed from column-header text).")
+report.append("- Product prices come from `Novos Preços HLF`; items missing there take retail/tier values from `Tabela de Preços` columns E–L. Supplies, packaging and financial placeholders get no shelf price.")
+report.append("- SKUs are matched case-insensitively; the workbook mixes `#497K` and `#497k`.")
 report.append("- `product_components` (composed EVS items cost build-up) is left empty; the admin defines components in the app.")
 report.append("- Expense scope is inferred from category; rows without a scope marker default to `pessoal`.")
 report.append("- `supabase/seed.sql` is the combined copy of seeds 001–007 used by `supabase db push --include-seed` / `supabase db reset`.")

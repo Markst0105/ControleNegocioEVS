@@ -54334,6 +54334,6 @@ insert into sale_sku_map values (18180, 'apd');
 insert into sale_sku_map values (18181, 'apd');
 insert into sale_sku_map values (18182, 'apd');
 insert into sale_sku_map values (18183, 'appw');
-update sales s set product_id = p.id from sale_sku_map m join products p on p.sku = m.sku where s.legacy_row = m.legacy_row;
+update sales s set product_id = p.id from sale_sku_map m join products p on lower(p.sku) = lower(m.sku) where s.legacy_row = m.legacy_row;
 drop table sale_sku_map;
 

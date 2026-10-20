@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Truck } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
@@ -88,12 +88,20 @@ export default async function ComprasPage({
         title="Compras"
         description="Entradas de mercadoria, fornecedores e custo dos pedidos."
         actions={
-          <Button asChild size="sm" className="h-9 font-bold">
-            <Link href="/compras/nova">
-              <Plus />
-              Nova compra
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" size="sm" className="h-9">
+              <Link href="/fornecedores">
+                <Truck />
+                Fornecedores
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="h-9 font-bold">
+              <Link href="/compras/nova">
+                <Plus />
+                Nova compra
+              </Link>
+            </Button>
+          </div>
         }
       />
 

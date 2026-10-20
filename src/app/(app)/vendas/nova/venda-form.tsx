@@ -20,6 +20,7 @@ import {
   addDays,
   formatDecimalInput,
   formatMoney,
+  formatMoneyInput,
   parseMoneyInput,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,13 @@ import { createSale, type SaleFormState } from "./actions";
 export type SaleFormData = {
   clients: { id: string; name: string }[];
   initialClientId?: string;
-  products: { id: string; name: string; sku: string; pv: number | null }[];
+  products: {
+    id: string;
+    name: string;
+    sku: string;
+    pv: number | null;
+    retail_price: number | null;
+  }[];
   dealTypes: { code: string; label: string; kind: string }[];
   paymentMethods: {
     code: string;
@@ -56,6 +63,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
   const [origin, setOrigin] = useState<"EVS" | "CASA">("EVS");
   const [soldOn, setSoldOn] = useState(data.today);
   const [amount, setAmount] = useState("");
+  const [amountTouched, setAmountTouched] = useState(false);
   const [pv, setPv] = useState("");
   const [pvTouched, setPvTouched] = useState(false);
   const [installments, setInstallments] = useState<Installment[]>([]);
@@ -78,9 +86,16 @@ export function VendaForm({ data }: { data: SaleFormData }) {
 
   function handleProductChange(value: string) {
     setProductId(value);
+    const product = data.products.find((item) => item.id === value);
     if (!pvTouched) {
-      const product = data.products.find((item) => item.id === value);
       setPv(product?.pv != null ? formatDecimalInput(product.pv) : "");
+    }
+    if (!amountTouched) {
+      setAmount(
+        product?.retail_price != null
+          ? formatMoneyInput(product.retail_price)
+          : "",
+      );
     }
   }
 
@@ -132,12 +147,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
   function handleAmountBlur() {
     const parsed = parseMoneyInput(amount);
     if (parsed !== null) {
-      setAmount(
-        parsed.toLocaleString("pt-BR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
-      );
+      setAmount(formatMoneyInput(parsed));
     }
   }
 
@@ -311,13 +321,20 @@ export function VendaForm({ data }: { data: SaleFormData }) {
           </Field>
         ) : null}
 
-        <Field label="Valor recebido (R$)" htmlFor="amount">
+        <Field
+          label="Valor recebido (R$)"
+          htmlFor="amount"
+          hint="Preenchido pela tabela de preços; ajuste se precisar."
+        >
           <Input
             id="amount"
             name="amount_received"
             inputMode="decimal"
             value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            onChange={(event) => {
+              setAmount(event.target.value);
+              setAmountTouched(true);
+            }}
             onBlur={handleAmountBlur}
             placeholder="0,00"
             required

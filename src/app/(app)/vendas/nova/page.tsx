@@ -48,9 +48,10 @@ export default async function NovaVendaPage({
     await Promise.all([
       supabase.from("clients").select("id, name").order("name").limit(2000),
       supabase
-        .from("products")
-        .select("id, name, sku, pv")
+        .from("v_price_catalog")
+        .select("id, name, sku, pv, retail_price")
         .eq("is_active", true)
+        .not("retail_price", "is", null)
         .order("name")
         .limit(1000),
       supabase

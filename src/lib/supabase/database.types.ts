@@ -576,6 +576,29 @@ export type Database = {
         };
         Relationships: [];
       };
+      v_price_catalog: {
+        Row: {
+          id: string;
+          sku: string;
+          name: string;
+          kind: string;
+          item_class: string | null;
+          pv: number | null;
+          portions_per_pack: number | null;
+          portion_label: string | null;
+          is_active: boolean | null;
+          print_name: string | null;
+          retail_price: number | null;
+          price_25: number | null;
+          price_35: number | null;
+          price_42: number | null;
+          price_50: number | null;
+          price_bronze: number | null;
+          price_prata: number | null;
+          price_ouro: number | null;
+        };
+        Relationships: [];
+      };
       v_monthly_pnl: {
         Row: {
           month: string | null;
@@ -637,6 +660,19 @@ export type Database = {
           item_count: number;
           total_units: number;
           total_cost: number;
+        };
+        Relationships: [];
+      };
+      v_supplier_overview: {
+        Row: {
+          id: string;
+          name: string;
+          role_hint: string | null;
+          active: boolean | null;
+          created_at: string | null;
+          purchase_count: number;
+          total_cost: number;
+          last_purchase_on: string | null;
         };
         Relationships: [];
       };

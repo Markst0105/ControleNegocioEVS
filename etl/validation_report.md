@@ -3,7 +3,8 @@
 Source: `Controle do Negócio 2026-10.xlsx`
 
 ## Counts
-- Products: 161
+- Products: 160
+- Products with retail price: 137 / 160
 - Clients (normalized): 557 / raw variants: 559
 - Sales: 18182
 - Installments: 17971
@@ -24,6 +25,8 @@ Class:   {}
 - `Acompanhamento ND` and `Análise Organizacional` (hidden) are NOT imported.
 - Sales rows without a date in column A were skipped.
 - Inventory movement dates are best-effort (year 2025 assumed from column-header text).
+- Product prices come from `Novos Preços HLF`; items missing there take retail/tier values from `Tabela de Preços` columns E–L. Supplies, packaging and financial placeholders get no shelf price.
+- SKUs are matched case-insensitively; the workbook mixes `#497K` and `#497k`.
 - `product_components` (composed EVS items cost build-up) is left empty; the admin defines components in the app.
 - Expense scope is inferred from category; rows without a scope marker default to `pessoal`.
 - `supabase/seed.sql` is the combined copy of seeds 001–007 used by `supabase db push --include-seed` / `supabase db reset`.

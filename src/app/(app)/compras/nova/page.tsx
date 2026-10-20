@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: "Nova compra",
 };
 
-type SearchParams = Promise<{ produto?: string }>;
+type SearchParams = Promise<{ produto?: string; fornecedor?: string }>;
 
 const LOCATION_ORDER: Record<string, number> = {
   EVS: 0,
@@ -86,6 +86,12 @@ export default async function NovaCompraPage({
       ? products.find((product) => product.id === params.produto)?.id
       : undefined;
 
+  const suppliers = suppliersResult.data ?? [];
+  const initialSupplierId =
+    params.fornecedor && isUuid(params.fornecedor)
+      ? suppliers.find((supplier) => supplier.id === params.fornecedor)?.id
+      : undefined;
+
   const locations = (locationsResult.data ?? []).slice().sort(
     (a, b) =>
       (LOCATION_ORDER[a.code] ?? 99) - (LOCATION_ORDER[b.code] ?? 99) ||
@@ -118,6 +124,7 @@ export default async function NovaCompraPage({
             locations,
             today: todayISO(),
             initialProductId,
+            initialSupplierId,
           }}
         />
       </div>
