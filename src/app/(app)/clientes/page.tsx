@@ -20,8 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate, formatInt, formatMoney } from "@/lib/format";
+import { getClientOverviewStats } from "@/lib/client-overview";
 import { formatPhoneBR } from "@/lib/clients";
+import { formatDate, formatInt, formatMoney } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -49,11 +50,8 @@ export default async function ClientesPage({
   const digits = q.replace(/\D/g, "");
 
   let query = supabase
-    .from("v_client_overview")
-    .select(
-      "id, name, phone, whatsapp, last_purchase_on, sales_count, open_amount",
-      { count: "exact" },
-    )
+    .from("clients")
+    .select("id, name, phone, whatsapp", { count: "exact" })
     .order("name")
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
@@ -74,11 +72,27 @@ export default async function ClientesPage({
     query = query.or(filters.join(","));
   }
 
-  const { data: clients, count, error } = await query;
+  const { data: clientRows, count, error } = await query;
 
   if (error) {
     throw new Error(error.message);
   }
+
+  const stats = await getClientOverviewStats(
+    supabase,
+    (clientRows ?? []).map((client) => client.id),
+  );
+
+  const clients = (clientRows ?? []).map((client) => {
+    const overview = stats.get(client.id);
+    return {
+      ...client,
+      sales_count: overview?.sales_count ?? 0,
+      total_spent: overview?.total_spent ?? 0,
+      last_purchase_on: overview?.last_purchase_on ?? null,
+      open_amount: overview?.open_amount ?? 0,
+    };
+  });
 
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -184,7 +198,7 @@ export default async function ClientesPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clients?.map((client) => (
+                {clients.map((client) => (
                   <TableRow
                     key={client.id}
                     className="border-line/80 hover:bg-moss-soft/25"
