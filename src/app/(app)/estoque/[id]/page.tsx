@@ -54,7 +54,7 @@ export default async function ProdutoEstoquePage({
         .maybeSingle(),
       supabase
         .from("v_stock_product_totals")
-        .select("qty_on_hand, unit_cost, stock_value")
+        .select("qty_on_hand, price_ouro, stock_value")
         .eq("product_id", id)
         .maybeSingle(),
       supabase
@@ -145,10 +145,10 @@ export default async function ProdutoEstoquePage({
         </div>
         <div className="bg-paper px-4 py-4">
           <dt className="text-[11px] font-medium text-ink-soft">
-            Custo mais recente
+            Preço Ouro
           </dt>
           <dd className="num mt-1.5 text-[18px] leading-none font-medium whitespace-nowrap">
-            <StockValue value={total?.unit_cost ?? null} />
+            <StockValue value={total?.price_ouro ?? null} />
           </dd>
         </div>
         <div className="bg-paper px-4 py-4">

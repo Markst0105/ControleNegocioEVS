@@ -481,6 +481,7 @@ export type Database = {
           product_id: string;
           qty: number;
           unit_cost: number;
+          price_tier: string | null;
           created_at: string | null;
         };
         Insert: {
@@ -489,6 +490,7 @@ export type Database = {
           product_id: string;
           qty: number;
           unit_cost?: number;
+          price_tier?: string | null;
           created_at?: string | null;
         };
         Update: {
@@ -497,6 +499,7 @@ export type Database = {
           product_id?: string;
           qty?: number;
           unit_cost?: number;
+          price_tier?: string | null;
           created_at?: string | null;
         };
         Relationships: [];
@@ -641,6 +644,7 @@ export type Database = {
           is_active: boolean | null;
           qty_on_hand: number;
           unit_cost: number | null;
+          price_ouro: number | null;
           stock_value: number;
         };
         Relationships: [];

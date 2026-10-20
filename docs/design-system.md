@@ -200,8 +200,11 @@ the exact cents.
 - **Estoque** reuses the ledger table with a KPI band (products, units, low
   stock, out of stock, value). Location balances are compact `EVS 12` chips; the
   product detail page repeats the KPI band and shows a movement history with
-  `+`/`−` quantities. Purchases and counts use a line-item editor with product
-  combobox, quantity, unit cost and a running total.
+  `+`/`−` quantities. Stock value uses the current **Ouro** table price, not the
+  last purchase cost. Purchases and counts use a line-item editor with product
+  combobox, quantity, unit cost and a running total; purchases add a price-tier
+  picker (Normal, 25–50%, Bronze, Prata, Ouro) that prefills the unit cost. The
+  selected tier is carried as a small tinted chip in the form and purchase detail.
 - Movement, stock and purchase states are text chips: moss for entries, steel
   for transfers/sales, citrus for counts/adjustments and rust for shortages or
   exits. Color is never the only signal — the chip, the route and the signed

@@ -14,7 +14,8 @@ database identifiers are in English.
 > Estoque, Compras, Fornecedores and Tabela de preços are in the code. Clientes
 > includes search/pagination, name + phone/WhatsApp deduplication and an
 > admin-only merge. Estoque includes purchases, manual movements, stock counts,
-> per-location balances and product history. Fornecedores includes
+> per-location balances, product history and Ouro-tier valuation. Purchases can
+> apply any price tier and keep the chosen tier on each line. Fornecedores includes
 > create/edit/deactivate and the known distributors from the workbook. Preços is
 > a print-friendly counter sheet with retail, discount tiers and PV; the sale
 > form prefills the retail amount from the selected product. The visual identity
@@ -25,11 +26,12 @@ database identifiers are in English.
 > Apply `supabase/migrations/20261019000002_page_queries.sql`,
 > `supabase/migrations/20261019000003_inventory_purchases.sql`,
 > `supabase/migrations/20261020000001_suppliers.sql`,
-> `supabase/migrations/20261020000002_price_catalog.sql` and then
-> `supabase/migrations/20261020000003_price_backfill.sql` before deploying the new
-> Estoque/Compras/Fornecedores/Preços pages. The backfill is idempotent and fills
-> the missing prices in databases seeded before the ETL price fix. New sales now
-> write a stock movement from cutover onward; historical sales are not backfilled.
+> `supabase/migrations/20261020000002_price_catalog.sql`,
+> `supabase/migrations/20261020000003_price_backfill.sql` and then
+> `supabase/migrations/20261020000004_price_tier_valuation.sql` before deploying
+> the new Estoque/Compras/Fornecedores/Preços pages. The backfill is idempotent and
+> fills the missing prices in databases seeded before the ETL price fix. New sales
+> now write a stock movement from cutover onward; historical sales are not backfilled.
 
 ## What it covers
 
@@ -37,7 +39,7 @@ database identifiers are in English.
 |------|---------|
 | Sales | Per-sale ledger: deal types (consignment, gifts, negotiated prices…), discounts, PV and profit per sale |
 | Clients | CRM with phone/WhatsApp fields and aliases for de-duplicated names |
-| Inventory | Purchases, manual movements and counts, with per-location balances and latest cost |
+| Inventory | Purchases, manual movements and counts, with per-location balances and Ouro-tier valuation |
 | Prices | Counter sheet with retail, discount tiers, membership tiers and print layout |
 | Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L |
 | MDO | Daily activity KPIs for 730 days of history |
@@ -146,9 +148,10 @@ What this milestone includes:
   normalization, duplicate detection, purchase history/open balance and an
   admin-only transactional merge;
 - **Estoque** — product balances, per-location chips, low/out-of-stock filters,
-  latest purchase cost, stock value and product movement history;
+  Ouro-tier unit value, stock value and product movement history;
 - **Compras** — purchase entry with supplier, account, destination, invoice,
-  multiple line items, unit cost and totals;
+  multiple line items, a price-tier picker that prefills unit cost, and totals;
+  the chosen tier is stored on each line and shown in the purchase detail;
 - **Fornecedores** — supplier directory with search, create/edit, active status,
   purchase totals and the known workbook distributors pre-seeded;
 - **Preços** — searchable, print-friendly counter sheet with retail, 25–50%

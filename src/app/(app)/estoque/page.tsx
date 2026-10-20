@@ -71,7 +71,7 @@ export default async function EstoquePage({
   let productsQuery = supabase
     .from("v_stock_product_totals")
     .select(
-      "product_id, sku, name, kind, is_active, qty_on_hand, unit_cost, stock_value",
+      "product_id, sku, name, kind, is_active, qty_on_hand, price_ouro, stock_value",
       { count: "exact" },
     )
     .order("name")
@@ -120,7 +120,7 @@ export default async function EstoquePage({
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Estoque"
-        description="Saldo por produto e local, com custo e valor de reposição."
+        description="Saldo por produto e local, com valor pela faixa Ouro."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild size="sm" className="h-9 font-bold">
@@ -196,7 +196,9 @@ export default async function EstoquePage({
           </dd>
         </div>
         <div className="col-span-2 bg-paper px-4 py-4 lg:col-span-1">
-          <dt className="text-[11px] font-medium text-ink-soft">Valor</dt>
+          <dt className="text-[11px] font-medium text-ink-soft">
+            Valor (Ouro)
+          </dt>
           <dd className="num mt-1.5 text-[18px] leading-none font-medium whitespace-nowrap">
             {formatMoney(summary.stock_value)}
           </dd>
@@ -278,7 +280,7 @@ export default async function EstoquePage({
                     Saldo
                   </TableHead>
                   <TableHead className="hidden h-9 text-right text-[10.5px] font-medium text-ink-soft sm:table-cell">
-                    Custo
+                    Ouro
                   </TableHead>
                   <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium text-ink-soft">
                     Valor
@@ -321,7 +323,7 @@ export default async function EstoquePage({
                       <StockStatusBadge qty={Number(product.qty_on_hand)} />
                     </TableCell>
                     <TableCell className="num hidden px-2 py-2.5 text-right text-[12px] whitespace-nowrap text-ink-soft sm:table-cell">
-                      <StockValue value={product.unit_cost} />
+                      <StockValue value={product.price_ouro} />
                     </TableCell>
                     <TableCell className="num px-2 py-2.5 pr-3 text-right text-[12px] whitespace-nowrap">
                       {formatMoney(product.stock_value)}

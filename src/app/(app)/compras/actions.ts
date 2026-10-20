@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { isUuid } from "@/lib/clients";
 import { parseDateInput, parseMoneyInput } from "@/lib/format";
+import { isPriceTierCode, type PriceTierCode } from "@/lib/prices";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -17,6 +18,7 @@ type PurchaseLine = {
   product_id: string;
   qty: number;
   unit_cost: number;
+  price_tier: PriceTierCode | null;
 };
 
 function parseLines(raw: FormDataEntryValue | null): PurchaseLine[] | null {
@@ -40,12 +42,24 @@ function parseLines(raw: FormDataEntryValue | null): PurchaseLine[] | null {
     const productId = String(record.product_id ?? "").trim();
     const qty = parseMoneyInput(String(record.qty ?? ""));
     const unitCost = parseMoneyInput(String(record.unit_cost ?? ""));
+    const rawTier = record.price_tier;
 
     if (!isUuid(productId)) return null;
     if (qty === null || qty <= 0) return null;
     if (unitCost === null || unitCost < 0) return null;
 
-    lines.push({ product_id: productId, qty, unit_cost: unitCost });
+    let priceTier: PriceTierCode | null = null;
+    if (rawTier !== null && rawTier !== undefined && rawTier !== "") {
+      if (typeof rawTier !== "string" || !isPriceTierCode(rawTier)) return null;
+      priceTier = rawTier;
+    }
+
+    lines.push({
+      product_id: productId,
+      qty,
+      unit_cost: unitCost,
+      price_tier: priceTier,
+    });
   }
 
   return lines;

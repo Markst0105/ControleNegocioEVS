@@ -38,8 +38,10 @@ export default async function NovaCompraPage({
     locationsResult,
   ] = await Promise.all([
     supabase
-      .from("products")
-      .select("id, name, sku")
+      .from("v_price_catalog")
+      .select(
+        "id, name, sku, retail_price, price_25, price_35, price_42, price_50, price_bronze, price_prata, price_ouro",
+      )
       .eq("is_active", true)
       .order("name")
       .limit(1000),
@@ -112,7 +114,7 @@ export default async function NovaCompraPage({
 
       <PageHeader
         title="Nova compra"
-        description="Registre a entrada dos produtos e o custo de cada item."
+        description="Registre a entrada, a faixa de preço e o custo de cada item."
       />
 
       <div className="mt-6">
