@@ -3,6 +3,8 @@ import {
   Package,
   ReceiptText,
   ShoppingCart,
+  Tags,
+  Truck,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +44,14 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "operator"],
   },
   {
+    href: "/precos",
+    label: "Preços",
+    shortLabel: "Preços",
+    icon: Tags,
+    roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
     href: "/estoque",
     label: "Estoque",
     shortLabel: "Estoque",
@@ -54,6 +64,14 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Compras",
     shortLabel: "Compras",
     icon: ShoppingCart,
+    roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
+    href: "/fornecedores",
+    label: "Fornecedores",
+    shortLabel: "Fornecedores",
+    icon: Truck,
     roles: ["admin", "operator"],
     mobile: false,
   },

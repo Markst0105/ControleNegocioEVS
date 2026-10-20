@@ -127,6 +127,10 @@ export async function createPurchase(
   revalidatePath("/compras");
   revalidatePath("/painel");
   revalidatePath("/estoque/movimentacoes");
+  if (supplierRaw) {
+    revalidatePath("/fornecedores");
+    revalidatePath(`/fornecedores/${supplierRaw}`);
+  }
   for (const productId of new Set(lines.map((line) => line.product_id))) {
     revalidatePath(`/estoque/${productId}`);
   }

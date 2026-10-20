@@ -97,7 +97,8 @@ on conflict (id) do update set role = 'admin';
 
 ```sql
 select
-  (select count(*) from products)           as produtos,     -- 161
+  (select count(*) from products)           as produtos,     -- 160
+  (select count(*) from product_prices)     as precos,       -- 959
   (select count(*) from clients)            as clientes,     -- 557
   (select count(*) from sales)              as vendas,       -- 18182
   (select count(*) from sale_payments)      as parcelas,     -- 17971

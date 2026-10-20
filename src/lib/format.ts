@@ -164,3 +164,11 @@ export function addDays(iso: string, days: number): string {
 export function formatDecimalInput(value: number): string {
   return String(value).replace(".", ",");
 }
+
+/** Valor monetário para campos de formulário: 181 -> "181,00". */
+export function formatMoneyInput(value: number): string {
+  return Number(value).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}

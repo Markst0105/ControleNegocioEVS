@@ -41,7 +41,7 @@ Other observations:
   not confirmed as a cause.
 - **Indexes are present.** Missing indexes are not the main problem.
 - **The database is small for Postgres:** ~18k sales, ~18k installments,
-  557 clients and 161 products.
+  557 clients and 160 products.
 - Plain select queries are fast. The page-specific aggregate views and exact
   count are the queries that need to be timed separately.
 

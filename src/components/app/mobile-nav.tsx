@@ -18,8 +18,9 @@ export function MobileNav({ role }: { role: Role }) {
 
   return (
     <nav
+      data-print-hide
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line/80 bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-line/80 bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden print:hidden"
     >
       <div
         className="grid items-end"

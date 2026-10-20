@@ -199,3 +199,74 @@
     scroll-behavior: auto !important;
   }
 }
+
+@page {
+  size: A4 landscape;
+  margin: 10mm 11mm 12mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body {
+    font-size: 9pt;
+  }
+
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  [data-print-main] {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  [data-slot="table-container"] {
+    overflow: visible !important;
+  }
+
+  .price-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
+    font-size: 8pt;
+  }
+
+  .price-table th,
+  .price-table td {
+    padding: 2.2pt 3pt !important;
+  }
+
+  .price-table thead {
+    display: table-header-group;
+  }
+
+  .price-table tr {
+    break-inside: avoid;
+  }
+
+  .price-table .price-group {
+    break-after: avoid;
+  }
+
+  .price-table th:first-child,
+  .price-table td:first-child {
+    width: 31% !important;
+  }
+
+  .price-table th:nth-child(2),
+  .price-table td:nth-child(2) {
+    width: 5% !important;
+  }
+
+  .price-table th:nth-child(n + 3),
+  .price-table td:nth-child(n + 3) {
+    width: 8% !important;
+  }
+}

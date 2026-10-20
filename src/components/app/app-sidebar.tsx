@@ -17,7 +17,10 @@ export function AppSidebar({
   profile: Profile;
 }) {
   return (
-    <aside className="sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-moss-ink text-paper lg:flex">
+    <aside
+      data-print-hide
+      className="sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-moss-ink text-paper lg:flex print:hidden"
+    >
       <div className="px-4 pt-5">
         <Brand tone="dark" />
       </div>

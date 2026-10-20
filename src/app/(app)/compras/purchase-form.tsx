@@ -37,6 +37,7 @@ export type PurchaseFormData = {
   locations: { code: string; label: string }[];
   today: string;
   initialProductId?: string;
+  initialSupplierId?: string;
 };
 
 type Line = {
@@ -190,7 +191,17 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
         <Field
           label="Fornecedor"
           htmlFor="supplier"
-          hint="Opcional — distribuidora, Herbalife ou outro."
+          hint={
+            <>
+              Opcional — distribuidora, Herbalife ou outro.{" "}
+              <Link
+                href="/fornecedores"
+                className="underline underline-offset-2 hover:text-ink"
+              >
+                Gerenciar fornecedores
+              </Link>
+            </>
+          }
         >
           <Combobox
             id="supplier"
@@ -199,6 +210,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
             placeholder="Sem fornecedor"
             searchPlaceholder="Buscar fornecedor…"
             emptyText="Nenhum fornecedor encontrado."
+            defaultValue={data.initialSupplierId}
             allowClear
           />
         </Field>
@@ -387,7 +399,7 @@ function Field({
 }: {
   label: string;
   htmlFor: string;
-  hint?: string;
+  hint?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
 }) {

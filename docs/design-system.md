@@ -171,6 +171,10 @@ Money/percent inputs accept both `1.234,56` and `1234.56` (`parseMoneyInput`),
 and normalize to pt-BR on blur. Invalid values return friendly pt-BR messages
 from the server action, never raw database errors.
 
+The printed price sheet is the deliberate exception: it follows the spreadsheet
+`ROUNDUP` convention and shows whole reais, while the database and sale form keep
+the exact cents.
+
 ## Component conventions
 
 - shadcn/ui (new-york style) is the base; components are owned source in
@@ -202,6 +206,11 @@ from the server action, never raw database errors.
   for transfers/sales, citrus for counts/adjustments and rust for shortages or
   exits. Color is never the only signal — the chip, the route and the signed
   quantity also carry the meaning.
+- **Preços** is the counter-sheet artifact: grouped ledger table, SKU under each
+  product, Plex Mono prices in eight tier columns, the Cliente column separated
+  by a double rule and a quiet citrus tint. The on-screen filter/search strip
+  disappears on print; the app chrome is hidden and the sheet prints A4 landscape
+  with repeating table headers.
 - Loading uses a 16 px ring spinner; buttons show inline “Entrando…” /
   “Registrando…” with the spinner and disable while pending.
 
