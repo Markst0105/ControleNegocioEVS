@@ -193,6 +193,15 @@ from the server action, never raw database errors.
   a recent-purchase table. Forms reuse the flat VendaForm field grid with inline
   hints. Duplicate contacts appear in a rust alert with links to the existing records;
   admin merge uses the destructive style and an explicit confirmation.
+- **Estoque** reuses the ledger table with a KPI band (products, units, low
+  stock, out of stock, value). Location balances are compact `EVS 12` chips; the
+  product detail page repeats the KPI band and shows a movement history with
+  `+`/`−` quantities. Purchases and counts use a line-item editor with product
+  combobox, quantity, unit cost and a running total.
+- Movement, stock and purchase states are text chips: moss for entries, steel
+  for transfers/sales, citrus for counts/adjustments and rust for shortages or
+  exits. Color is never the only signal — the chip, the route and the signed
+  quantity also carry the meaning.
 - Loading uses a 16 px ring spinner; buttons show inline “Entrando…” /
   “Registrando…” with the spinner and disable while pending.
 

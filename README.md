@@ -9,12 +9,19 @@ database identifiers are in English.
 > product name in the interface is **Controle de Negócio**.
 
 > [!NOTE]
-> **Status: Phase 2a — Clientes complete.** Login, role-aware app shell, Painel,
-> Vendas, Lançamento de venda and the client CRM are live. Clientes includes
-> search/pagination, name + phone/WhatsApp deduplication and an admin-only merge.
-> The visual identity follows the **Balcão** direction: desktop side column,
-> mobile top bar with a leaf-triggered panel, month masthead and an editorial
-> serif for section titles. Inventory, expenses and reservations come next.
+> **Status: Phase 2b — Estoque & Compras implemented.** Login, role-aware app
+> shell, Painel, Vendas, Lançamento de venda, Clientes, Estoque and Compras are
+> in the code. Clientes includes search/pagination, name + phone/WhatsApp
+> deduplication and an admin-only merge. Estoque includes purchases, manual
+> movements, stock counts, per-location balances and product history. The visual
+> identity follows the **Balcão** direction: desktop side column, mobile top bar
+> with a leaf-triggered panel, month masthead and an editorial serif for section
+> titles. Expenses, MDO and reservations come next.
+>
+> Apply `supabase/migrations/20261019000002_page_queries.sql` and then
+> `supabase/migrations/20261019000003_inventory_purchases.sql` before deploying
+> the new Estoque/Compras pages. New sales now write a stock movement from
+> cutover onward; historical sales are not backfilled.
 
 ## What it covers
 
@@ -22,7 +29,7 @@ database identifiers are in English.
 |------|---------|
 | Sales | Per-sale ledger: deal types (consignment, gifts, negotiated prices…), discounts, PV and profit per sale |
 | Clients | CRM with phone/WhatsApp fields and aliases for de-duplicated names |
-| Inventory | Purchases, sales and transfers between EVS Mooca and CASA; stock on hand |
+| Inventory | Purchases, manual movements and counts, with per-location balances and latest cost |
 | Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L |
 | MDO | Daily activity KPIs for 730 days of history |
 | Reservations | Client pre-orders — members see only their own |
@@ -47,7 +54,8 @@ Three roles, enforced in the database with Row-Level Security:
 
 ```
 src/            Next.js app (App Router, components, lib)
-  app/          routes: (auth)/login, (app)/painel, (app)/vendas, (app)/clientes
+  app/          routes: (auth)/login, (app)/painel, (app)/vendas, (app)/clientes,
+                (app)/estoque, (app)/compras
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
 docs/           phase-0-setup.md, design-system.md, design/ (identity study)
@@ -127,10 +135,19 @@ What this milestone includes:
   installments, discount handling, costs, PV, observation;
 - **Clientes** — search and pagination, create/edit with phone/WhatsApp
   normalization, duplicate detection, purchase history/open balance and an
-  admin-only transactional merge.
+  admin-only transactional merge;
+- **Estoque** — product balances, per-location chips, low/out-of-stock filters,
+  latest purchase cost, stock value and product movement history;
+- **Compras** — purchase entry with supplier, account, destination, invoice,
+  multiple line items, unit cost and totals;
+- **Movimentações** — transfers, adjustments, loans and returns with validation;
+- **Contagens** — physical counts that store expected/counted values and post
+  the difference as a stock movement.
 
-Inventory, expenses, MDO and reservations are the next milestones. The visual
-language is documented in [`docs/design-system.md`](docs/design-system.md).
+New sales with a stock-affecting deal type write an inventory movement in the
+same request; a failed movement rolls the sale back. Expenses, MDO and
+reservations are the next milestones. The visual language is documented in
+[`docs/design-system.md`](docs/design-system.md).
 
 ## ETL (workbook → seeds)
 
@@ -159,6 +176,11 @@ frozen: after cutover the app is the source of truth.
   views (`v_monthly_pnl`, `v_stock_on_hand`, `v_monthly_kpis`, …).
 - Imported history: 161 products, 557 clients, 18,182 sales, 17,971 installments,
   1,629 inventory movements, 110 expenses, 730 MDO days.
+- Legacy inventory rows are signed quantities with `location_to` set. The new
+  `v_stock_on_hand` also understands explicit `location_from` / `location_to`
+  pairs, so new purchases, sales, transfers and counts can be applied on top of
+  the imported opening balance. Historical sales are not backfilled; run a
+  stock count if the imported balance does not match the physical count.
 
 ## Security notes
 
@@ -179,5 +201,6 @@ new `braces`/`micromatch` release ships.
 - [x] **Phase 1** — Next.js app: auth gate, pt-BR app shell, Painel, Vendas and
       Lançamento de Vendas
 - [x] **Phase 2a** — Clientes: CRUD, phone/WhatsApp, dedupe and merge
-- [ ] **Phase 2b** — expenses & P&L screens, inventory and purchases
+- [x] **Phase 2b** — Estoque, compras, movimentações e contagens
+- [ ] **Phase 2c** — expenses & P&L screens (pending the expense data gap)
 - [ ] **Phase 3** — MDO daily KPIs, reservations and the member area

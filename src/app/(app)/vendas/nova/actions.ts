@@ -105,6 +105,16 @@ export async function createSale(
     return { error: "Forma de pagamento inválida." };
   }
 
+  const { data: dealType } = await supabase
+    .from("deal_types")
+    .select("code, kind, affects_stock")
+    .eq("code", dealCode)
+    .maybeSingle();
+
+  if (!dealType) {
+    return { error: "Tipo de negócio inválido." };
+  }
+
   const clientIdRaw = String(formData.get("client_id") ?? "").trim();
   let clientId: string | null = null;
   let clientName: string | null = null;
@@ -220,7 +230,46 @@ export async function createSale(
     }
   }
 
+  // Baixa/entrada de estoque para negócios que movimentam produto. A venda já
+  // foi gravada; se a movimentação falhar, desfazemos a venda inteira.
+  if (productId && origin && dealType.affects_stock) {
+    const isReturn = dealType.kind === "return";
+    const movementType =
+      dealType.kind === "return"
+        ? "return"
+        : dealType.kind === "loan_out"
+          ? "loan_out"
+          : "sale";
+
+    const { error: stockError } = await supabase
+      .from("inventory_movements")
+      .insert({
+        product_id: productId,
+        moved_on: soldOn,
+        type: movementType,
+        location_from: isReturn ? null : origin,
+        location_to: isReturn ? origin : null,
+        qty: 1,
+        event_label: "Venda",
+        sale_id: sale.id,
+        notes: observation,
+        created_by: user.id,
+      });
+
+    if (stockError) {
+      console.error("createSale: falha ao movimentar estoque", stockError);
+      await supabase.from("sales").delete().eq("id", sale.id);
+      return {
+        error:
+          "Venda não registrada: falha ao atualizar o estoque. Tente novamente.",
+      };
+    }
+  }
+
   revalidatePath("/painel");
   revalidatePath("/vendas");
+  revalidatePath("/estoque");
+  revalidatePath("/estoque/movimentacoes");
+  if (productId) revalidatePath(`/estoque/${productId}`);
   redirect("/vendas?ok=1");
 }

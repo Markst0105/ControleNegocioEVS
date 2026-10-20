@@ -312,6 +312,249 @@ export type Database = {
         };
         Relationships: [];
       };
+      counterparties: {
+        Row: {
+          id: string;
+          name: string;
+          role_hint: string | null;
+          active: boolean | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          role_hint?: string | null;
+          active?: boolean | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          role_hint?: string | null;
+          active?: boolean | null;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
+      accounts: {
+        Row: {
+          id: string;
+          name: string;
+          is_bank: boolean | null;
+          active: boolean | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          is_bank?: boolean | null;
+          active?: boolean | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          is_bank?: boolean | null;
+          active?: boolean | null;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
+      locations: {
+        Row: {
+          id: string;
+          code: string;
+          label: string;
+          active: boolean | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          label: string;
+          active?: boolean | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          label?: string;
+          active?: boolean | null;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
+      inventory_movements: {
+        Row: {
+          id: string;
+          product_id: string;
+          moved_on: string | null;
+          type: string;
+          location_from: string | null;
+          location_to: string | null;
+          counterparty_id: string | null;
+          qty: number;
+          event_label: string | null;
+          sale_id: string | null;
+          purchase_id: string | null;
+          notes: string | null;
+          created_at: string | null;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          moved_on?: string | null;
+          type: string;
+          location_from?: string | null;
+          location_to?: string | null;
+          counterparty_id?: string | null;
+          qty?: number;
+          event_label?: string | null;
+          sale_id?: string | null;
+          purchase_id?: string | null;
+          notes?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          moved_on?: string | null;
+          type?: string;
+          location_from?: string | null;
+          location_to?: string | null;
+          counterparty_id?: string | null;
+          qty?: number;
+          event_label?: string | null;
+          sale_id?: string | null;
+          purchase_id?: string | null;
+          notes?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      purchases: {
+        Row: {
+          id: string;
+          purchased_on: string;
+          supplier_id: string | null;
+          account_id: string | null;
+          location_code: string;
+          invoice_no: string | null;
+          notes: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          purchased_on: string;
+          supplier_id?: string | null;
+          account_id?: string | null;
+          location_code: string;
+          invoice_no?: string | null;
+          notes?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          purchased_on?: string;
+          supplier_id?: string | null;
+          account_id?: string | null;
+          location_code?: string;
+          invoice_no?: string | null;
+          notes?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      purchase_items: {
+        Row: {
+          id: string;
+          purchase_id: string;
+          product_id: string;
+          qty: number;
+          unit_cost: number;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          purchase_id: string;
+          product_id: string;
+          qty: number;
+          unit_cost?: number;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          purchase_id?: string;
+          product_id?: string;
+          qty?: number;
+          unit_cost?: number;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
+      stock_counts: {
+        Row: {
+          id: string;
+          location: string;
+          counted_on: string;
+          notes: string | null;
+          created_at: string | null;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          location: string;
+          counted_on: string;
+          notes?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          location?: string;
+          counted_on?: string;
+          notes?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      stock_count_items: {
+        Row: {
+          id: string;
+          stock_count_id: string;
+          product_id: string;
+          expected_qty: number;
+          counted_qty: number;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          stock_count_id: string;
+          product_id: string;
+          expected_qty?: number;
+          counted_qty?: number;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          stock_count_id?: string;
+          product_id?: string;
+          expected_qty?: number;
+          counted_qty?: number;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       v_client_overview: {
@@ -356,6 +599,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      v_stock_on_hand: {
+        Row: {
+          product_id: string;
+          sku: string;
+          name: string;
+          location: string;
+          qty_on_hand: number;
+        };
+        Relationships: [];
+      };
+      v_stock_product_totals: {
+        Row: {
+          product_id: string;
+          sku: string;
+          name: string;
+          kind: string;
+          is_active: boolean | null;
+          qty_on_hand: number;
+          unit_cost: number | null;
+          stock_value: number;
+        };
+        Relationships: [];
+      };
+      v_purchase_overview: {
+        Row: {
+          id: string;
+          purchased_on: string;
+          supplier_id: string | null;
+          account_id: string | null;
+          location_code: string;
+          invoice_no: string | null;
+          notes: string | null;
+          created_at: string | null;
+          supplier_name: string | null;
+          account_name: string | null;
+          item_count: number;
+          total_units: number;
+          total_cost: number;
+        };
+        Relationships: [];
+      };
+      v_stock_count_overview: {
+        Row: {
+          id: string;
+          location: string;
+          counted_on: string;
+          notes: string | null;
+          created_at: string | null;
+          item_count: number;
+          total_adjustment: number;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       client_overview_for_ids: {
@@ -390,6 +686,59 @@ export type Database = {
       open_receivables_total: {
         Args: Record<PropertyKey, never>;
         Returns: number;
+      };
+      stock_for_products: {
+        Args: { p_ids: string[] };
+        Returns: {
+          product_id: string;
+          location: string;
+          qty_on_hand: number;
+        }[];
+      };
+      inventory_summary: {
+        Args: { p_search?: string | null };
+        Returns: {
+          total_products: number;
+          total_units: number;
+          low_stock: number;
+          out_of_stock: number;
+          stock_value: number;
+        }[];
+      };
+      create_purchase: {
+        Args: {
+          p_purchased_on: string;
+          p_supplier_id: string | null;
+          p_account_id: string | null;
+          p_location_code: string;
+          p_invoice_no: string | null;
+          p_notes: string | null;
+          p_items: Json;
+        };
+        Returns: string;
+      };
+      record_inventory_movement: {
+        Args: {
+          p_type: string;
+          p_product_id: string;
+          p_moved_on: string;
+          p_location_from: string | null;
+          p_location_to: string | null;
+          p_qty: number;
+          p_counterparty_id: string | null;
+          p_notes: string | null;
+          p_event_label: string | null;
+        };
+        Returns: string;
+      };
+      create_stock_count: {
+        Args: {
+          p_counted_on: string;
+          p_location_code: string;
+          p_notes: string | null;
+          p_items: Json;
+        };
+        Returns: string;
       };
     };
     Enums: {

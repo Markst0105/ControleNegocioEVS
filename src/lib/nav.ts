@@ -1,6 +1,8 @@
 import {
   LayoutDashboard,
+  Package,
   ReceiptText,
+  ShoppingCart,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -13,6 +15,8 @@ export type NavItem = {
   shortLabel: string;
   icon: LucideIcon;
   roles: Role[];
+  /** Itens operacionais que ficam no painel lateral, mas não na barra móvel. */
+  mobile?: boolean;
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -36,6 +40,22 @@ export const NAV_ITEMS: NavItem[] = [
     shortLabel: "Clientes",
     icon: Users,
     roles: ["admin", "operator"],
+  },
+  {
+    href: "/estoque",
+    label: "Estoque",
+    shortLabel: "Estoque",
+    icon: Package,
+    roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
+    href: "/compras",
+    label: "Compras",
+    shortLabel: "Compras",
+    icon: ShoppingCart,
+    roles: ["admin", "operator"],
+    mobile: false,
   },
 ];
 

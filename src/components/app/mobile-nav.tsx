@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 export function MobileNav({ role }: { role: Role }) {
   const pathname = usePathname();
-  const items = navForRole(role);
+  const items = navForRole(role).filter((item) => item.mobile !== false);
   const newSaleActive = pathname === NEW_SALE_PATH;
   const leftItems = items.slice(0, 2);
   const rightItems = items.slice(2);
