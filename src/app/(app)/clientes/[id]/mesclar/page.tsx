@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { getSession } from "@/lib/auth";
+import { getClientOverviewStats } from "@/lib/client-overview";
 import { isUuid } from "@/lib/clients";
 import { createClient } from "@/lib/supabase/server";
 
@@ -29,12 +30,13 @@ export default async function MesclarClientePage({
   if (!session) redirect("/login");
 
   const supabase = await createClient();
-  const [sourceResult, targetsResult] = await Promise.all([
+  const [sourceResult, sourceStats, targetsResult] = await Promise.all([
     supabase
-      .from("v_client_overview")
-      .select("id, name, phone, whatsapp, sales_count, open_amount")
+      .from("clients")
+      .select("id, name, phone, whatsapp")
       .eq("id", id)
       .maybeSingle(),
+    getClientOverviewStats(supabase, [id]),
     supabase
       .from("clients")
       .select("id, name, phone, whatsapp")
@@ -48,8 +50,14 @@ export default async function MesclarClientePage({
     throw new Error(firstError.message);
   }
 
-  const source = sourceResult.data;
-  if (!source) notFound();
+  const sourceRow = sourceResult.data;
+  if (!sourceRow) notFound();
+
+  const overview = sourceStats.get(id);
+  const source = {
+    ...sourceRow,
+    ...(overview ?? { sales_count: 0, open_amount: 0 }),
+  };
 
   if (session.profile?.role !== "admin") {
     redirect(`/clientes/${source.id}`);

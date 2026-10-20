@@ -44,7 +44,7 @@ export default async function PainelPage() {
 
   const [pnlResult, countResult, receivablesResult, recentResult, dealTypesResult] =
     await Promise.all([
-      supabase.from("v_monthly_pnl").select("*").eq("month", from).maybeSingle(),
+      supabase.rpc("monthly_pnl", { p_month: from }).maybeSingle(),
       supabase
         .from("sales")
         .select("id", { count: "exact", head: true })

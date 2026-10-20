@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getSession } from "@/lib/auth";
+import { getClientOverviewStats } from "@/lib/client-overview";
 import {
   formatPhoneBR,
   isUuid,
@@ -59,27 +60,38 @@ export default async function ClientePage({
   if (!isUuid(id)) notFound();
 
   const supabase = await createClient();
-  const [clientResult, salesResult, aliasesResult, dealTypesResult, session] =
-    await Promise.all([
-      supabase.from("v_client_overview").select("*").eq("id", id).maybeSingle(),
-      supabase
-        .from("sales")
-        .select(
-          "id, sold_on, product_name_raw, deal_type_code, origin, amount_received",
-        )
-        .eq("client_id", id)
-        .order("sold_on", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(12),
-      supabase
-        .from("client_aliases")
-        .select("raw_name")
-        .eq("client_id", id)
-        .order("raw_name")
-        .limit(30),
-      supabase.from("deal_types").select("code, label"),
-      getSession(),
-    ]);
+  const [
+    clientResult,
+    stats,
+    salesResult,
+    aliasesResult,
+    dealTypesResult,
+    session,
+  ] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, name, phone, whatsapp, notes, created_at")
+      .eq("id", id)
+      .maybeSingle(),
+    getClientOverviewStats(supabase, [id]),
+    supabase
+      .from("sales")
+      .select(
+        "id, sold_on, product_name_raw, deal_type_code, origin, amount_received",
+      )
+      .eq("client_id", id)
+      .order("sold_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(12),
+    supabase
+      .from("client_aliases")
+      .select("raw_name")
+      .eq("client_id", id)
+      .order("raw_name")
+      .limit(30),
+    supabase.from("deal_types").select("code, label"),
+    getSession(),
+  ]);
 
   const firstError = [
     clientResult.error,
@@ -92,8 +104,19 @@ export default async function ClientePage({
     throw new Error(firstError.message);
   }
 
-  const client = clientResult.data;
-  if (!client) notFound();
+  const clientRow = clientResult.data;
+  if (!clientRow) notFound();
+
+  const overview = stats.get(id);
+  const client = {
+    ...clientRow,
+    ...(overview ?? {
+      sales_count: 0,
+      total_spent: 0,
+      last_purchase_on: null,
+      open_amount: 0,
+    }),
+  };
 
   const sales = salesResult.data ?? [];
   const aliases = aliasesResult.data ?? [];

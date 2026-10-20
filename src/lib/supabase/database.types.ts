@@ -358,9 +358,34 @@ export type Database = {
       };
     };
     Functions: {
+      client_overview_for_ids: {
+        Args: { p_ids: string[] };
+        Returns: {
+          id: string;
+          sales_count: number;
+          total_spent: number;
+          last_purchase_on: string | null;
+          open_amount: number;
+        }[];
+      };
       merge_clients: {
         Args: { p_source: string; p_target: string };
         Returns: undefined;
+      };
+      monthly_pnl: {
+        Args: { p_month: string };
+        Returns: {
+          month: string | null;
+          ganho_vendas: number | null;
+          royalties: number | null;
+          bonus: number | null;
+          ganho_bruto: number | null;
+          custos_fixos: number | null;
+          investimentos_promocoes: number | null;
+          ganho_liquido: number | null;
+          despesas_pessoais: number | null;
+          pv_total: number | null;
+        }[];
       };
       open_receivables_total: {
         Args: Record<PropertyKey, never>;
