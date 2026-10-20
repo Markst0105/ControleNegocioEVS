@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Save, Trash2 } from "lucide-react";
 
 import { Combobox } from "@/components/app/combobox";
+import { PriceTierBadge } from "@/components/app/price-tier-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,11 +17,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatMoney, formatMoneyInput, parseMoneyInput } from "@/lib/format";
 import {
-  formatDecimalInput,
-  formatMoney,
-  parseMoneyInput,
-} from "@/lib/format";
+  PRICE_TIERS,
+  priceTier,
+  type PriceTierCode,
+} from "@/lib/prices";
 import { cn } from "@/lib/utils";
 
 import { createPurchase, type PurchaseFormState } from "./actions";
@@ -31,6 +33,14 @@ export type PurchaseFormData = {
     name: string;
     sku: string;
     last_cost: number | null;
+    retail_price: number | null;
+    price_25: number | null;
+    price_35: number | null;
+    price_42: number | null;
+    price_50: number | null;
+    price_bronze: number | null;
+    price_prata: number | null;
+    price_ouro: number | null;
   }[];
   suppliers: { id: string; name: string }[];
   accounts: { id: string; name: string }[];
@@ -40,14 +50,46 @@ export type PurchaseFormData = {
   initialSupplierId?: string;
 };
 
+type PurchaseTier = PriceTierCode | "custom";
+
 type Line = {
   key: string;
   productId: string;
+  tierCode: PurchaseTier;
   qty: string;
   unitCost: string;
 };
 
+type PurchaseProduct = PurchaseFormData["products"][number];
+
 const initialState: PurchaseFormState = { error: null };
+
+function priceFor(product: PurchaseProduct | undefined, code: PurchaseTier) {
+  if (!product || code === "custom") return null;
+  const tier = priceTier(code);
+  if (!tier) return null;
+  return product[tier.column];
+}
+
+function defaultTierFor(product: PurchaseProduct | undefined): PurchaseTier {
+  if (!product) return "custom";
+  if (product.price_ouro != null) return "ouro";
+
+  const firstPriced = PRICE_TIERS.find(
+    (tier) => product[tier.column] != null,
+  );
+  return firstPriced?.code ?? "custom";
+}
+
+function initialCostFor(
+  product: PurchaseProduct | undefined,
+  tierCode: PurchaseTier,
+) {
+  const tierPrice = priceFor(product, tierCode);
+  if (tierPrice != null) return formatMoneyInput(tierPrice);
+  if (product?.last_cost != null) return formatMoneyInput(product.last_cost);
+  return "";
+}
 
 export function PurchaseForm({ data }: { data: PurchaseFormData }) {
   const [state, formAction, pending] = useActionState(
@@ -65,16 +107,15 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
     const initialProduct = data.products.find(
       (product) => product.id === data.initialProductId,
     );
+    const tierCode = defaultTierFor(initialProduct);
 
     return [
       {
         key: "line-1",
         productId: data.initialProductId ?? "",
+        tierCode,
         qty: "1",
-        unitCost:
-          initialProduct?.last_cost == null
-            ? ""
-            : formatDecimalInput(initialProduct.last_cost),
+        unitCost: initialCostFor(initialProduct, tierCode),
       },
     ];
   });
@@ -87,13 +128,29 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
 
   function handleProductChange(line: Line, productId: string) {
     const product = data.products.find((item) => item.id === productId);
+    const tierCode = defaultTierFor(product);
     updateLine(line.key, {
       productId,
-      unitCost:
-        product?.last_cost == null
-          ? ""
-          : formatDecimalInput(product.last_cost),
+      tierCode,
+      unitCost: initialCostFor(product, tierCode),
     });
+  }
+
+  function handleTierChange(line: Line, tierCode: PurchaseTier) {
+    const product = data.products.find(
+      (item) => item.id === line.productId,
+    );
+    const tierPrice = priceFor(product, tierCode);
+
+    updateLine(line.key, {
+      tierCode,
+      unitCost:
+        tierPrice == null ? line.unitCost : formatMoneyInput(tierPrice),
+    });
+  }
+
+  function handleCostChange(line: Line, unitCost: string) {
+    updateLine(line.key, { unitCost, tierCode: "custom" });
   }
 
   function addLine() {
@@ -101,7 +158,13 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
     nextKey.current += 1;
     setLines((previous) => [
       ...previous,
-      { key, productId: "", qty: "1", unitCost: "" },
+      {
+        key,
+        productId: "",
+        tierCode: "custom",
+        qty: "1",
+        unitCost: "",
+      },
     ]);
   }
 
@@ -116,8 +179,11 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
   const productOptions = data.products.map((product) => ({
     value: product.id,
     label: product.name,
-    search: product.sku,
-    hint: product.sku,
+    search: `${product.name} ${product.sku}`,
+    hint:
+      product.price_ouro != null
+        ? `Ouro ${formatMoney(product.price_ouro)}`
+        : product.sku,
   }));
 
   const supplierOptions = data.suppliers.map((supplier) => ({
@@ -141,6 +207,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
       product_id: line.productId,
       qty: line.qty,
       unit_cost: line.unitCost,
+      price_tier: line.tierCode === "custom" ? null : line.tierCode,
     })),
   );
 
@@ -264,7 +331,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
               Produtos
             </h2>
             <p className="mt-0.5 text-[11px] text-ink-soft">
-              Quantidade e custo unitário de cada item.
+              Escolha a faixa para preencher o custo; edite o custo para manual.
             </p>
           </div>
           <Button
@@ -283,11 +350,17 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
           {lines.map((line, index) => {
             const qty = parseMoneyInput(line.qty) ?? 0;
             const cost = parseMoneyInput(line.unitCost) ?? 0;
+            const product = data.products.find(
+              (item) => item.id === line.productId,
+            );
+            const selectedTier =
+              line.tierCode === "custom" ? null : priceTier(line.tierCode);
+            const selectedPrice = priceFor(product, line.tierCode);
 
             return (
               <div
                 key={line.key}
-                className="grid gap-2 rounded-md border border-line/80 bg-paper p-3 sm:grid-cols-[minmax(0,1fr)_5.5rem_7rem_7rem_auto] sm:items-end"
+                className="grid gap-2 rounded-md border border-line/80 bg-paper p-3 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1fr)_9.5rem_5.5rem_7rem_7rem_auto]"
               >
                 <Field
                   label={`Produto ${index + 1}`}
@@ -306,6 +379,64 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
                       handleProductChange(line, value)
                     }
                   />
+                </Field>
+
+                <Field label="Faixa" htmlFor={`tier-${line.key}`}>
+                  <Select
+                    value={line.tierCode}
+                    onValueChange={(value) =>
+                      handleTierChange(line, value as PurchaseTier)
+                    }
+                  >
+                    <SelectTrigger
+                      id={`tier-${line.key}`}
+                      className="h-10 w-full bg-surface"
+                    >
+                      <SelectValue placeholder="Faixa">
+                        {selectedTier ? (
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <PriceTierBadge code={selectedTier.code} />
+                            <span className="num truncate text-[10.5px] text-ink-soft">
+                              {selectedPrice == null
+                                ? "—"
+                                : formatMoney(selectedPrice)}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-ink-soft">Manual</span>
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="min-w-[12rem]">
+                      {PRICE_TIERS.map((tier) => {
+                        const tierPrice = product?.[tier.column] ?? null;
+                        return (
+                          <SelectItem
+                            key={tier.code}
+                            value={tier.code}
+                            disabled={tierPrice == null}
+                          >
+                            <span className="flex w-full items-center justify-between gap-3">
+                              <PriceTierBadge code={tier.code} />
+                              <span
+                                className={cn(
+                                  "num text-[11px]",
+                                  tierPrice == null
+                                    ? "text-ink-soft/50"
+                                    : "text-ink-soft",
+                                )}
+                              >
+                                {tierPrice == null
+                                  ? "—"
+                                  : formatMoney(tierPrice)}
+                              </span>
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                      <SelectItem value="custom">Manual</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </Field>
 
                 <Field label="Qtd." htmlFor={`qty-${line.key}`}>
@@ -327,7 +458,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
                     inputMode="decimal"
                     value={line.unitCost}
                     onChange={(event) =>
-                      updateLine(line.key, { unitCost: event.target.value })
+                      handleCostChange(line, event.target.value)
                     }
                     placeholder="0,00"
                     className="num h-10 text-right"

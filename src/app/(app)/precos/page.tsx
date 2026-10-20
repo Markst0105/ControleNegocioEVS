@@ -173,7 +173,7 @@ export default async function PricesPage({
 
         <p className="max-w-sm text-[11px] leading-relaxed text-ink-soft">
           Valores em reais, arredondados para cima como na tabela impressa. O
-          preço Cliente é o de balcão.
+          preço Cliente é o de balcão; a faixa Ouro valoriza o estoque.
         </p>
       </div>
 

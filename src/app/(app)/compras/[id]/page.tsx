@@ -6,6 +6,7 @@ import { ChevronLeft, Plus } from "lucide-react";
 
 import { FlashToast } from "@/components/app/flash-toast";
 import { PageHeader } from "@/components/app/page-header";
+import { PriceTierBadge } from "@/components/app/price-tier-badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -54,7 +55,7 @@ export default async function CompraPage({
       .maybeSingle(),
     supabase
       .from("purchase_items")
-      .select("id, product_id, qty, unit_cost")
+      .select("id, product_id, qty, unit_cost, price_tier")
       .eq("purchase_id", id)
       .order("created_at"),
   ]);
@@ -201,7 +202,10 @@ export default async function CompraPage({
                         {formatDecimal(item.qty)}
                       </TableCell>
                       <TableCell className="num px-2 py-2.5 text-right text-[12px] text-ink-soft">
-                        {formatMoney(item.unit_cost)}
+                        <span className="flex flex-col items-end gap-1">
+                          <span>{formatMoney(item.unit_cost)}</span>
+                          <PriceTierBadge code={item.price_tier} />
+                        </span>
                       </TableCell>
                       <TableCell className="num px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap">
                         {formatMoney(Number(item.qty) * Number(item.unit_cost))}
