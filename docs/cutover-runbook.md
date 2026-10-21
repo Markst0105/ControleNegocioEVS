@@ -19,7 +19,7 @@ separate staging Supabase project.
 | Vercel function region | `cle1` (Cleveland, also `us-east-2`), set in `vercel.json` |
 | App framework | Next.js 16 on Vercel |
 | Latest migration | `20261024000001_phase5_monthly_pnl_view.sql` |
-| RLS suite | 59 checks, all passing in the local PostgreSQL-compatible harness |
+| RLS suite | 61 checks, all passing in the local PostgreSQL-compatible harness |
 
 `cle1` and the database are in the same AWS region. Do **not** use `gru1` unless
 the Supabase project is recreated in `sa-east-1`; changing the database region
@@ -48,7 +48,10 @@ means creating a new project and restoring into it.
 - `20261025000001_phase5_catalog_gaps.sql` creates the 25 products that only
   the ledger references, links the 756 affected sales and backfills
   `sales.product_name_raw`, so no imported sale shows an empty product.
-- The RLS suite remains self-rolling-back and must pass 59/59 on production.
+- `20261025000002_phase5_reconciliation_preview.sql` adds the preview of the
+  bulk reconciliation, and `20261025000003_phase5_price_import.sql` adds the
+  price import used by the Preços screen.
+- The RLS suite remains self-rolling-back and must pass 61/61 on production.
 
 ## Confirmed on the live database
 
@@ -59,8 +62,9 @@ Checked against the linked production project through PostgREST:
 - `v_monthly_pnl` answered with
   `FULL JOIN is only supported with merge-joinable or hash-joinable join
   conditions` (HTTP 400) and now answers `200` after the Phase 5 migration.
-- Every table, view and function the code calls is exposed: **47/47** in
-  `npm run db:parity`.
+- Every table, view and function the code calls is exposed: **48/49** in
+  `npm run db:parity` — the missing one is `import_price_sheet`, which arrives
+  with `20261025000003_phase5_price_import.sql`.
 - The catalog gaps are still open until
   `20261025000001_phase5_catalog_gaps.sql` is applied: 756 sales have no
   product and every imported sale has an empty product name.
@@ -157,6 +161,8 @@ npx supabase db push
 - [ ] `20261023000001_phase4b_cash_flow_month_close.sql` is applied.
 - [ ] `20261024000001_phase5_monthly_pnl_view.sql` is applied.
 - [ ] `20261025000001_phase5_catalog_gaps.sql` is applied.
+- [ ] `20261025000002_phase5_reconciliation_preview.sql` is applied.
+- [ ] `20261025000003_phase5_price_import.sql` is applied.
 - [ ] PostgREST reloaded its schema. The Phase 4b and Phase 5 migrations issue
       `notify pgrst, 'reload schema'`; if the API still returns 404 for
       `month_closings`, wait a few seconds or run:
@@ -175,7 +181,8 @@ DATABASE_URL="postgresql://..." npm run db:rls
 # equivalent: psql "$DATABASE_URL" -f supabase/tests/rls_test.sql
 ```
 
-Expected: 59 rows, every one `PASS`, including `v_monthly_pnl`. The script
+Expected: 61 rows, every one `PASS`, including `v_monthly_pnl` and the price
+import. The script
 exits non-zero on any failure or if the number of checks is not 59.
 
 - [ ] Run the read-only cutover report and save the output:
@@ -216,7 +223,7 @@ Expected: `"status": "ok"` and HTTP 200.
 npm run db:parity
 ```
 
-Expected: `Schema parity: 47/47 relations available.` The check only reads: it
+Expected: `Schema parity: 49/49 relations available.` The check only reads: it
 probes each table and function through PostgREST and never runs a mutating
 function.
 
@@ -413,7 +420,30 @@ Gate:
 - [ ] No sale shows an empty product in Vendas, Painel, Clientes or Recebíveis.
 - [ ] Every product that should carry stock has a current Ouro price.
 
-### B6. Count stock
+### B6. Update the price table from the supplier sheet
+
+The Preços screen has an **Atualizar preços** button (admin only). It loads a
+spreadsheet shaped like the workbook's "Novos Preços HLF" tab: `SKU | Produto |
+PV | Venda | 0.25 | 0.35 | 0.42 | 0.5 | Bronze | Prata | Ouro`.
+
+- [ ] Apply `20261025000003_phase5_price_import.sql` (the `import_price_sheet`
+      function).
+- [ ] Export the current price sheet, change the prices and import it back.
+- [ ] Check the summary in the dialog: products found, prices changed, prices
+      kept, names/PVs adjusted and SKUs that are not in the catalog.
+- [ ] A SKU that is not in the catalog is reported, not created. Add it to the
+      catalog first if the product is really sold.
+- [ ] Prices that did not change are left alone; a changed price closes the
+      current row and opens a new one from the chosen date, so the history is
+      kept.
+- [ ] The import is written to the audit log (`price_import`).
+
+Gate:
+
+- [ ] The printed price sheet matches the supplier's current table.
+- [ ] No SKU was left out of the catalog by mistake.
+
+### B7. Count stock
 
 - [ ] Count the physical stock on the cutover date.
 - [ ] Record the count in `/estoque/contagens/nova`, one location at a time.
@@ -426,7 +456,7 @@ Gate:
 - [ ] The count is recorded and the expected/counted differences are understood.
 - [ ] No unexplained negative balance remains.
 
-### B7. Review accounts and purchases
+### B8. Review accounts and purchases
 
 - [ ] Make sure expenses and purchases point to the correct account when the
       information exists.
@@ -434,7 +464,7 @@ Gate:
 - [ ] Confirm there are no duplicate purchases or duplicate ledger rows from a
       previous partial seed.
 
-### B8. Close the historical months
+### B9. Close the historical months
 
 - [ ] Open `/financeiro/fechamento` as admin, month by month.
 - [ ] Read every warning. A warning is not a blocker to a soft close, but it must
@@ -451,7 +481,7 @@ Gate:
       the note says it is incomplete.
 - [ ] Reopen/close produces an audit row and preserves the previous snapshot.
 
-### B9. Monitoring and operations
+### B10. Monitoring and operations
 
 - [ ] Supabase backups are enabled and the restore procedure is known.
 - [ ] Vercel deployment logs and Supabase logs are accessible to the owner.
@@ -468,7 +498,7 @@ Gate:
 
 1. Take the final backup.
 2. Confirm the migration list is empty.
-3. Confirm the RLS suite is 59/59 and `npm run db:parity` is 47/47.
+3. Confirm the RLS suite is 61/61 and `npm run db:parity` is 49/49.
 4. Confirm the cutover report has no unexplained gate failure.
 5. Deploy the production build.
 6. Run the A9 smoke test.
@@ -498,7 +528,7 @@ Go only when all of these are true:
 - [ ] `npm run db:parity` reports 47/47 and `GET /api/health` is green.
 - [ ] The GitHub repository is private, or the seed is out of the repository and
       its history.
-- [ ] RLS 59/59 on production.
+- [ ] RLS 61/61 on production.
 - [ ] No unexpected open installment before the cutover date.
 - [ ] Final months have expenses and statements, or an explicit incomplete note.
 - [ ] Unmatched catalog names and negative stock are resolved or documented.

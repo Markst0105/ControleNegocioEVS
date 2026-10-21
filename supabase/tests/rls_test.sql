@@ -782,6 +782,77 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
+-- Phase 5: price import from a spreadsheet.
+-- ---------------------------------------------------------------------------
+do $$
+declare
+    v_summary jsonb;
+    v_price numeric;
+begin
+    v_summary := public.import_price_sheet(
+        jsonb_build_array(
+            jsonb_build_object(
+                'sku', '#325K',
+                'prices', jsonb_build_object('retail', 999)
+            )
+        ),
+        public.business_today()
+    );
+
+    select pp.price into v_price
+    from public.product_prices pp
+    join public.products p on p.id = pp.product_id
+    where p.sku = '#325K'
+      and pp.tier_code = 'retail'
+      and pp.valid_from <= public.business_today()
+      and (pp.valid_to is null or pp.valid_to >= public.business_today())
+    order by pp.valid_from desc
+    limit 1;
+
+    insert into pg_temp.rls_results
+    select 60, 'admin: importa preços e guarda o histórico',
+           (v_summary ->> 'prices_changed')::int = 1
+           and v_price = 999
+           and exists (
+               select 1
+               from public.product_prices pp2
+               join public.products p2 on p2.id = pp2.product_id
+               where p2.sku = '#325K'
+                 and pp2.tier_code = 'retail'
+                 and pp2.price <> 999
+           )
+           and exists (
+               select 1 from public.audit_log
+                where table_name = 'price_import'
+           );
+end $$;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'b0000000-0000-4000-8000-000000000002')::text,
+                  true);
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        perform public.import_price_sheet(
+            jsonb_build_array(
+                jsonb_build_object(
+                    'sku', '#325K',
+                    'prices', jsonb_build_object('retail', 111)
+                )
+            ),
+            public.business_today()
+        );
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    select 61, 'operador: NÃO importa preços', v_blocked;
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- 3. results
 -- ---------------------------------------------------------------------------
 reset role;

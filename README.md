@@ -68,7 +68,7 @@ database identifiers are in English.
 | Sales | Per-sale ledger: deal types (consignment, gifts, negotiated prices…), discounts, PV and profit per sale |
 | Clients | CRM with phone/WhatsApp fields and aliases for de-duplicated names |
 | Inventory | Purchases, manual movements and counts, with per-location balances and Ouro-tier valuation |
-| Prices | Counter sheet with retail, discount tiers, membership tiers and print layout |
+| Prices | Counter sheet with retail, discount tiers, membership tiers and print layout; prices can be updated from a supplier spreadsheet |
 | Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L with category breakdown |
 | Receivables | Open installments with partial receipts, write-offs, filters and admin bulk reconciliation of imported history |
 | Cash flow | Derived monthly ledger from receipt events, expenses and stock purchases, with daily movement detail and running month totals |
@@ -105,7 +105,8 @@ src/            Next.js app (App Router, components, lib)
 scripts/        db-rls.sh (RLS suite), db-report.sh (pre-cutover report),
                 check-schema-parity.mjs (code ↔ schema),
                 check-repo-visibility.sh (repository privacy),
-                smoke-url.sh (public-surface smoke test)
+                smoke-url.sh (public-surface smoke test),
+                test-price-import.ts (price-sheet parser)
 docs/           phase-0-setup.md, cutover-runbook.md, design-system.md, design/
 etl/            workbook → SQL seeds (extract.py), schema checker, validation
 supabase/
@@ -130,7 +131,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 59/59 checks should pass, and nothing is left
+   verify the security policies — 61/61 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -182,7 +183,8 @@ those columns.
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 `npm run typecheck`, `npm run db:rls` (RLS suite against `DATABASE_URL`),
 `npm run db:report` (read-only pre-cutover report), `npm run db:parity` (every
-table/function the code calls exists in the project), `npm run repo:visibility`
+table/function the code calls exists in the project), `npm run test:prices`
+(price-sheet parser), `npm run repo:visibility`
 (repository privacy check), `npm run smoke:url <url>` (public-surface smoke
 test), and `npm run db:types` (regenerate
 `src/lib/supabase/database.types.ts` from the Supabase project; requires
@@ -209,7 +211,7 @@ npx supabase link --project-ref <project-ref>
 npx supabase db push
 
 # 2. Verify security and data readiness.
-DATABASE_URL="postgresql://..." npm run db:rls     # 59/59 PASS
+DATABASE_URL="postgresql://..." npm run db:rls     # 61/61 PASS
 DATABASE_URL="postgresql://..." npm run db:report  # read-only report
 
 # 3. Deploy the app.
@@ -249,7 +251,10 @@ What this milestone includes:
   purchase totals and the known workbook distributors pre-seeded;
 - **Preços** — searchable, print-friendly counter sheet with retail, 25–50%
   tiers, Bronze/Prata/Ouro and PV; values use the spreadsheet’s whole-reais
-  rounding while the database keeps exact cents;
+  rounding while the database keeps exact cents; an admin can update the whole
+  catalog from a spreadsheet shaped like the workbook’s "Novos Preços HLF" tab
+  — the columns are matched by header, prices that did not change are left
+  alone and the previous price history is kept;
 - **Movimentações** — transfers, adjustments, loans and returns with validation;
 - **Contagens** — physical counts that store expected/counted values and post
   the difference as a stock movement;
