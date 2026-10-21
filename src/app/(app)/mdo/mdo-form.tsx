@@ -16,11 +16,11 @@ const initialState: MdoFormState = { error: null };
 export function MdoForm({
   day,
   date,
-  month,
+  returnTo,
 }: {
   day: MdoDay | null;
   date: string;
-  month: string;
+  returnTo: string;
 }) {
   const [state, formAction, pending] = useActionState(
     saveDailyKpis,
@@ -87,7 +87,7 @@ export function MdoForm({
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button asChild variant="ghost">
-          <Link href={`/mdo?mes=${month}`}>Cancelar</Link>
+          <Link href={returnTo}>Cancelar</Link>
         </Button>
         <Button type="submit" disabled={pending} className="h-10 font-bold">
           {pending ? (

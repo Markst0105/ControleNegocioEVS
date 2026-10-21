@@ -4,7 +4,14 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
-import { formatDate, formatDateLong, parseDateInput } from "@/lib/format";
+import {
+  addDays,
+  formatDate,
+  formatDateLong,
+  nextMonthFirstDay,
+  parseDateInput,
+  todayISO,
+} from "@/lib/format";
 import type { MdoDay } from "@/lib/mdo";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,16 +39,21 @@ export default async function MdoDayPage({ params }: { params: Params }) {
 
   const day = (data ?? null) as MdoDay | null;
   const month = date.slice(0, 7);
+  const monthEnd = addDays(nextMonthFirstDay(month), -1);
+  const isToday = date === todayISO();
+  const returnTo = isToday
+    ? "/mdo"
+    : `/mdo?aba=mes&de=${month}-01&ate=${monthEnd}`;
 
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-4">
         <Link
-          href={`/mdo?mes=${month}`}
+          href={returnTo}
           className="inline-flex items-center gap-1 text-xs font-medium text-ink-soft transition-colors hover:text-ink"
         >
           <ChevronLeft className="size-3.5" />
-          MDO do mês
+          {isToday ? "MDO de hoje" : "MDO do mês"}
         </Link>
       </div>
 
@@ -62,7 +74,7 @@ export default async function MdoDayPage({ params }: { params: Params }) {
       </div>
 
       <div className="mt-6">
-        <MdoForm day={day} date={date} month={month} />
+        <MdoForm day={day} date={date} returnTo={returnTo} />
       </div>
     </div>
   );
