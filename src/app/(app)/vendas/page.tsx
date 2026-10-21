@@ -29,6 +29,7 @@ import {
   formatInt,
   formatMoney,
   formatMonth,
+  isMonthISO,
   monthFirstDay,
   nextMonthFirstDay,
 } from "@/lib/format";
@@ -56,9 +57,7 @@ export default async function VendasPage({
   const params = await searchParams;
 
   const currentMonth = currentMonthISO();
-  const mes = /^\d{4}-\d{2}$/.test(params.mes ?? "")
-    ? (params.mes as string)
-    : currentMonth;
+  const mes = isMonthISO(params.mes) ? params.mes : currentMonth;
   const q = (params.q ?? "").trim().slice(0, 80);
   const page = Math.max(1, Number.parseInt(params.pagina ?? "1", 10) || 1);
 

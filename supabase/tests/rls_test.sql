@@ -188,6 +188,135 @@ select 24, 'membro: NÃO vê a tabela de preços',
        (select count(*) from public.v_price_catalog) = 0;
 
 -- ---------------------------------------------------------------------------
+-- Phase 3: reservation guards and conversion
+-- ---------------------------------------------------------------------------
+-- add one catalog item to the member's own open reservation
+insert into public.reservation_items (reservation_id, product_id, qty, unit_price, pv)
+select r.id, c.id, 1, c.retail_price, coalesce(c.pv, 0)
+from public.reservations r
+cross join lateral (
+    select id, retail_price, pv from public.v_catalog_member limit 1
+) c
+where r.member_id = auth.uid() and r.status = 'open'
+order by r.created_at desc
+limit 1;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        update public.reservations
+           set status = 'confirmed', confirmed_at = now()
+         where member_id = auth.uid() and status = 'open';
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (25, 'membro: NÃO confirma a própria reserva', v_blocked);
+end $$;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        update public.reservation_items
+           set unit_price = 0
+         where reservation_id in (
+             select id from public.reservations where member_id = auth.uid()
+         );
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (26, 'membro: NÃO altera o preço da reserva', v_blocked);
+end $$;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'b0000000-0000-4000-8000-000000000002')::text,
+                  true);
+
+update public.reservations
+   set status = 'confirmed', confirmed_at = now()
+ where member_id = 'c0000000-0000-4000-8000-000000000003'
+   and status = 'open';
+
+insert into pg_temp.rls_results
+select 27, 'operador: confirma reserva do membro',
+       (select count(*) from public.reservations
+         where member_id = 'c0000000-0000-4000-8000-000000000003'
+           and status = 'confirmed') >= 1;
+
+do $$
+declare
+    v_reservation_id uuid;
+    v_sale_id uuid;
+begin
+    select id into v_reservation_id
+    from public.reservations
+    where member_id = 'c0000000-0000-4000-8000-000000000003'
+      and status = 'confirmed'
+    order by created_at desc
+    limit 1;
+
+    v_sale_id := public.convert_reservation(
+        v_reservation_id, current_date, 'EVS', 'P', '0'
+    );
+
+    insert into pg_temp.rls_results
+    values (28, 'operador: converte reserva em venda',
+            (select count(*) from public.sales
+              where id = v_sale_id
+                and reservation_id = v_reservation_id) = 1);
+end $$;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'c0000000-0000-4000-8000-000000000003')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 29, 'membro: vê a própria reserva convertida',
+       (select count(*) from public.v_reservation_overview
+         where status = 'converted') = 1;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        update public.profiles set role = 'admin' where id = auth.uid();
+        raise exception 'unexpected role change' using errcode = 'P0001';
+    exception
+        when insufficient_privilege then v_blocked := true;
+        when sqlstate 'P0001' then v_blocked := false;
+    end;
+
+    insert into pg_temp.rls_results
+    values (30, 'membro: NÃO eleva o próprio papel', v_blocked);
+end $$;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        update public.profiles set price_tier = 'ouro' where id = auth.uid();
+        raise exception 'unexpected tier change' using errcode = 'P0001';
+    exception
+        when insufficient_privilege then v_blocked := true;
+        when sqlstate 'P0001' then v_blocked := false;
+    end;
+
+    insert into pg_temp.rls_results
+    values (31, 'membro: NÃO altera a própria faixa de preço', v_blocked);
+end $$;
+
+update public.profiles set name = 'RLS Test Member Editado' where id = auth.uid();
+
+insert into pg_temp.rls_results
+select 32, 'membro: edita o próprio nome',
+       (select name from public.profiles where id = auth.uid()) = 'RLS Test Member Editado';
+
+-- ---------------------------------------------------------------------------
 -- 3. results
 -- ---------------------------------------------------------------------------
 reset role;

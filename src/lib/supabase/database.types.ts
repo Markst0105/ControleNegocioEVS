@@ -558,6 +558,159 @@ export type Database = {
         };
         Relationships: [];
       };
+      daily_kpis: {
+        Row: {
+          id: string;
+          kpi_date: string;
+          contatos: number | null;
+          ligacao: number | null;
+          marcacao: number | null;
+          apresentacao: number | null;
+          indicacoes: number | null;
+          convites_traga_um: number | null;
+          cliente_novo: number | null;
+          cliente_repetidor: number | null;
+          acesso_total: number | null;
+          cartelas: number | null;
+          cortesias: number | null;
+          consumo_proprio: number | null;
+          panfletos: number | null;
+          convidados_hom: number | null;
+          convidados_jantar: number | null;
+          convidados_qs: number | null;
+          convidados_sts: number | null;
+          indicacoes_recru: number | null;
+          novos_consultores: number | null;
+          novos_cons_sr: number | null;
+          novos_const_sucesso: number | null;
+          novos_supervisores: number | null;
+          created_at: string | null;
+          updated_at: string | null;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          kpi_date: string;
+          contatos?: number | null;
+          ligacao?: number | null;
+          marcacao?: number | null;
+          apresentacao?: number | null;
+          indicacoes?: number | null;
+          convites_traga_um?: number | null;
+          cliente_novo?: number | null;
+          cliente_repetidor?: number | null;
+          acesso_total?: number | null;
+          cartelas?: number | null;
+          cortesias?: number | null;
+          consumo_proprio?: number | null;
+          panfletos?: number | null;
+          convidados_hom?: number | null;
+          convidados_jantar?: number | null;
+          convidados_qs?: number | null;
+          convidados_sts?: number | null;
+          indicacoes_recru?: number | null;
+          novos_consultores?: number | null;
+          novos_cons_sr?: number | null;
+          novos_const_sucesso?: number | null;
+          novos_supervisores?: number | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          kpi_date?: string;
+          contatos?: number | null;
+          ligacao?: number | null;
+          marcacao?: number | null;
+          apresentacao?: number | null;
+          indicacoes?: number | null;
+          convites_traga_um?: number | null;
+          cliente_novo?: number | null;
+          cliente_repetidor?: number | null;
+          acesso_total?: number | null;
+          cartelas?: number | null;
+          cortesias?: number | null;
+          consumo_proprio?: number | null;
+          panfletos?: number | null;
+          convidados_hom?: number | null;
+          convidados_jantar?: number | null;
+          convidados_qs?: number | null;
+          convidados_sts?: number | null;
+          indicacoes_recru?: number | null;
+          novos_consultores?: number | null;
+          novos_cons_sr?: number | null;
+          novos_const_sucesso?: number | null;
+          novos_supervisores?: number | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      reservations: {
+        Row: {
+          id: string;
+          member_id: string;
+          status: string;
+          created_at: string | null;
+          updated_at: string | null;
+          confirmed_at: string | null;
+          converted_sale_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          status: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+          confirmed_at?: string | null;
+          converted_sale_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          status?: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+          confirmed_at?: string | null;
+          converted_sale_id?: string | null;
+        };
+        Relationships: [];
+      };
+      reservation_items: {
+        Row: {
+          id: string;
+          reservation_id: string;
+          product_id: string;
+          qty: number;
+          unit_price: number;
+          pv: number;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          reservation_id: string;
+          product_id: string;
+          qty?: number;
+          unit_price: number;
+          pv?: number;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          reservation_id?: string;
+          product_id?: string;
+          qty?: number;
+          unit_price?: number;
+          pv?: number;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       v_client_overview: {
@@ -599,6 +752,42 @@ export type Database = {
           price_bronze: number | null;
           price_prata: number | null;
           price_ouro: number | null;
+        };
+        Relationships: [];
+      };
+      v_catalog_member: {
+        Row: {
+          id: string;
+          sku: string;
+          name: string;
+          kind: string;
+          portions_per_pack: number | null;
+          portion_label: string | null;
+          retail_price: number | null;
+          pv: number | null;
+          is_active: boolean | null;
+          print_name: string | null;
+          member_tier_code: string;
+          member_price: number | null;
+        };
+        Relationships: [];
+      };
+      v_reservation_overview: {
+        Row: {
+          id: string;
+          member_id: string;
+          member_name: string;
+          status: string;
+          created_at: string | null;
+          confirmed_at: string | null;
+          converted_sale_id: string | null;
+          item_count: number;
+          total_qty: number;
+          total: number;
+          pv_total: number;
+          sale_count: number;
+          sales_total: number;
+          updated_at: string | null;
         };
         Relationships: [];
       };
@@ -754,6 +943,23 @@ export type Database = {
           p_invoice_no: string | null;
           p_notes: string | null;
           p_items: Json;
+        };
+        Returns: string;
+      };
+      create_reservation: {
+        Args: {
+          p_member_id: string | null;
+          p_items: Json;
+        };
+        Returns: string;
+      };
+      convert_reservation: {
+        Args: {
+          p_reservation_id: string;
+          p_sold_on: string;
+          p_origin: string;
+          p_payment_method_code: string;
+          p_deal_type_code: string;
         };
         Returns: string;
       };
