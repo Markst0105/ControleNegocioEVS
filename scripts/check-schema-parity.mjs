@@ -35,6 +35,7 @@ const FUNCTION_PROBES = {
   cash_flow_summary: { p_month: OLD_DATE },
   month_close_summary: { p_month: OLD_DATE },
   open_receivables_as_of: { p_date: OLD_DATE },
+  reconciliation_preview: { p_cutoff: OLD_DATE },
   client_overview_for_ids: { p_ids: [] },
   stock_for_products: { p_ids: [] },
   inventory_summary: {},
