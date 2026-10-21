@@ -19,14 +19,15 @@ database identifiers are in English.
 > line. Fornecedores includes create/edit/deactivate and the known distributors
 > from the workbook. Preços is a print-friendly counter sheet with retail,
 > discount tiers and PV; the sale form prefills the retail amount from the
-> selected product. MDO imports 730 days of activity KPIs and adds a monthly
-> dashboard plus a daily editor. Reservas supports member pre-orders, operator
-> confirmation and atomic conversion into sales with stock movements and
-> installments. Members sign in to a dedicated catalog and see only their own
-> reservations. The visual identity follows the **Balcão** direction: desktop
-> side column, mobile top bar with a leaf-triggered panel, month masthead and an
-> editorial serif for section titles. Expenses and P&L (Phase 2c) remain pending
-> the expense data gap.
+> selected product. MDO imports 730 days of activity KPIs and now offers a
+> last-seven-days view plus a customisable monthly range with period, month and
+> daily breakdowns. Reservas supports member pre-orders, operator confirmation
+> and atomic conversion into sales with stock movements and installments.
+> Members sign in to a dedicated catalog and see only their own reservations.
+> The visual identity follows the **Balcão** direction: desktop side column,
+> mobile top bar with a leaf-triggered panel, month masthead and an editorial
+> serif for section titles. Expenses and P&L (Phase 2c) remain pending the
+> expense data gap.
 >
 > Apply the migrations through
 > `supabase/migrations/20261021000001_phase3_mdo_reservations.sql` before
@@ -47,7 +48,7 @@ database identifiers are in English.
 | Inventory | Purchases, manual movements and counts, with per-location balances and Ouro-tier valuation |
 | Prices | Counter sheet with retail, discount tiers, membership tiers and print layout |
 | Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L |
-| MDO | Daily activity KPIs for 730 days of history |
+| MDO | Daily activity KPIs plus week and month views with access, sales and profit breakdowns |
 | Reservations | Client pre-orders — members see only their own |
 
 Three roles, enforced in the database with Row-Level Security:
@@ -182,8 +183,10 @@ What this milestone includes:
 - **Movimentações** — transfers, adjustments, loans and returns with validation;
 - **Contagens** — physical counts that store expected/counted values and post
   the difference as a stock movement;
-- **MDO** — monthly dashboard with totals by activity/client/recruiting group
-  and a daily editor for the 22 spreadsheet KPIs;
+- **MDO** — two views: the last seven days with today’s MDO, and a month view
+  with a customisable date range, period summary, month summary for every month
+  touched by the range and the daily breakdown; a daily editor keeps the 22
+  spreadsheet KPIs;
 - **Reservas** — operator list with status filters, member pre-orders using the
   member’s price tier, confirmation/cancellation and atomic conversion into one
   sale per item, including stock movements and card installments;

@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth";
-import { parseDateInput } from "@/lib/format";
+import {
+  addDays,
+  nextMonthFirstDay,
+  parseDateInput,
+  todayISO,
+} from "@/lib/format";
 import { MDO_FIELDS, type MdoField } from "@/lib/mdo";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
@@ -72,5 +77,9 @@ export async function saveDailyKpis(
 
   revalidatePath("/mdo");
   revalidatePath(`/mdo/${date}`);
-  redirect(`/mdo?mes=${date.slice(0, 7)}&ok=salvo`);
+  if (date === todayISO()) redirect("/mdo?ok=salvo");
+
+  const month = date.slice(0, 7);
+  const monthEnd = addDays(nextMonthFirstDay(month), -1);
+  redirect(`/mdo?aba=mes&de=${month}-01&ate=${monthEnd}&ok=salvo`);
 }

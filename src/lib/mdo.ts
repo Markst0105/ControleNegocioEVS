@@ -66,7 +66,7 @@ export const MDO_GROUPS: MdoGroup[] = [
         shortLabel: "Repetidores",
       },
       { name: "acesso_total", label: "Acessos", shortLabel: "Acessos" },
-      { name: "cartelas", label: "Cartelas", shortLabel: "Cartelas" },
+      { name: "cartelas", label: "Cartelas (créditos)", shortLabel: "Cartelas" },
       { name: "cortesias", label: "Cortesias", shortLabel: "Cortesias" },
       {
         name: "consumo_proprio",
