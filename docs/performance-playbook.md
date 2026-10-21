@@ -5,7 +5,7 @@ including `supabase/migrations/20261019000002_page_queries.sql`. The migration
 has **not** been applied to the live database yet; `/clientes` and `/painel`
 require it because their RPCs do not exist until it is pushed.
 
-Last updated: 2026-10-19.
+Last updated: 2026-10-21.
 
 Scope: the authenticated `GET /painel` and `GET /clientes` routes. The same
 techniques apply to `/clientes/[id]`, `/vendas` and the sale form, but those are
@@ -1198,6 +1198,16 @@ those functions and views together. Imported `received_on`/`received_amount`
 values are migrated into events once; new code must not read those legacy
 columns.
 
+### Cash flow and month close
+
+`v_cash_flow_entries` unions receipt events, expenses and stock purchases;
+`cash_flow_summary` aggregates it and must stay `security invoker` so personal
+expenses remain hidden from operators. The month close stores a JSON snapshot
+in `month_closings` (admin-only) and compares it with a fresh
+`month_close_summary` call on page load. Closing is intentionally soft: it does
+not block edits, so change detection is the guardrail. Reopening preserves the
+last snapshot and is audited.
+
 ### Exact counts
 
 Approximate counts can make pagination show an extra/empty last page. Keep
@@ -1241,9 +1251,12 @@ Do not log query strings, phone numbers, client names or JWTs.
 | `src/app/(app)/clientes/[id]/mesclar/page.tsx` | Admin merge source lookup |
 | `src/app/(app)/financeiro/recebiveis/page.tsx` | Receivables list and reconciliation |
 | `src/app/(app)/financeiro/recebiveis/[id]/page.tsx` | Installment detail and settlement |
+| `src/app/(app)/financeiro/caixa/page.tsx` | Cash ledger, filters and month totals |
+| `src/app/(app)/financeiro/fechamento/page.tsx` | Admin month-close review and snapshot |
 | `supabase/migrations/20261018000002_rls.sql` | Original RLS policies |
 | `supabase/migrations/20261019000001_clients.sql` | Client view, indexes and merge RPC |
 | `supabase/migrations/20261022000002_phase4a_receivables.sql` | Receipt/write-off ledger, balances, reconciliation |
+| `supabase/migrations/20261023000001_phase4b_cash_flow_month_close.sql` | Cash ledger, summaries and soft close |
 | `supabase/tests/rls_test.sql` | RLS access smoke test |
 | `src/lib/supabase/database.types.ts` | Hand-maintained database/RPC types |
 

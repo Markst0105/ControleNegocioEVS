@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, LockKeyhole, Plus } from "lucide-react";
 import { Suspense } from "react";
 
 import { ExpenseScopeBadge } from "@/components/app/expense-badges";
@@ -84,27 +84,39 @@ export default async function ResultadoPage({
         .maybeSingle()
     : Promise.resolve({ data: null, error: null });
 
-  const [pnlResult, expensesResult, categoriesResult, statementResult] =
-    await Promise.all([
-      supabase.rpc("monthly_pnl", { p_month: from }).maybeSingle(),
-      supabase
-        .from("expenses")
-        .select("id, category_id, scope, amount", { count: "exact" })
-        .gte("incurred_on", from)
-        .lt("incurred_on", to)
-        .order("incurred_on"),
-      supabase
-        .from("expense_categories")
-        .select("id, name, scope")
-        .order("name"),
-      statementPromise,
-    ]);
+  const closingPromise = isAdmin
+    ? supabase
+        .from("month_closings")
+        .select("status")
+        .eq("month", from)
+        .maybeSingle()
+    : Promise.resolve({ data: null, error: null });
+
+  const [
+    pnlResult,
+    expensesResult,
+    categoriesResult,
+    statementResult,
+    closingResult,
+  ] = await Promise.all([
+    supabase.rpc("monthly_pnl", { p_month: from }).maybeSingle(),
+    supabase
+      .from("expenses")
+      .select("id, category_id, scope, amount", { count: "exact" })
+      .gte("incurred_on", from)
+      .lt("incurred_on", to)
+      .order("incurred_on"),
+    supabase.from("expense_categories").select("id, name, scope").order("name"),
+    statementPromise,
+    closingPromise,
+  ]);
 
   const firstError = [
     pnlResult.error,
     expensesResult.error,
     categoriesResult.error,
     statementResult.error,
+    closingResult.error,
   ].find(Boolean);
   if (firstError) throw new Error(firstError.message);
 
@@ -112,6 +124,7 @@ export default async function ResultadoPage({
   const expenses = expensesResult.data ?? [];
   const categories = categoriesResult.data ?? [];
   const statement = (statementResult.data ?? null) as StatementRow | null;
+  const closingStatus = closingResult.data?.status ?? null;
   const expenseCount = expensesResult.count ?? expenses.length;
 
   const ganhoVendas = Number(pnl?.ganho_vendas ?? 0);
@@ -245,6 +258,15 @@ export default async function ResultadoPage({
           {mes !== currentMonth ? (
             <Button asChild variant="ghost" className="h-9">
               <Link href="/resultado">Mês atual</Link>
+            </Button>
+          ) : null}
+
+          {isAdmin ? (
+            <Button asChild variant="outline" className="h-9">
+              <Link href={`/financeiro/fechamento?mes=${mes}`}>
+                <LockKeyhole />
+                {closingStatus === "closed" ? "Fechado" : "Fechamento"}
+              </Link>
             </Button>
           ) : null}
         </div>

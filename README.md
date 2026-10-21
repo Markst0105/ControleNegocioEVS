@@ -9,43 +9,50 @@ database identifiers are in English.
 > product name in the interface is **Controle de Negócio**.
 
 > [!NOTE]
-> **Status: Phase 4a — receivables and historical reconciliation implemented.**
+> **Status: Phase 4b — cash flow and soft month close implemented.**
 > Login, role-aware app shell, Painel, Vendas, Lançamento de venda, Clientes,
-> Estoque, Compras, Fornecedores, Preços, MDO, Recebíveis, Despesas, Resultado
-> and the member catalog are in the code. Clientes includes search/pagination, name +
-> phone/WhatsApp deduplication and an admin-only merge. Estoque includes
-> purchases, manual movements, stock counts, per-location balances, product
-> history and Ouro-tier valuation. Purchases can apply any price tier and keep
-> the chosen tier on each line. Fornecedores includes create/edit/deactivate and
-> the known distributors from the workbook. Preços is a print-friendly counter
-> sheet with retail, discount tiers and PV; the sale form prefills the retail
-> amount from the selected product. MDO imports 730 days of activity KPIs and
-> offers a last-seven-days view plus a customisable monthly range with period,
-> month and daily breakdowns. Despesas separates business and personal costs;
-> Resultado turns sales, business expenses and the Herbalife statement into a
-> monthly P&L. Recebíveis tracks partial receipts, write-offs and an admin-only
-> historical reconciliation of the installments imported from the spreadsheet.
-> Members sign in to a dedicated catalog only, with prices resolved from their
-> tier. The visual identity follows the **Balcão** direction: desktop
-> side column, mobile top bar with a leaf-triggered panel, month masthead and an
-> editorial serif for section titles.
+> Estoque, Compras, Fornecedores, Preços, MDO, Recebíveis, Caixa, Despesas,
+> Resultado, Fechamento and the member catalog are in the code. Clientes includes
+> search/pagination, name + phone/WhatsApp deduplication and an admin-only merge.
+> Estoque includes purchases, manual movements, stock counts, per-location
+> balances, product history and Ouro-tier valuation. Purchases can apply any
+> price tier and keep the chosen tier on each line. Fornecedores includes
+> create/edit/deactivate and the known distributors from the workbook. Preços is
+> a print-friendly counter sheet with retail, discount tiers and PV; the sale
+> form prefills the retail amount from the selected product. MDO imports 730
+> days of activity KPIs and offers a last-seven-days view plus a customisable
+> monthly range with period, month and daily breakdowns. Despesas separates
+> business and personal costs; Resultado turns sales, business expenses and the
+> Herbalife statement into a monthly P&L. Recebíveis tracks partial receipts,
+> write-offs and an admin-only historical reconciliation of the installments
+> imported from the spreadsheet. Caixa derives the month’s cash ledger from
+> receipt events, expenses and stock purchases. Fechamento gives admins a
+> soft-close snapshot of result, cash and receivables, with change detection
+> when data is edited after closing. Members sign in to a dedicated catalog
+> only, with prices resolved from their tier. The visual identity follows the
+> **Balcão** direction: desktop side column, mobile top bar with a
+> leaf-triggered panel, month masthead and an editorial serif for section
+> titles.
 >
 > Reservations were removed from the application and navigation. The Phase 3
 > reservation tables and SQL remain in the database for history and
 > reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261022000002_phase4a_receivables.sql` before deploying.
-> That migration adds the receipt/write-off event ledger, partial-balance views
-> and the admin bulk reconciliation used by Recebíveis. It also updates Painel
-> and Clientes so “A receber” is net of partial receipts and write-offs. The
-> previous Phase 2c migration adds operator write policies for business expenses
-> and converts Herbalife statement USD amounts with their FX rate in the P&L.
-> The Phase 3 migration adds member tier pricing to the safe catalog and a
-> profile guard that prevents members from changing their own role or price
-> tier. New sales write a stock movement from cutover onward; historical sales
-> are not backfilled. Imported installments start open; an admin can settle the
-> historical backlog in bulk from Recebíveis.
+> `supabase/migrations/20261023000001_phase4b_cash_flow_month_close.sql` before
+> deploying. That migration adds the derived cash ledger, the cash and
+> month-close summary functions, the admin-only soft-close snapshot and the
+> close/reopen audit trail. The Phase 4a migration added the receipt/write-off
+> event ledger, partial-balance views and the admin bulk reconciliation used by
+> Recebíveis; it also updated Painel and Clientes so “A receber” is net of
+> partial receipts and write-offs. The previous Phase 2c migration adds operator
+> write policies for business expenses and converts Herbalife statement USD
+> amounts with their FX rate in the P&L. The Phase 3 migration adds member tier
+> pricing to the safe catalog and a profile guard that prevents members from
+> changing their own role or price tier. New sales write a stock movement from
+> cutover onward; historical sales are not backfilled. Imported installments
+> start open; an admin can settle the historical backlog in bulk from
+> Recebíveis.
 
 ## What it covers
 
@@ -57,12 +64,14 @@ database identifiers are in English.
 | Prices | Counter sheet with retail, discount tiers, membership tiers and print layout |
 | Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L with category breakdown |
 | Receivables | Open installments with partial receipts, write-offs, filters and admin bulk reconciliation of imported history |
+| Cash flow | Derived monthly ledger from receipt events, expenses and stock purchases, with daily movement detail and running month totals |
+| Month close | Admin-only soft close with result/cash/receivables snapshot, warnings, change detection and an audited reopen path |
 | MDO | Daily activity KPIs plus week and month views with access, sales and profit breakdowns |
 
 Three roles, enforced in the database with Row-Level Security:
 
-- **admin** — owner: full access, including personal expenses and Herbalife statements;
-- **operator** — day-to-day operations and business expenses; no access to personal expenses, royalties or the audit log;
+- **admin** — owner: full access, including personal expenses, Herbalife statements and month close;
+- **operator** — day-to-day operations and business expenses; no access to personal expenses, royalties, the audit log or month close;
 - **member** — product catalog only, with prices resolved from their tier.
 
 ## Stack
@@ -81,8 +90,9 @@ Three roles, enforced in the database with Row-Level Security:
 src/            Next.js app (App Router, components, lib)
   app/          routes: (auth)/login, (app)/painel, (app)/vendas, (app)/clientes,
                 (app)/precos, (app)/estoque, (app)/compras, (app)/fornecedores,
-                (app)/mdo, (app)/financeiro/recebiveis, (app)/despesas,
-                (app)/resultado, (member)/membro
+                (app)/mdo, (app)/financeiro/recebiveis, (app)/financeiro/caixa,
+                (app)/financeiro/fechamento, (app)/despesas, (app)/resultado,
+                (member)/membro
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
 docs/           phase-0-setup.md, design-system.md, design/ (identity study)
@@ -108,7 +118,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 46/46 checks should pass, and nothing is left
+   verify the security policies — 59/59 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -164,9 +174,9 @@ Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 
 > [!NOTE]
 > PostgREST aggregate selectors are disabled on this Supabase project, so sums
-> shown in the UI come from SQL functions/views — e.g. `open_receivables_total()`
-> and `v_client_overview`. Re-apply migrations after pulling (`supabase db push`,
-> or paste the new files into the SQL editor) so they exist.
+> shown in the UI come from SQL functions/views — e.g. `open_receivables_total()`,
+> `cash_flow_summary()` and `v_client_overview`. Re-apply migrations after pulling
+> (`supabase db push`, or paste the new files into the SQL editor) so they exist.
 
 What this milestone includes:
 
@@ -200,6 +210,9 @@ What this milestone includes:
   partial, settled and month filters; full or partial receipt form; write-off
   with reason (admin only); event history with admin reversal; and a guarded
   bulk reconciliation for the historical spreadsheet backlog;
+- **Caixa** — monthly cash ledger with receipts by payment date, expenses by
+  incurred date and stock purchases by purchase date; direction/type/search
+  filters, daily movement table and month totals;
 - **Despesas** — monthly ledger with month/type/category/search filters,
   totals for fixed, variable and personal costs, and create/edit/delete;
   operators may write business expenses only, while personal expenses stay
@@ -208,6 +221,9 @@ What this milestone includes:
   converted by the statement FX rate, business costs, personal expenses shown
   separately, expense breakdown by category and a clear warning when a month has
   no expenses recorded;
+- **Fechamento** — admin-only soft close with result, cash and receivables
+  summary, completeness warnings, a stored snapshot and change detection after
+  closing; reopening preserves the last snapshot and is audited;
 - **Área do membro** — dedicated catalog with the member price, search and
   pagination; members cannot change prices.
 
@@ -258,6 +274,10 @@ deactivates the empty `#497K` duplicate created by the old case-sensitive match.
   pairs, so new purchases, sales, transfers and counts can be applied on top of
   the imported opening balance. Historical sales are not backfilled; run a
   stock count if the imported balance does not match the physical count.
+- Cash flow is derived, not a bank reconciliation: receipts use the event date,
+  expenses use `incurred_on` and stock purchases use `purchased_on`. Historical
+  cash is incomplete until imported installments are reconciled and the missing
+  expense months are backfilled.
 
 ## Security notes
 
@@ -283,3 +303,5 @@ new `braces`/`micromatch` release ships.
 - [x] **Phase 3** — MDO diário e área do membro (reservas removidas da interface)
 - [x] **Phase 4a** — Recebíveis: recebimentos parciais, baixas e reconciliação
       histórica em lote
+- [x] **Phase 4b** — Caixa: fluxo mensal derivado de recebimentos, despesas e
+      compras; fechamento mensal com snapshot e detecção de alterações

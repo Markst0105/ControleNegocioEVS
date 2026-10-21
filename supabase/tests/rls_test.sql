@@ -579,6 +579,209 @@ select 45, 'admin: vê a trilha dos recebimentos',
          where table_name = 'sale_payment_events') >= 4;
 
 -- ---------------------------------------------------------------------------
+-- Phase 4b: cash flow and soft month close.
+-- Fixture month is outside the imported history so totals are deterministic.
+-- ---------------------------------------------------------------------------
+insert into public.sales (
+    id, sold_on, client_name_raw, amount_received, product_cost, financial_cost, pv
+)
+values (
+    'd0000000-0000-4000-8000-000000000005',
+    '2022-12-10',
+    'RLS Cash Client',
+    80,
+    20,
+    0,
+    1
+);
+
+insert into public.sale_payments (
+    id, sale_id, installment, due_on, amount
+)
+values (
+    'e0000000-0000-4000-8000-000000000021',
+    'd0000000-0000-4000-8000-000000000005',
+    1,
+    '2022-12-10',
+    80
+);
+
+insert into public.expenses (incurred_on, description, amount, scope)
+values
+    ('2022-12-05', 'RLS business cash', 10, 'negocio_variavel'),
+    ('2022-12-06', 'RLS personal cash', 4, 'pessoal');
+
+select public.create_purchase(
+    '2022-12-07',
+    null,
+    null,
+    'EVS',
+    'RLS-NF-1',
+    null,
+    jsonb_build_array(
+        jsonb_build_object(
+            'product_id', (select id::text from public.products order by sku limit 1),
+            'qty', 5,
+            'unit_cost', 5
+        )
+    )
+);
+
+select public.receive_sale_payment(
+    'e0000000-0000-4000-8000-000000000021',
+    50,
+    '2022-12-10',
+    'RLS cash receipt'
+);
+
+insert into pg_temp.rls_results
+select 47, 'admin: resumo de caixa inclui pessoais e compras',
+       (select cash_in = 50
+               and expenses_total = 14
+               and business_expenses_total = 10
+               and personal_expenses_total = 4
+               and purchases_total = 25
+               and cash_out_total = 39
+               and net_cash = 11
+               and receipts_count = 1
+               and expenses_count = 2
+               and purchases_count = 1
+          from public.cash_flow_summary('2022-12-01'));
+
+insert into pg_temp.rls_results
+select 48, 'admin: resumo do fechamento consolida P&L, caixa e recebíveis',
+       (select ganho_liquido = 50
+               and open_receivables = 30
+               and overdue_receivables = 30
+               and open_receivables_count = 1
+               and sales_count = 1
+               and business_expense_count = 1
+               and statement_present = false
+          from public.month_close_summary('2022-12-01'));
+
+insert into pg_temp.rls_results
+select 49, 'admin: vê os quatro movimentos de caixa do mês',
+       (select count(*) from public.v_cash_flow_entries
+         where occurred_on >= '2022-12-01'
+           and occurred_on < '2023-01-01') = 4;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'b0000000-0000-4000-8000-000000000002')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 50, 'operador: caixa exclui despesas pessoais',
+       (select cash_in = 50
+               and expenses_total = 10
+               and personal_expenses_total = 0
+               and purchases_total = 25
+               and cash_out_total = 35
+               and net_cash = 15
+          from public.cash_flow_summary('2022-12-01'));
+
+insert into pg_temp.rls_results
+select 51, 'operador: vê três movimentos de caixa do mês',
+       (select count(*) from public.v_cash_flow_entries
+         where occurred_on >= '2022-12-01'
+           and occurred_on < '2023-01-01') = 3;
+
+insert into pg_temp.rls_results
+select 52, 'operador: NÃO vê fechamentos',
+       (select count(*) from public.month_closings) = 0;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        perform public.close_month('2022-12-01', 'operator attempt');
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (53, 'operador: NÃO fecha o mês', v_blocked);
+end $$;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'c0000000-0000-4000-8000-000000000003')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 54, 'membro: NÃO vê movimentos de caixa',
+       (select count(*) from public.v_cash_flow_entries
+         where occurred_on >= '2022-12-01'
+           and occurred_on < '2023-01-01') = 0
+       and (select cash_in = 0 and net_cash = 0
+              from public.cash_flow_summary('2022-12-01'));
+
+insert into pg_temp.rls_results
+select 55, 'membro: NÃO vê fechamentos',
+       (select count(*) from public.month_closings) = 0;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
+                  true);
+
+do $$
+declare
+    v_status text;
+    v_closed_by uuid;
+begin
+    select status, closed_by
+      into v_status, v_closed_by
+      from public.close_month('2022-12-01', 'RLS close');
+
+    insert into pg_temp.rls_results
+    select 56, 'admin: fecha o mês com carimbo e autor',
+           v_status = 'closed'
+           and v_closed_by = 'a0000000-0000-4000-8000-000000000001'
+           and exists (
+               select 1 from public.month_closings
+                where month = '2022-12-01'
+                  and status = 'closed'
+                  and close_note = 'RLS close'
+           );
+end $$;
+
+insert into pg_temp.rls_results
+select 57, 'admin: snapshot guarda caixa, pessoais e recebíveis',
+       exists (
+           select 1 from public.month_closings
+            where month = '2022-12-01'
+              and snapshot #>> '{cash,cash_in}' = '50.00'
+              and snapshot #>> '{cash,personal_expenses_total}' = '4.00'
+              and snapshot #>> '{receivables,open_total}' = '30.00'
+              and snapshot #>> '{pnl,ganho_liquido}' = '50.00'
+       );
+
+insert into pg_temp.rls_results
+select 58, 'admin: trilha registra o fechamento',
+       (select count(*) from public.audit_log
+         where table_name = 'month_closings') >= 1;
+
+do $$
+declare
+    v_status text;
+    v_reopened boolean;
+begin
+    select status, reopened_at is not null
+      into v_status, v_reopened
+      from public.reopen_month('2022-12-01', 'RLS reopen');
+
+    insert into pg_temp.rls_results
+    select 59, 'admin: reabre o mês preservando o snapshot',
+           v_status = 'open'
+           and v_reopened
+           and exists (
+               select 1 from public.month_closings
+                where month = '2022-12-01'
+                  and status = 'open'
+                  and reopen_note = 'RLS reopen'
+                  and snapshot #>> '{cash,cash_in}' = '50.00'
+           );
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- 3. results
 -- ---------------------------------------------------------------------------
 reset role;

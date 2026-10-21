@@ -345,6 +345,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      month_closings: {
+        Row: {
+          id: string;
+          month: string;
+          status: string;
+          closed_at: string | null;
+          closed_by: string | null;
+          close_note: string | null;
+          snapshot: Json;
+          reopened_at: string | null;
+          reopened_by: string | null;
+          reopen_note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          month: string;
+          status?: string;
+          closed_at?: string | null;
+          closed_by?: string | null;
+          close_note?: string | null;
+          snapshot?: Json;
+          reopened_at?: string | null;
+          reopened_by?: string | null;
+          reopen_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          month?: string;
+          status?: string;
+          closed_at?: string | null;
+          closed_by?: string | null;
+          close_note?: string | null;
+          snapshot?: Json;
+          reopened_at?: string | null;
+          reopened_by?: string | null;
+          reopen_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       counterparties: {
         Row: {
           id: string;
@@ -990,6 +1035,26 @@ export type Database = {
         };
         Relationships: [];
       };
+      v_cash_flow_entries: {
+        Row: {
+          occurred_on: string;
+          entry_kind: string;
+          direction: string;
+          amount: number;
+          description: string | null;
+          detail: string | null;
+          reference_id: string;
+          sale_id: string | null;
+          client_id: string | null;
+          account_id: string | null;
+          account_name: string | null;
+          category: string | null;
+          method_label: string | null;
+          scope: string | null;
+          created_at: string | null;
+        };
+        Relationships: [];
+      };
       v_stock_on_hand: {
         Row: {
           product_id: string;
@@ -1086,6 +1151,95 @@ export type Database = {
           ganho_liquido: number | null;
           despesas_pessoais: number | null;
           pv_total: number | null;
+        }[];
+      };
+      cash_flow_summary: {
+        Args: { p_month: string };
+        Returns: {
+          month: string;
+          cash_in: number;
+          expenses_total: number;
+          business_expenses_total: number;
+          personal_expenses_total: number;
+          purchases_total: number;
+          cash_out_total: number;
+          net_cash: number;
+          receipts_count: number;
+          expenses_count: number;
+          purchases_count: number;
+        }[];
+      };
+      open_receivables_as_of: {
+        Args: { p_date: string };
+        Returns: {
+          open_total: number;
+          overdue_total: number;
+          open_count: number;
+        }[];
+      };
+      month_close_summary: {
+        Args: { p_month: string };
+        Returns: {
+          month: string;
+          ganho_vendas: number;
+          royalties: number;
+          bonus: number;
+          ganho_bruto: number;
+          custos_fixos: number;
+          custos_variaveis: number;
+          ganho_liquido: number;
+          despesas_pessoais: number;
+          pv_total: number;
+          cash_in: number;
+          expenses_total: number;
+          business_expenses_total: number;
+          personal_expenses_total: number;
+          purchases_total: number;
+          cash_out_total: number;
+          net_cash: number;
+          receipts_count: number;
+          expenses_count: number;
+          purchases_count: number;
+          open_receivables: number;
+          overdue_receivables: number;
+          open_receivables_count: number;
+          sales_count: number;
+          business_expense_count: number;
+          statement_present: boolean;
+        }[];
+      };
+      close_month: {
+        Args: { p_month: string; p_note?: string | null };
+        Returns: {
+          id: string;
+          month: string;
+          status: string;
+          closed_at: string | null;
+          closed_by: string | null;
+          close_note: string | null;
+          snapshot: Json;
+          reopened_at: string | null;
+          reopened_by: string | null;
+          reopen_note: string | null;
+          created_at: string;
+          updated_at: string;
+        }[];
+      };
+      reopen_month: {
+        Args: { p_month: string; p_note?: string | null };
+        Returns: {
+          id: string;
+          month: string;
+          status: string;
+          closed_at: string | null;
+          closed_by: string | null;
+          close_note: string | null;
+          snapshot: Json;
+          reopened_at: string | null;
+          reopened_by: string | null;
+          reopen_note: string | null;
+          created_at: string;
+          updated_at: string;
         }[];
       };
       open_receivables_total: {

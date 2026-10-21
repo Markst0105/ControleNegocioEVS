@@ -1,8 +1,10 @@
 import {
   Activity,
+  Banknote,
   ChartLine,
   HandCoins,
   LayoutDashboard,
+  LockKeyhole,
   Package,
   ReceiptText,
   ShoppingCart,
@@ -64,6 +66,14 @@ export const NAV_ITEMS: NavItem[] = [
     mobile: false,
   },
   {
+    href: "/financeiro/caixa",
+    label: "Caixa",
+    shortLabel: "Caixa",
+    icon: Banknote,
+    roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
     href: "/despesas",
     label: "Despesas",
     shortLabel: "Despesas",
@@ -77,6 +87,14 @@ export const NAV_ITEMS: NavItem[] = [
     shortLabel: "Resultado",
     icon: ChartLine,
     roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
+    href: "/financeiro/fechamento",
+    label: "Fechamento",
+    shortLabel: "Fechar",
+    icon: LockKeyhole,
+    roles: ["admin"],
     mobile: false,
   },
   {
