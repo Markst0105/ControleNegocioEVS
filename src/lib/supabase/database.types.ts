@@ -1296,6 +1296,10 @@ export type Database = {
           newest_due_on: string | null;
         }[];
       };
+      import_price_sheet: {
+        Args: { p_rows: unknown; p_valid_from?: string | null };
+        Returns: unknown;
+      };
       stock_for_products: {
         Args: { p_ids: string[] };
         Returns: {

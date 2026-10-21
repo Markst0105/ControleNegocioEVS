@@ -45,6 +45,7 @@ const FUNCTION_PROBES = {
   // mutating — the cast fails, the body never runs
   close_month: { p_month: INVALID_DATE },
   reopen_month: { p_month: INVALID_DATE },
+  import_price_sheet: { p_rows: [] },
   receive_sale_payment: {
     p_sale_payment_id: INVALID_UUID,
     p_amount: 1,

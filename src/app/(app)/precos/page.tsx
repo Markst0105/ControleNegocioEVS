@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getSession } from "@/lib/auth";
 import { formatDate, formatDecimal, formatInt, todayISO } from "@/lib/format";
 import {
   PRICE_SECTIONS,
@@ -39,6 +40,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
+import { PriceImportDialog } from "./price-import-dialog";
 import { PrintButton } from "./print-button";
 
 export const metadata: Metadata = {
@@ -76,6 +78,9 @@ export default async function PricesPage({
   const search = q.toLocaleLowerCase("pt-BR");
   const section = sectionFilter(params.secao);
 
+  const session = await getSession();
+  const isAdmin = session?.profile?.role === "admin";
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("v_price_catalog")
@@ -111,7 +116,8 @@ export default async function PricesPage({
         title="Tabela de preços"
         description={`Preço de balcão, faixas de desconto e PV · atualizada em ${updatedOn}.`}
         actions={
-          <div className="print:hidden">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
+            {isAdmin ? <PriceImportDialog /> : null}
             <PrintButton />
           </div>
         }
