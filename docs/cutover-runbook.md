@@ -311,11 +311,17 @@ cutover record. The gates below are decisions, not automatic scores.
 
 ### B2. Reconcile imported receivables
 
-The import starts with roughly 17,971 open installments. Before cutover, settle
-or write off everything that belongs to the historical period.
+The import starts with 3,422 open installments that have a due date —
+**R$ 197,885.33** in total (2023: 531 / R$ 32,758.52, 2024: 1,048 /
+R$ 50,954.64, 2025: 875 / R$ 56,866.08, 2026 up to October: 968 /
+R$ 57,306.09). The other installment rows are zero-value placeholders. Before
+cutover, settle or write off everything that belongs to the historical period.
 
-- [ ] Open `/financeiro/recebiveis` as an admin.
-- [ ] Set **Vencidos até** to the last day before the cutover date.
+- [ ] Open `/financeiro/recebiveis` as an admin and expand **Reconciliação
+      histórica**.
+- [ ] Set **Vencidos até** to the last day before the cutover date. The block
+      shows a live preview of how many installments and how much money that
+      cutoff would touch, before anything is written.
 - [ ] For installments with bank/cash evidence, use **Marcar como recebidas**.
       Bulk receipts use each installment’s `due_on`, so they land in the
       correct historical month.
@@ -335,8 +341,9 @@ Gate:
 
 ### B3. Backfill business expenses
 
-The imported expenses cover July 2023 only. Later months are entered in the app,
-so a month with no business expenses is incomplete.
+The imported expenses cover July 2023 only (110 rows, R$ 21,983.87). The
+ledger covers 46 months, so **45 months with sales have no business
+expenses** — a month without expenses is incomplete, not a zero-cost profit.
 
 - [ ] Backfill the current fiscal year from bank statements, card statements and
       receipts.
@@ -355,11 +362,19 @@ Gate:
 
 ### B4. Enter Herbalife statements
 
+The workbook does **not** carry the statement data: the `Consolidado` columns
+`N` (ROYALTIES), `O` (Dolar RO), `P` (BONUS) and `Q` (Dolar BO) are empty for
+every month, and the seed has no `herbalife_statements` row. The values have to
+come from the Herbalife statements (or the bank statement, for the BRL
+totals).
+
 - [ ] Enter royalty, FX, bonus and bonus FX for every month that will be
       reported as final.
 - [ ] Confirm the currency conversion: `royalty_usd × royalty_fx` and
       `bonus_usd × bonus_fx`.
 - [ ] Do not enter a USD amount with a blank FX rate.
+- [ ] Keep the statement form in `/resultado` (one month at a time); the month
+      is confirmed by the `statement_present` flag in the report.
 
 Gate:
 
