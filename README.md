@@ -99,7 +99,8 @@ src/            Next.js app (App Router, components, lib)
                 (member)/membro
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
-scripts/        db-rls.sh (RLS suite), db-report.sh (pre-cutover report)
+scripts/        db-rls.sh (RLS suite), db-report.sh (pre-cutover report),
+                check-repo-visibility.sh (repository privacy)
 docs/           phase-0-setup.md, cutover-runbook.md, design-system.md, design/
 etl/            workbook → SQL seeds (extract.py), schema checker, validation
 supabase/
@@ -175,9 +176,10 @@ those columns.
 
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 `npm run typecheck`, `npm run db:rls` (RLS suite against `DATABASE_URL`),
-`npm run db:report` (read-only pre-cutover report), and `npm run db:types`
-(regenerate `src/lib/supabase/database.types.ts` from the Supabase project;
-requires `SUPABASE_PROJECT_ID` and a logged-in Supabase CLI).
+`npm run db:report` (read-only pre-cutover report), `npm run repo:visibility`
+(repository privacy check), and `npm run db:types` (regenerate
+`src/lib/supabase/database.types.ts` from the Supabase project; requires
+`SUPABASE_PROJECT_ID` and a logged-in Supabase CLI).
 
 > [!NOTE]
 > PostgREST aggregate selectors are disabled on this Supabase project, so sums
@@ -319,6 +321,14 @@ deactivates the empty `#497K` duplicate created by the old case-sensitive match.
   expense months are backfilled.
 
 ## Security notes
+
+`supabase/seed.sql` and `supabase/seeds/*` are tracked in git and contain real
+business data: client names, 18k sales, 17,971 installments, expenses and
+prices. The GitHub repository must stay **private** — check with
+`npm run repo:visibility`, which fails while the repository is publicly
+readable. `.vercelignore` keeps the seed out of Vercel uploads, but it does not
+protect the repository. See
+[`docs/cutover-runbook.md`](docs/cutover-runbook.md#a3-repository-visibility--blocker-while-the-seed-is-tracked).
 
 `npm audit` reports five high-severity advisories, all from one development-only
 chain: `braces@3.0.3` ← `micromatch` ← `fast-glob` ← `@next/eslint-plugin-next`
