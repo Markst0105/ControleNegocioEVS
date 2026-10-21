@@ -44,7 +44,7 @@ export function AppShell({
 
         <main
           data-print-main
-          className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pt-10 lg:pb-14 print:max-w-none print:p-0"
+          className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pt-10 lg:pb-14 print:max-w-none print:p-0"
         >
           {children}
         </main>

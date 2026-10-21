@@ -101,7 +101,7 @@ export default async function NovaCompraPage({
   );
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-6xl">
       <div className="mb-4">
         <Link
           href="/compras"

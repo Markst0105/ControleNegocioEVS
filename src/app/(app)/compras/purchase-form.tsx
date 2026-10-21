@@ -224,7 +224,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Data da compra" htmlFor="purchased-on">
           <Input
             id="purchased-on"
@@ -346,7 +346,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
           </Button>
         </div>
 
-        <div className="flex flex-col gap-3 p-4">
+        <div className="flex flex-col gap-4 p-4 sm:p-5">
           {lines.map((line, index) => {
             const qty = parseMoneyInput(line.qty) ?? 0;
             const cost = parseMoneyInput(line.unitCost) ?? 0;
@@ -360,7 +360,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
             return (
               <div
                 key={line.key}
-                className="grid gap-2 rounded-md border border-line/80 bg-paper p-3 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1fr)_9.5rem_5.5rem_7rem_7rem_auto]"
+                className="grid gap-3 rounded-md border border-line/80 bg-paper p-3 sm:grid-cols-2 sm:items-end sm:p-4 xl:grid-cols-[minmax(0,1fr)_11rem_5.5rem_7rem_7rem_auto]"
               >
                 <Field
                   label={`Produto ${index + 1}`}
@@ -390,9 +390,12 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
                   >
                     <SelectTrigger
                       id={`tier-${line.key}`}
-                      className="h-10 w-full bg-surface"
+                      className="h-10 w-full min-w-0 overflow-hidden bg-surface"
                     >
-                      <SelectValue placeholder="Faixa">
+                      <SelectValue
+                        placeholder="Faixa"
+                        className="min-w-0 flex-1"
+                      >
                         {selectedTier ? (
                           <span className="flex min-w-0 items-center gap-1.5">
                             <PriceTierBadge code={selectedTier.code} />
