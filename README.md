@@ -9,35 +9,39 @@ database identifiers are in English.
 > product name in the interface is **Controle de Negócio**.
 
 > [!NOTE]
-> **Status: Phase 3 — MDO, Reservas & Área do membro implemented.**
+> **Status: Phase 3 and Phase 2c — MDO, expenses, P&L and member catalog implemented.**
 > Login, role-aware app shell, Painel, Vendas, Lançamento de venda, Clientes,
-> Estoque, Compras, Fornecedores, Preços, MDO, Reservas and the member catalog
-> are in the code. Clientes includes search/pagination, name + phone/WhatsApp
-> deduplication and an admin-only merge. Estoque includes purchases, manual
-> movements, stock counts, per-location balances, product history and Ouro-tier
-> valuation. Purchases can apply any price tier and keep the chosen tier on each
-> line. Fornecedores includes create/edit/deactivate and the known distributors
-> from the workbook. Preços is a print-friendly counter sheet with retail,
-> discount tiers and PV; the sale form prefills the retail amount from the
-> selected product. MDO imports 730 days of activity KPIs and now offers a
-> last-seven-days view plus a customisable monthly range with period, month and
-> daily breakdowns. Reservas supports member pre-orders, operator confirmation
-> and atomic conversion into sales with stock movements and installments.
-> Members sign in to a dedicated catalog and see only their own reservations.
-> The visual identity follows the **Balcão** direction: desktop side column,
-> mobile top bar with a leaf-triggered panel, month masthead and an editorial
-> serif for section titles. Expenses and P&L (Phase 2c) remain pending the
-> expense data gap.
+> Estoque, Compras, Fornecedores, Preços, MDO, Despesas, Resultado and the member
+> catalog are in the code. Clientes includes search/pagination, name +
+> phone/WhatsApp deduplication and an admin-only merge. Estoque includes
+> purchases, manual movements, stock counts, per-location balances, product
+> history and Ouro-tier valuation. Purchases can apply any price tier and keep
+> the chosen tier on each line. Fornecedores includes create/edit/deactivate and
+> the known distributors from the workbook. Preços is a print-friendly counter
+> sheet with retail, discount tiers and PV; the sale form prefills the retail
+> amount from the selected product. MDO imports 730 days of activity KPIs and
+> offers a last-seven-days view plus a customisable monthly range with period,
+> month and daily breakdowns. Despesas separates business and personal costs;
+> Resultado turns sales, business expenses and the Herbalife statement into a
+> monthly P&L. Members sign in to a dedicated catalog only, with prices resolved
+> from their tier. The visual identity follows the **Balcão** direction: desktop
+> side column, mobile top bar with a leaf-triggered panel, month masthead and an
+> editorial serif for section titles.
+>
+> Reservations were removed from the application and navigation. The Phase 3
+> reservation tables and SQL remain in the database for history and
+> reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261021000001_phase3_mdo_reservations.sql` before
-> deploying the MDO/Reservas/member pages. That migration adds member tier
-> pricing to the safe catalog, the reservation overview, transactional
-> create/convert functions, reservation guards and a profile guard that prevents
-> members from changing their own role or price tier. The earlier price backfill
-> is idempotent and fills missing prices in databases seeded before the ETL price
-> fix. New sales write a stock movement from cutover onward; historical sales are
-> not backfilled.
+> `supabase/migrations/20261022000001_phase2c_expenses_pnl.sql` before deploying
+> the MDO, Despesas, Resultado and member pages. That migration adds operator
+> write policies for business expenses and converts Herbalife statement USD
+> amounts with their FX rate in the P&L. The Phase 3 migration adds member tier
+> pricing to the safe catalog and a profile guard that prevents members from
+> changing their own role or price tier. The earlier price backfill is idempotent
+> and fills missing prices in databases seeded before the ETL price fix. New
+> sales write a stock movement from cutover onward; historical sales are not
+> backfilled.
 
 ## What it covers
 
@@ -47,15 +51,14 @@ database identifiers are in English.
 | Clients | CRM with phone/WhatsApp fields and aliases for de-duplicated names |
 | Inventory | Purchases, manual movements and counts, with per-location balances and Ouro-tier valuation |
 | Prices | Counter sheet with retail, discount tiers, membership tiers and print layout |
-| Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L |
+| Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L with category breakdown |
 | MDO | Daily activity KPIs plus week and month views with access, sales and profit breakdowns |
-| Reservations | Client pre-orders — members see only their own |
 
 Three roles, enforced in the database with Row-Level Security:
 
-- **admin** — owner: full access;
-- **operator** — day-to-day operations, but no access to personal expenses, royalties or the audit log;
-- **member** — product catalog and own reservations only.
+- **admin** — owner: full access, including personal expenses and Herbalife statements;
+- **operator** — day-to-day operations and business expenses; no access to personal expenses, royalties or the audit log;
+- **member** — product catalog only, with prices resolved from their tier.
 
 ## Stack
 
@@ -73,7 +76,7 @@ Three roles, enforced in the database with Row-Level Security:
 src/            Next.js app (App Router, components, lib)
   app/          routes: (auth)/login, (app)/painel, (app)/vendas, (app)/clientes,
                 (app)/precos, (app)/estoque, (app)/compras, (app)/fornecedores,
-                (app)/mdo, (app)/reservas, (member)/membro
+                (app)/mdo, (app)/despesas, (app)/resultado, (member)/membro
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
 docs/           phase-0-setup.md, design-system.md, design/ (identity study)
@@ -187,18 +190,21 @@ What this milestone includes:
   with a customisable date range, period summary, month summary for every month
   touched by the range and the daily breakdown; a daily editor keeps the 22
   spreadsheet KPIs;
-- **Reservas** — operator list with status filters, member pre-orders using the
-  member’s price tier, confirmation/cancellation and atomic conversion into one
-  sale per item, including stock movements and card installments;
+- **Despesas** — monthly ledger with month/type/category/search filters,
+  totals for fixed, variable and personal costs, and create/edit/delete;
+  operators may write business expenses only, while personal expenses stay
+  admin-only;
+- **Resultado** — monthly P&L with sales profit, Herbalife royalties/bonus
+  converted by the statement FX rate, business costs, personal expenses shown
+  separately, expense breakdown by category and a clear warning when a month has
+  no expenses recorded;
 - **Área do membro** — dedicated catalog with the member price, search and
-  pagination, plus “Minhas reservas”, cancellation of open reservations and an
-  order timeline; members cannot change prices, confirm or convert reservations.
+  pagination; members cannot change prices.
 
 New sales with a stock-affecting deal type write an inventory movement in the
-same request; a failed movement rolls the sale back. Reservation conversion is
-transactional: all sales, installments and stock movements are written or none
-are. Expenses and P&L (Phase 2c) remain the next milestone. The visual language
-is documented in [`docs/design-system.md`](docs/design-system.md).
+same request; a failed movement rolls the sale back. Expense changes revalidate
+the monthly P&L. The visual language is documented in
+[`docs/design-system.md`](docs/design-system.md).
 
 ## ETL (workbook → seeds)
 
@@ -234,7 +240,9 @@ deactivates the empty `#497K` duplicate created by the old case-sensitive match.
 - Spreadsheet “derived” sheets are not imported — they are recomputed as SQL
   views (`v_monthly_pnl`, `v_stock_on_hand`, `v_monthly_kpis`, …).
 - Imported history: 160 products, 557 clients, 18,182 sales, 17,971 installments,
-  1,629 inventory movements, 110 expenses, 730 MDO days.
+  1,629 inventory movements, 110 expenses, 730 MDO days. The imported expenses
+  cover July 2023 only; later months are entered in the app, so Resultado warns
+  when a month has no business expenses.
 - Legacy inventory rows are signed quantities with `location_to` set. The new
   `v_stock_on_hand` also understands explicit `location_from` / `location_to`
   pairs, so new purchases, sales, transfers and counts can be applied on top of
@@ -261,5 +269,5 @@ new `braces`/`micromatch` release ships.
       Lançamento de Vendas
 - [x] **Phase 2a** — Clientes: CRUD, phone/WhatsApp, dedupe and merge
 - [x] **Phase 2b** — Estoque, compras, fornecedores, preços, movimentações e contagens
-- [ ] **Phase 2c** — expenses & P&L screens (pending the expense data gap)
-- [x] **Phase 3** — MDO diário, reservas e área do membro
+- [x] **Phase 2c** — Despesas e Resultado (P&L), com lançamento de despesas do negócio e extrato Herbalife
+- [x] **Phase 3** — MDO diário e área do membro (reservas removidas da interface)

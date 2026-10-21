@@ -1,6 +1,6 @@
 import {
   Activity,
-  CalendarClock,
+  ChartLine,
   LayoutDashboard,
   Package,
   ReceiptText,
@@ -8,6 +8,7 @@ import {
   Tags,
   Truck,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -46,18 +47,26 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "operator"],
   },
   {
-    href: "/reservas",
-    label: "Reservas",
-    shortLabel: "Reservas",
-    icon: CalendarClock,
-    roles: ["admin", "operator"],
-    mobile: false,
-  },
-  {
     href: "/mdo",
     label: "MDO",
     shortLabel: "MDO",
     icon: Activity,
+    roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
+    href: "/despesas",
+    label: "Despesas",
+    shortLabel: "Despesas",
+    icon: Wallet,
+    roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
+    href: "/resultado",
+    label: "Resultado",
+    shortLabel: "Resultado",
+    icon: ChartLine,
     roles: ["admin", "operator"],
     mobile: false,
   },

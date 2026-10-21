@@ -360,6 +360,75 @@ export type Database = {
         };
         Relationships: [];
       };
+      expenses: {
+        Row: {
+          id: string;
+          incurred_on: string;
+          description: string;
+          category_id: string | null;
+          account_id: string | null;
+          amount: number;
+          scope: string | null;
+          legacy_row: number | null;
+          created_at: string | null;
+          updated_at: string | null;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          incurred_on: string;
+          description: string;
+          category_id?: string | null;
+          account_id?: string | null;
+          amount?: number;
+          scope?: string | null;
+          legacy_row?: number | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          incurred_on?: string;
+          description?: string;
+          category_id?: string | null;
+          account_id?: string | null;
+          amount?: number;
+          scope?: string | null;
+          legacy_row?: number | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      expense_categories: {
+        Row: {
+          id: string;
+          name: string;
+          scope: string;
+          is_personal: boolean | null;
+          active: boolean | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          scope: string;
+          is_personal?: boolean | null;
+          active?: boolean | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          scope?: string;
+          is_personal?: boolean | null;
+          active?: boolean | null;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
       locations: {
         Row: {
           id: string;
@@ -645,6 +714,36 @@ export type Database = {
           created_at?: string | null;
           updated_at?: string | null;
           created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      herbalife_statements: {
+        Row: {
+          month: string;
+          royalty_usd: number | null;
+          royalty_fx: number | null;
+          bonus_usd: number | null;
+          bonus_fx: number | null;
+          raw_json: Json | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          month: string;
+          royalty_usd?: number | null;
+          royalty_fx?: number | null;
+          bonus_usd?: number | null;
+          bonus_fx?: number | null;
+          raw_json?: Json | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          month?: string;
+          royalty_usd?: number | null;
+          royalty_fx?: number | null;
+          bonus_usd?: number | null;
+          bonus_fx?: number | null;
+          raw_json?: Json | null;
+          updated_at?: string | null;
         };
         Relationships: [];
       };

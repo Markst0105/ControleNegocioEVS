@@ -317,6 +317,57 @@ select 32, 'membro: edita o próprio nome',
        (select name from public.profiles where id = auth.uid()) = 'RLS Test Member Editado';
 
 -- ---------------------------------------------------------------------------
+-- Phase 2c: operators may write business expenses, never personal ones
+-- ---------------------------------------------------------------------------
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'b0000000-0000-4000-8000-000000000002')::text,
+                  true);
+
+insert into public.expenses (incurred_on, description, amount, scope)
+values (current_date, 'RLS business expense', 10, 'negocio_variavel');
+
+insert into pg_temp.rls_results
+select 33, 'operador: lança despesa do negócio',
+       (select count(*) from public.expenses
+         where description = 'RLS business expense') = 1;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        insert into public.expenses (incurred_on, description, amount, scope)
+        values (current_date, 'RLS personal expense', 10, 'pessoal');
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (34, 'operador: NÃO lança despesa pessoal', v_blocked);
+end $$;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        update public.expenses
+           set scope = 'pessoal'
+         where description = 'RLS business expense';
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (35, 'operador: NÃO reclassifica despesa como pessoal', v_blocked);
+end $$;
+
+delete from public.expenses where description = 'RLS business expense';
+
+insert into pg_temp.rls_results
+select 36, 'operador: exclui despesa do negócio',
+       (select count(*) from public.expenses
+         where description = 'RLS business expense') = 0;
+
+-- ---------------------------------------------------------------------------
 -- 3. results
 -- ---------------------------------------------------------------------------
 reset role;
