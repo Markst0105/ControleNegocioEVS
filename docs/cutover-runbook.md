@@ -163,6 +163,8 @@ npx supabase db push
 - [ ] `20261025000001_phase5_catalog_gaps.sql` is applied.
 - [ ] `20261025000002_phase5_reconciliation_preview.sql` is applied.
 - [ ] `20261025000003_phase5_price_import.sql` is applied.
+- [ ] `20261025000004_phase5_price_catalog_valid_from.sql` is applied (the
+      price sheet shows the date of the last price update).
 - [ ] PostgREST reloaded its schema. The Phase 4b and Phase 5 migrations issue
       `notify pgrst, 'reload schema'`; if the API still returns 404 for
       `month_closings`, wait a few seconds or run:

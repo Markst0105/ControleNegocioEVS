@@ -85,7 +85,7 @@ export default async function PricesPage({
   const { data, error } = await supabase
     .from("v_price_catalog")
     .select(
-      "id, sku, name, kind, item_class, pv, portions_per_pack, portion_label, is_active, print_name, retail_price, price_25, price_35, price_42, price_50, price_bronze, price_prata, price_ouro",
+      "id, sku, name, kind, item_class, pv, portions_per_pack, portion_label, is_active, print_name, retail_price, price_25, price_35, price_42, price_50, price_bronze, price_prata, price_ouro, price_valid_from",
     )
     .eq("is_active", true)
     .not("retail_price", "is", null)
@@ -108,7 +108,16 @@ export default async function PricesPage({
   })).filter((group) => group.items.length > 0);
 
   const filtered = Boolean(q) || section !== "all";
-  const updatedOn = formatDate(todayISO());
+  const updatedOn = formatDate(
+    products.reduce<string | null>(
+      (latest, product) =>
+        product.price_valid_from &&
+        (!latest || product.price_valid_from > latest)
+          ? product.price_valid_from
+          : latest,
+      null,
+    ) ?? todayISO(),
+  );
 
   return (
     <div className="flex flex-col gap-5">
