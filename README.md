@@ -5,9 +5,6 @@ the `Controle do Negócio` spreadsheet. The workbook is imported once; after cut
 the app is the single source of truth. The interface is pt-BR; code, comments and
 database identifiers are in English.
 
-> The repository folder and package ID keep the original `BioAvalia` name; the
-> product name in the interface is **Controle de Negócio**.
-
 > [!NOTE]
 > **Status: Phase 4b — cash flow and soft month close implemented.**
 > Login, role-aware app shell, Painel, Vendas, Lançamento de venda, Clientes,
