@@ -19,6 +19,15 @@ export const dynamic = "force-dynamic";
 
 const TIMEOUT_MS = 5000;
 
+/**
+ * The endpoint is public, so the result is cached for a short while to keep a
+ * monitor (or a bored visitor) from turning it into a load generator for the
+ * Supabase project.
+ */
+const CACHE_MS = 15_000;
+
+let cached: { at: number; status: number; body: string } | null = null;
+
 type Probe =
   | { kind: "response"; status: number; body: string }
   | { kind: "error"; message: string };
@@ -56,6 +65,13 @@ function messageOf(result: Probe, fallback: string): string {
 }
 
 export async function GET() {
+  if (cached && Date.now() - cached.at < CACHE_MS) {
+    return new NextResponse(cached.body, {
+      status: cached.status,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+
   const url = supabaseUrl();
   const key = supabaseKey();
 
@@ -130,12 +146,18 @@ export async function GET() {
 
   const ok = Object.values(checks).every((check) => check.ok);
 
-  return NextResponse.json(
-    {
-      status: ok ? "ok" : "degraded",
-      time: new Date().toISOString(),
-      checks,
-    },
-    { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } },
-  );
+  const payload = {
+    status: ok ? "ok" : "degraded",
+    time: new Date().toISOString(),
+    checks,
+  };
+
+  const response = NextResponse.json(payload, {
+    status: ok ? 200 : 503,
+    headers: { "Cache-Control": "no-store" },
+  });
+
+  cached = { at: Date.now(), status: response.status, body: JSON.stringify(payload) };
+
+  return response;
 }
