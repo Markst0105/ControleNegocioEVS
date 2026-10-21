@@ -1,0 +1,18 @@
+# Keep private business data and local-only tooling out of Vercel uploads.
+# Vercel only needs the Next.js app; Supabase schema and data are managed
+# separately. `supabase/seed.sql` contains real client and sales records.
+supabase/seed.sql
+supabase/seeds/
+supabase/.temp/
+supabase/.branches/
+supabase/tests/
+etl/
+docs/
+*.xlsx
+*.xls
+*.xlsm
+.agents/
+.scannerwork/
+sonarqube_scan.txt
+.env.local
+.env.*.local

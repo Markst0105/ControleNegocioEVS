@@ -6,9 +6,8 @@ no SQL needs to be written by hand.
 
 ```
 supabase/
-├── migrations/
-│   ├── 20261018000001_initial_schema.sql   # 23 tables, triggers, fn_tier_price
-│   └── 20261018000002_rls.sql              # RLS policies + derived views
+├── migrations/                             # timestamped schema, RLS and phase migrations
+├── ops/pre_cutover_checks.sql              # read-only production readiness report
 ├── seed.sql                                # combined seeds 001..007 (~41k inserts)
 ├── seeds/                                  # same data, one file per step (for review)
 └── tests/rls_test.sql                      # RLS smoke test (self-cleaning)
@@ -29,7 +28,10 @@ Check (from the repo root): `npx supabase --version` — should print v2.x.
 ## 1. Create the Supabase project
 
 1. supabase.com → **New project**.
-2. Region: **South America (São Paulo)** — `sa-east-1` (closest to your users).
+2. Region: choose the region closest to your users **and** your Vercel function
+   region. The linked production project is in `us-east-2`; its Vercel functions
+   use `cle1` (Cleveland, same AWS region). A project in South America would use
+   `sa-east-1` with Vercel `gru1`.
 3. Save the **database password** somewhere safe.
 4. Note the **project ref** (in the dashboard URL: `supabase.com/dashboard/project/<ref>`).
 
@@ -61,9 +63,10 @@ If `config.toml` is created fresh, leave its default `[db.seed] sql_paths = ['./
 npx supabase db push --include-seed
 ```
 
-What happens: migration 1 creates the schema → migration 2 enables RLS and
-creates the views → `supabase/seed.sql` loads ~41,000 inserts (takes a minute
-or two).
+What happens: the migrations run in filename order and create the schema, RLS,
+views and RPCs → `supabase/seed.sql` loads ~41,000 inserts (takes a minute or
+two). The latest migration is
+`20261024000001_phase5_monthly_pnl_view.sql`.
 
 > ⚠️ **Do not run the seed twice.** Ledger rows (sales, installments,
 > movements, expenses, MDO days) have no natural unique key, so a second run
@@ -73,9 +76,9 @@ or two).
 <details>
 <summary>Fallback without the CLI</summary>
 
-Dashboard → SQL editor, paste each file in order (start with the two migrations,
-then the seed). The SQL editor will struggle with `seeds/004_sales.sql`
-(13 MB) — prefer the CLI, or use psql:
+Dashboard → SQL editor, paste each migration in filename order, then the seed.
+The SQL editor will struggle with `seeds/004_sales.sql` (13 MB) — prefer the
+CLI, or use psql:
 
 ```bash
 psql "$DATABASE_URL" -f supabase/seed.sql
@@ -127,13 +130,17 @@ update public.daily_kpis           set created_by = (select id from public.profi
 Paste the whole of `supabase/tests/rls_test.sql` into the SQL editor
 (or `psql "$DATABASE_URL" -f supabase/tests/rls_test.sql`).
 
-It creates throwaway users, checks 36 access rules (admin sees everything;
-operator never sees personal expenses / royalties / audit; member sees only the
-catalog and its own reservation rows) and **rolls everything back**.
+It creates throwaway users, checks 59 access, settlement, cash and month-close
+rules (admin sees everything; operator never sees personal expenses / royalties /
+audit / closings; member sees only the catalog and its own reservation rows) and
+**rolls everything back**.
 
-Expected: 36 rows, all `PASS`.
+Expected: 59 rows, all `PASS`, including `v_monthly_pnl`.
 
 ## 8. After cutover
+
+For the full single-environment deployment and data-reconciliation sequence, use
+[`cutover-runbook.md`](cutover-runbook.md). The short version:
 
 - The workbook becomes **read-only** once the app is live; BioAvalia is the
   source of truth.
