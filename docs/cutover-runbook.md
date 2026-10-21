@@ -33,8 +33,9 @@ means creating a new project and restoring into it.
 - `supabase/ops/pre_cutover_checks.sql` is a read-only report for schema, RLS,
   receivables, month completeness, catalog gaps, stock and profile checks.
 - `scripts/db-rls.sh` and `scripts/db-report.sh` wrap the RLS suite and the
-  report behind `DATABASE_URL`; `scripts/check-repo-visibility.sh` fails when
-  the GitHub repository is public while the seed is tracked.
+  report behind `DATABASE_URL`; `scripts/check-schema-parity.mjs` probes every
+  table, view and function the code calls; `scripts/check-repo-visibility.sh`
+  fails when the GitHub repository is public while the seed is tracked.
 - `scripts/smoke-url.sh` runs the public-surface smoke test against a
   deployment.
 - `GET /api/health` is a public readiness endpoint: it checks the Supabase
@@ -44,6 +45,9 @@ means creating a new project and restoring into it.
 - `20261024000001_phase5_monthly_pnl_view.sql` rewrites `v_monthly_pnl` without
   the FULL JOIN that some planners reject. The RLS check for the view now runs
   for real instead of being stubbed.
+- `20261025000001_phase5_catalog_gaps.sql` creates the 25 products that only
+  the ledger references, links the 756 affected sales and backfills
+  `sales.product_name_raw`, so no imported sale shows an empty product.
 - The RLS suite remains self-rolling-back and must pass 59/59 on production.
 
 ## Confirmed on the live database
@@ -52,14 +56,17 @@ Checked against the linked production project through PostgREST:
 
 - `month_closings` (Phase 4b) and `sale_payment_events` (Phase 4a) exist, so
   those migrations are already applied.
-- `v_monthly_pnl` answers with
+- `v_monthly_pnl` answered with
   `FULL JOIN is only supported with merge-joinable or hash-joinable join
-  conditions` (HTTP 400). The Phase 5 migration is **not** applied yet and the
-  reporting view is broken until it is.
-- `GET /api/health` reports exactly that as `views: not ok`.
+  conditions` (HTTP 400) and now answers `200` after the Phase 5 migration.
+- Every table, view and function the code calls is exposed: **47/47** in
+  `npm run db:parity`.
+- The catalog gaps are still open until
+  `20261025000001_phase5_catalog_gaps.sql` is applied: 756 sales have no
+  product and every imported sale has an empty product name.
 
-Go-live blocker: apply `20261024000001_phase5_monthly_pnl_view.sql` (step A5)
-and re-run the health check before anything else.
+Go-live blocker: apply `20261025000001_phase5_catalog_gaps.sql` (step A5) and
+re-run the health check and the pre-cutover report.
 
 ## 5A — Deployment readiness
 
@@ -149,6 +156,7 @@ npx supabase db push
 - [ ] The migration list is empty after the push (no pending files).
 - [ ] `20261023000001_phase4b_cash_flow_month_close.sql` is applied.
 - [ ] `20261024000001_phase5_monthly_pnl_view.sql` is applied.
+- [ ] `20261025000001_phase5_catalog_gaps.sql` is applied.
 - [ ] PostgREST reloaded its schema. The Phase 4b and Phase 5 migrations issue
       `notify pgrst, 'reload schema'`; if the API still returns 404 for
       `month_closings`, wait a few seconds or run:
@@ -200,8 +208,17 @@ select * from public.month_close_summary(date_trunc('month', public.business_tod
 curl -s https://<production-domain>/api/health | python3 -m json.tool
 ```
 
-Expected: `"status": "ok"` and HTTP 200. While the Phase 5 migration is
-missing it reports `views: not ok` with the FULL JOIN error.
+Expected: `"status": "ok"` and HTTP 200.
+
+- [ ] Every relation the code calls exists in the project:
+
+```bash
+npm run db:parity
+```
+
+Expected: `Schema parity: 47/47 relations available.` The check only reads: it
+probes each table and function through PostgREST and never runs a mutating
+function.
 
 ### A7. Configure Vercel
 
@@ -351,20 +368,34 @@ Gate:
 
 ### B5. Close catalog gaps
 
-- [ ] Review unmatched sale names in the report. The workbook has known gaps
-      such as `bcu` and `#241K`.
-- [ ] Map each unmatched name to a product, or create the missing product and
-      current Ouro price.
-- [ ] Review sold products with no current Ouro price. Missing prices contribute
-      zero to stock value by design, but a sold product with no price is a
-      review item.
+The Phase 5 migration creates the 25 products that the ledger references but
+the price sheets do not contain (756 sales) and links them. They are created
+**inactive and without a price**, because they are history, not sellable stock.
+
+- [ ] Apply `20261025000001_phase5_catalog_gaps.sql` and re-run the report:
+      `sales_without_product` must be 4 and `sales_without_readable_name` must
+      be 1. Those rows are empty in the workbook itself.
+- [ ] Review the three old SKUs that are probably current products with an old
+      number. Nothing was guessed; the sales keep their historical SKU:
+      - `#0146` Shake Cookies → `#295K` Shake Cookies & Cream 550g
+      - `#1522` and `#174K` Shake Banana → `#326K` Shake Banana Caramelizada 550g
+      - `#0009` (one sale) Shake Doce de Leite → `#0940` Shake Doce de Leite 550g
+- [ ] The EVS unit items (`bcu` Barra Citrus Unitária, `bvu` Barra Vanilla
+      Unitária, `bcr` Barra Crunch Unitária, `ssf`/`ssg` Sachê Sopa, `wld`
+      Waffle Duplo) are the per-unit versions of items that already exist in
+      the catalog (`bpu`, `ssl`, `wdd`/`wds`). Decide whether the new rows stay
+      separate or are replaced by the existing products.
+- [ ] If an item is still sold, give it a price and activate it; the new rows
+      have no Ouro price, so their stock value is `—` and contributes zero.
+- [ ] Review sold products with no current Ouro price in the report. Missing
+      prices contribute zero to stock value by design, but a sold product with
+      no price is a review item.
 - [ ] Confirm the printed price sheet and the stored exact-cent prices still
       match the current supplier table.
 
 Gate:
 
-- [ ] Unmatched sale names are zero, or each remaining name is documented as a
-      non-product line.
+- [ ] No sale shows an empty product in Vendas, Painel, Clientes or Recebíveis.
 - [ ] Every product that should carry stock has a current Ouro price.
 
 ### B6. Count stock
@@ -422,7 +453,7 @@ Gate:
 
 1. Take the final backup.
 2. Confirm the migration list is empty.
-3. Confirm the RLS suite is 59/59.
+3. Confirm the RLS suite is 59/59 and `npm run db:parity` is 47/47.
 4. Confirm the cutover report has no unexplained gate failure.
 5. Deploy the production build.
 6. Run the A9 smoke test.
@@ -449,6 +480,7 @@ Gate:
 Go only when all of these are true:
 
 - [ ] Migrations applied and PostgREST sees the new schema.
+- [ ] `npm run db:parity` reports 47/47 and `GET /api/health` is green.
 - [ ] The GitHub repository is private, or the seed is out of the repository and
       its history.
 - [ ] RLS 59/59 on production.

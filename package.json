@@ -14,6 +14,7 @@
     "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/lib/supabase/database.types.ts",
     "db:rls": "bash scripts/db-rls.sh",
     "db:report": "bash scripts/db-report.sh",
+    "db:parity": "node scripts/check-schema-parity.mjs",
     "repo:visibility": "bash scripts/check-repo-visibility.sh",
     "smoke:url": "bash scripts/smoke-url.sh"
   },

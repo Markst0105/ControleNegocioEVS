@@ -9,7 +9,8 @@ database identifiers are in English.
 > **Status: Phase 5 — production readiness and cutover in progress.**
 > Phase 4b is implemented: cash flow and the soft month close are in the app.
 > Phase 5 adds the single-environment deployment runbook, the read-only
-> pre-cutover report and a fix for the reporting `v_monthly_pnl` view. See
+> pre-cutover report, the schema-parity check and the fixes for the imported
+> ledger (the reporting view and the catalog gaps). See
 > [`docs/cutover-runbook.md`](docs/cutover-runbook.md).
 >
 > Login, role-aware app shell, Painel, Vendas, Lançamento de venda, Clientes,
@@ -41,10 +42,12 @@ database identifiers are in English.
 > reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261024000001_phase5_monthly_pnl_view.sql` before
-> deploying. The Phase 5 migration rewrites `v_monthly_pnl` without a FULL JOIN
-> that some PostgreSQL planners reject, so the reporting view and its RLS check
-> work on production. The Phase 4b migration adds the derived cash ledger, the
+> `supabase/migrations/20261025000001_phase5_catalog_gaps.sql` before
+> deploying. The Phase 5 migrations close the catalog gaps of the imported
+> ledger (25 products that the price sheets do not contain, 756 sales) and
+> rewrite `v_monthly_pnl` without a FULL JOIN that some PostgreSQL planners
+> reject, so the reporting view and its RLS check work on production. The
+> Phase 4b migration adds the derived cash ledger, the
 > cash and month-close summary functions, the admin-only soft-close snapshot and
 > the close/reopen audit trail. The Phase 4a migration added the receipt/write-off
 > event ledger, partial-balance views and the admin bulk reconciliation used by
@@ -100,6 +103,7 @@ src/            Next.js app (App Router, components, lib)
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
 scripts/        db-rls.sh (RLS suite), db-report.sh (pre-cutover report),
+                check-schema-parity.mjs (code ↔ schema),
                 check-repo-visibility.sh (repository privacy),
                 smoke-url.sh (public-surface smoke test)
 docs/           phase-0-setup.md, cutover-runbook.md, design-system.md, design/
@@ -177,7 +181,8 @@ those columns.
 
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 `npm run typecheck`, `npm run db:rls` (RLS suite against `DATABASE_URL`),
-`npm run db:report` (read-only pre-cutover report), `npm run repo:visibility`
+`npm run db:report` (read-only pre-cutover report), `npm run db:parity` (every
+table/function the code calls exists in the project), `npm run repo:visibility`
 (repository privacy check), `npm run smoke:url <url>` (public-surface smoke
 test), and `npm run db:types` (regenerate
 `src/lib/supabase/database.types.ts` from the Supabase project; requires
@@ -311,8 +316,12 @@ deactivates the empty `#497K` duplicate created by the old case-sensitive match.
   details in [`etl/validation_report.md`](etl/validation_report.md).
 - Spreadsheet “derived” sheets are not imported — they are recomputed as SQL
   views (`v_monthly_pnl`, `v_stock_on_hand`, `v_monthly_kpis`, …).
-- Imported history: 160 products, 557 clients, 18,182 sales, 17,971 installments,
-  1,629 inventory movements, 110 expenses, 730 MDO days. The imported expenses
+- Imported history: 185 products (160 from the price sheets plus 25 that only
+  the ledger references), 557 clients, 18,182 sales, 17,971 installments,
+  1,629 inventory movements, 110 expenses, 730 MDO days. Every imported sale
+  has a product and a readable product name; four rows in the workbook have
+  no product and one has no description, so they stay empty on purpose. The
+  imported expenses
   cover July 2023 only; later months are entered in the app, so Resultado warns
   when a month has no business expenses.
 - Legacy inventory rows are signed quantities with `location_to` set. The new

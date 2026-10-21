@@ -320,7 +320,15 @@ order by mc.month desc;
 -- Unmatched sale names and sold products without a current Ouro price are the
 -- two gaps that most affect historical margin and stock value. The known
 -- examples from the workbook are `bcu` and `#241K`.
+-- The Phase 5 catalog migration (20261025000001) closes them; this section
+-- verifies the result.
 -- ---------------------------------------------------------------------------
+select
+    count(*) filter (where s.product_id is null) as sales_without_product,
+    count(*) filter (where s.product_name_raw is null) as sales_without_readable_name,
+    (select count(*) from public.products where not is_active) as inactive_products
+from public.sales s;
+
 select
     coalesce(nullif(btrim(s.product_name_raw), ''), '(sem nome)')
         as product_name_raw,
