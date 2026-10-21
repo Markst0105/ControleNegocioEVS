@@ -16,6 +16,13 @@ export type WriteOffFormState = {
   error: string | null;
 };
 
+export type ReconciliationPreview = {
+  count: number;
+  total: number;
+  oldest: string | null;
+  newest: string | null;
+};
+
 function revalidateReceivablePaths(paymentId?: string) {
   revalidatePath("/financeiro/recebiveis");
   if (paymentId) revalidatePath(`/financeiro/recebiveis/${paymentId}`);
@@ -180,8 +187,7 @@ export async function deleteReceiptEvent(formData: FormData): Promise<void> {
   redirect(`/financeiro/recebiveis/${paymentId}?ok=estornado`);
 }
 
-export async function reconcileReceivables(formData: FormData): Promise<void> {
-  const session = await getSession();
+export async function reconcileReceivables(formData: FormData): Promise<void> {  const session = await getSession();
   if (session?.profile?.role !== "admin") {
     redirect("/financeiro/recebiveis?erro=permissao");
   }
@@ -235,4 +241,37 @@ export async function reconcileReceivables(formData: FormData): Promise<void> {
         ? "/financeiro/recebiveis?ok=lote_recebido"
         : "/financeiro/recebiveis?ok=lote_baixado",
   );
+}
+
+/**
+ * How many open installments and how much money a bulk reconciliation up to
+ * the chosen cutoff would settle. Read-only: it never writes.
+ */
+export async function previewReconciliation(
+  cutoff: string,
+): Promise<ReconciliationPreview | null> {
+  const session = await getSession();
+  if (session?.profile?.role !== "admin") return null;
+
+  const date = parseDateInput(cutoff);
+  if (!date) return null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reconciliation_preview", {
+    p_cutoff: date,
+  });
+  if (error) {
+    console.error("previewReconciliation: falha ao montar a prévia", error);
+    return null;
+  }
+
+  const row = data?.[0];
+  if (!row) return null;
+
+  return {
+    count: Number(row.installment_count ?? 0),
+    total: Number(row.open_total ?? 0),
+    oldest: row.oldest_due_on,
+    newest: row.newest_due_on,
+  };
 }

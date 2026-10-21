@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Ban, HandCoins, Search } from "lucide-react";
+import { HandCoins, Search } from "lucide-react";
 
 import { FlashToast } from "@/components/app/flash-toast";
 import { PageHeader } from "@/components/app/page-header";
@@ -51,7 +51,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
-import { reconcileReceivables } from "./actions";
+import { ReconciliationForm } from "./reconciliacao-form";
 
 export const metadata: Metadata = {
   title: "Recebíveis",
@@ -315,68 +315,10 @@ export default async function RecebiveisPage({
               recebíveis e fica registrado no histórico.
             </p>
 
-            <form
-              action={reconcileReceivables}
-              className="mt-4 flex flex-col gap-3"
-            >
-              <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
-                <div className="grid content-start gap-1.5">
-                  <Label htmlFor="cutoff">Vencidos até</Label>
-                  <Input
-                    id="cutoff"
-                    name="cutoff"
-                    type="date"
-                    defaultValue={addDays(today, -1)}
-                    max={today}
-                    required
-                    className="num h-10"
-                  />
-                </div>
-
-                <div className="grid content-start gap-1.5">
-                  <Label htmlFor="reconcile-note">Observação</Label>
-                  <Input
-                    id="reconcile-note"
-                    name="note"
-                    maxLength={500}
-                    placeholder="Opcional — aparece no histórico de cada parcela"
-                    className="h-10"
-                  />
-                </div>
-              </div>
-
-              <label className="flex max-w-3xl items-start gap-2 text-[11.5px] leading-relaxed text-ink-soft">
-                <input
-                  type="checkbox"
-                  name="confirmo"
-                  required
-                  className="mt-0.5 size-3.5 accent-rust"
-                />
-                Confirmo que os lançamentos até essa data já foram conferidos e
-                podem ser liquidados em lote.
-              </label>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="submit"
-                  name="mode"
-                  value="receipt"
-                  variant="secondary"
-                >
-                  <HandCoins />
-                  Marcar como recebidas
-                </Button>
-                <Button
-                  type="submit"
-                  name="mode"
-                  value="write_off"
-                  variant="destructive"
-                >
-                  <Ban />
-                  Baixar sem recebimento
-                </Button>
-              </div>
-            </form>
+            <ReconciliationForm
+              defaultCutoff={addDays(today, -1)}
+              today={today}
+            />
           </div>
         </details>
       ) : null}

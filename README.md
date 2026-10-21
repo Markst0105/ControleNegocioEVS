@@ -317,13 +317,22 @@ deactivates the empty `#497K` duplicate created by the old case-sensitive match.
 - Spreadsheet “derived” sheets are not imported — they are recomputed as SQL
   views (`v_monthly_pnl`, `v_stock_on_hand`, `v_monthly_kpis`, …).
 - Imported history: 185 products (160 from the price sheets plus 25 that only
-  the ledger references), 557 clients, 18,182 sales, 17,971 installments,
+  the ledger references), 557 clients, 18,182 sales, 17,971 installment rows,
   1,629 inventory movements, 110 expenses, 730 MDO days. Every imported sale
   has a product and a readable product name; four rows in the workbook have
   no product and one has no description, so they stay empty on purpose. The
   imported expenses
   cover July 2023 only; later months are entered in the app, so Resultado warns
   when a month has no business expenses.
+- Of the imported installment rows, **3,422 are open balances with a due date,
+  R$ 197,885.33 in total** (2023: 531; 2024: 1,048; 2025: 875; 2026: 968).
+  The remaining rows are zero-value placeholders. This is the backlog the
+  historical reconciliation settles; the Recebíveis screen previews exactly
+  how much a given cutoff would touch before anything is written.
+- The sales ledger covers 46 months (2023-01 to 2026-10) but the workbook
+  holds **no Herbalife statement** (the `Consolidado` royalty/bonus columns are
+  empty), so every month needs its royalty, FX and bonus entered in the app
+  before it can be shown as a final result.
 - Legacy inventory rows are signed quantities with `location_to` set. The new
   `v_stock_on_hand` also understands explicit `location_from` / `location_to`
   pairs, so new purchases, sales, transfers and counts can be applied on top of

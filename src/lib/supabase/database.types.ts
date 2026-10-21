@@ -1287,6 +1287,15 @@ export type Database = {
           reconciled_total: number;
         }[];
       };
+      reconciliation_preview: {
+        Args: { p_cutoff: string };
+        Returns: {
+          installment_count: number;
+          open_total: number;
+          oldest_due_on: string | null;
+          newest_due_on: string | null;
+        }[];
+      };
       stock_for_products: {
         Args: { p_ids: string[] };
         Returns: {
