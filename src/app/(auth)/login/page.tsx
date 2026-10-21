@@ -20,7 +20,9 @@ export default function LoginPage() {
           <h1 className="font-serif text-[32px] leading-none font-normal tracking-[-0.01em]">
             Entrar
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">Acesso restrito à equipe.</p>
+          <p className="mt-1 text-sm text-ink-soft">
+            Acesso da equipe e dos membros.
+          </p>
           <div className="mt-6">
             <LoginForm />
           </div>

@@ -40,6 +40,13 @@ export function currentMonthISO(): string {
   return todayISO().slice(0, 7);
 }
 
+/** Valida um mês YYYY-MM vindo da URL. */
+export function isMonthISO(value: string | null | undefined): value is string {
+  if (!value || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false;
+  const year = Number(value.slice(0, 4));
+  return year >= 2000 && year <= 2100;
+}
+
 /** "2026-10" -> "2026-10-01" */
 export function monthFirstDay(ym: string): string {
   return `${ym}-01`;
@@ -51,9 +58,25 @@ export function nextMonthFirstDay(ym: string): string {
   return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
 }
 
-/** "2026-10-19" -> "19/10/2026" (sem armadilhas de fuso). */
+const brDate = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: BUSINESS_TIME_ZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+/**
+ * "2026-10-19" -> "19/10/2026" (sem armadilhas de fuso).
+ * Timestamps are rendered in the business time zone.
+ */
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
+
+  if (iso.includes("T")) {
+    const timestamp = new Date(iso);
+    if (!Number.isNaN(timestamp.getTime())) return brDate.format(timestamp);
+  }
+
   const [y, m, d] = iso.slice(0, 10).split("-");
   if (!y || !m || !d) return "—";
   return `${d}/${m}/${y}`;
@@ -171,4 +194,22 @@ export function formatMoneyInput(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/** "2026-10" + 1 -> "2026-11"; delta pode ser negativo. */
+export function shiftMonth(ym: string, delta: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return ym;
+  return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+}
+
+/** Todos os dias do mês como YYYY-MM-DD. */
+export function monthDays(ym: string): string[] {
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return [];
+  const total = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return Array.from(
+    { length: total },
+    (_, index) => `${ym}-${String(index + 1).padStart(2, "0")}`,
+  );
 }

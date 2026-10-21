@@ -4,7 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { isRole, type Role } from "@/lib/roles";
 
 export type SessionUser = { id: string; email: string | null };
-export type Profile = { id: string; name: string; role: Role };
+export type Profile = {
+  id: string;
+  name: string;
+  role: Role;
+  price_tier: string | null;
+};
 
 /** Usuário da sessão (via JWT) — null quando não autenticado. */
 export const getSessionUser = cache(
@@ -35,13 +40,18 @@ export const getSession = cache(
     const supabase = await createClient();
     const { data } = await supabase
       .from("profiles")
-      .select("id, name, role")
+      .select("id, name, role, price_tier")
       .eq("id", user.id)
       .maybeSingle();
 
     const profile =
       data && isRole(data.role)
-        ? { id: data.id, name: data.name, role: data.role }
+        ? {
+            id: data.id,
+            name: data.name,
+            role: data.role,
+            price_tier: data.price_tier,
+          }
         : null;
 
     return { user, profile };

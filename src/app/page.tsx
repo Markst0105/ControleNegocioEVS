@@ -1,5 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default function Home() {
-  redirect("/painel");
+import { getSession } from "@/lib/auth";
+
+export default async function Home() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  redirect(session.profile?.role === "member" ? "/membro" : "/painel");
 }

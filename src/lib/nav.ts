@@ -1,4 +1,6 @@
 import {
+  Activity,
+  CalendarClock,
   LayoutDashboard,
   Package,
   ReceiptText,
@@ -42,6 +44,22 @@ export const NAV_ITEMS: NavItem[] = [
     shortLabel: "Clientes",
     icon: Users,
     roles: ["admin", "operator"],
+  },
+  {
+    href: "/reservas",
+    label: "Reservas",
+    shortLabel: "Reservas",
+    icon: CalendarClock,
+    roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
+    href: "/mdo",
+    label: "MDO",
+    shortLabel: "MDO",
+    icon: Activity,
+    roles: ["admin", "operator"],
+    mobile: false,
   },
   {
     href: "/precos",

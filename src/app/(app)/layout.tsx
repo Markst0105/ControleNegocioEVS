@@ -25,15 +25,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   if (profile.role === "member") {
-    return (
-      <>
-        <ProfileNotice
-          title={`Olá, ${profile.name}`}
-          description="A área de membros está em preparação. Em breve você vai poder ver o catálogo de produtos e acompanhar suas reservas por aqui."
-        />
-        <Toaster position="top-center" />
-      </>
-    );
+    redirect("/membro");
   }
 
   return (

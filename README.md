@@ -9,29 +9,34 @@ database identifiers are in English.
 > product name in the interface is **Controle de Negócio**.
 
 > [!NOTE]
-> **Status: Phase 2b — Estoque, Compras, Fornecedores & Preços implemented.**
+> **Status: Phase 3 — MDO, Reservas & Área do membro implemented.**
 > Login, role-aware app shell, Painel, Vendas, Lançamento de venda, Clientes,
-> Estoque, Compras, Fornecedores and Tabela de preços are in the code. Clientes
-> includes search/pagination, name + phone/WhatsApp deduplication and an
-> admin-only merge. Estoque includes purchases, manual movements, stock counts,
-> per-location balances, product history and Ouro-tier valuation. Purchases can
-> apply any price tier and keep the chosen tier on each line. Fornecedores includes
-> create/edit/deactivate and the known distributors from the workbook. Preços is
-> a print-friendly counter sheet with retail, discount tiers and PV; the sale
-> form prefills the retail amount from the selected product. The visual identity
-> follows the **Balcão** direction: desktop side column, mobile top bar with a
-> leaf-triggered panel, month masthead and an editorial serif for section titles.
-> Expenses, MDO and reservations come next.
+> Estoque, Compras, Fornecedores, Preços, MDO, Reservas and the member catalog
+> are in the code. Clientes includes search/pagination, name + phone/WhatsApp
+> deduplication and an admin-only merge. Estoque includes purchases, manual
+> movements, stock counts, per-location balances, product history and Ouro-tier
+> valuation. Purchases can apply any price tier and keep the chosen tier on each
+> line. Fornecedores includes create/edit/deactivate and the known distributors
+> from the workbook. Preços is a print-friendly counter sheet with retail,
+> discount tiers and PV; the sale form prefills the retail amount from the
+> selected product. MDO imports 730 days of activity KPIs and adds a monthly
+> dashboard plus a daily editor. Reservas supports member pre-orders, operator
+> confirmation and atomic conversion into sales with stock movements and
+> installments. Members sign in to a dedicated catalog and see only their own
+> reservations. The visual identity follows the **Balcão** direction: desktop
+> side column, mobile top bar with a leaf-triggered panel, month masthead and an
+> editorial serif for section titles. Expenses and P&L (Phase 2c) remain pending
+> the expense data gap.
 >
-> Apply `supabase/migrations/20261019000002_page_queries.sql`,
-> `supabase/migrations/20261019000003_inventory_purchases.sql`,
-> `supabase/migrations/20261020000001_suppliers.sql`,
-> `supabase/migrations/20261020000002_price_catalog.sql`,
-> `supabase/migrations/20261020000003_price_backfill.sql` and then
-> `supabase/migrations/20261020000004_price_tier_valuation.sql` before deploying
-> the new Estoque/Compras/Fornecedores/Preços pages. The backfill is idempotent and
-> fills the missing prices in databases seeded before the ETL price fix. New sales
-> now write a stock movement from cutover onward; historical sales are not backfilled.
+> Apply the migrations through
+> `supabase/migrations/20261021000001_phase3_mdo_reservations.sql` before
+> deploying the MDO/Reservas/member pages. That migration adds member tier
+> pricing to the safe catalog, the reservation overview, transactional
+> create/convert functions, reservation guards and a profile guard that prevents
+> members from changing their own role or price tier. The earlier price backfill
+> is idempotent and fills missing prices in databases seeded before the ETL price
+> fix. New sales write a stock movement from cutover onward; historical sales are
+> not backfilled.
 
 ## What it covers
 
@@ -66,7 +71,8 @@ Three roles, enforced in the database with Row-Level Security:
 ```
 src/            Next.js app (App Router, components, lib)
   app/          routes: (auth)/login, (app)/painel, (app)/vendas, (app)/clientes,
-                (app)/precos, (app)/estoque, (app)/compras, (app)/fornecedores
+                (app)/precos, (app)/estoque, (app)/compras, (app)/fornecedores,
+                (app)/mdo, (app)/reservas, (member)/membro
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
 docs/           phase-0-setup.md, design-system.md, design/ (identity study)
@@ -92,7 +98,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 24/24 checks should pass, and nothing is left
+   verify the security policies — 32/32 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -124,6 +130,22 @@ insert into public.profiles (id, name, role)
 select id, 'Nome', 'operator' from auth.users where email = 'email@exemplo.com'
 on conflict (id) do update set name = excluded.name, role = excluded.role;
 ```
+
+To open the member area, create the user in Supabase Auth and give them a
+`member` profile with a price tier (`retail`, `t0.25`, `t0.35`, `t0.42`,
+`t0.5`, `bronze`, `prata` or `ouro`):
+
+```sql
+insert into public.profiles (id, name, role, price_tier)
+select id, 'Nome', 'member', 'retail' from auth.users where email = 'membro@exemplo.com'
+on conflict (id) do update
+  set name = excluded.name,
+      role = excluded.role,
+      price_tier = excluded.price_tier;
+```
+
+Members cannot change their own role or price tier; only an admin can update
+those columns.
 
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 `npm run typecheck`, and `npm run db:types` (regenerate
@@ -159,12 +181,21 @@ What this milestone includes:
   rounding while the database keeps exact cents;
 - **Movimentações** — transfers, adjustments, loans and returns with validation;
 - **Contagens** — physical counts that store expected/counted values and post
-  the difference as a stock movement.
+  the difference as a stock movement;
+- **MDO** — monthly dashboard with totals by activity/client/recruiting group
+  and a daily editor for the 22 spreadsheet KPIs;
+- **Reservas** — operator list with status filters, member pre-orders using the
+  member’s price tier, confirmation/cancellation and atomic conversion into one
+  sale per item, including stock movements and card installments;
+- **Área do membro** — dedicated catalog with the member price, search and
+  pagination, plus “Minhas reservas”, cancellation of open reservations and an
+  order timeline; members cannot change prices, confirm or convert reservations.
 
 New sales with a stock-affecting deal type write an inventory movement in the
-same request; a failed movement rolls the sale back. Expenses, MDO and
-reservations are the next milestones. The visual language is documented in
-[`docs/design-system.md`](docs/design-system.md).
+same request; a failed movement rolls the sale back. Reservation conversion is
+transactional: all sales, installments and stock movements are written or none
+are. Expenses and P&L (Phase 2c) remain the next milestone. The visual language
+is documented in [`docs/design-system.md`](docs/design-system.md).
 
 ## ETL (workbook → seeds)
 
@@ -228,4 +259,4 @@ new `braces`/`micromatch` release ships.
 - [x] **Phase 2a** — Clientes: CRUD, phone/WhatsApp, dedupe and merge
 - [x] **Phase 2b** — Estoque, compras, fornecedores, preços, movimentações e contagens
 - [ ] **Phase 2c** — expenses & P&L screens (pending the expense data gap)
-- [ ] **Phase 3** — MDO daily KPIs, reservations and the member area
+- [x] **Phase 3** — MDO diário, reservas e área do membro

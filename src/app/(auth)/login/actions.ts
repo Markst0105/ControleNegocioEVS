@@ -20,7 +20,10 @@ export async function signIn(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
   if (error) {
     if (error.code === "invalid_credentials" || error.status === 400) {
@@ -32,5 +35,13 @@ export async function signIn(
     return { error: "Não foi possível entrar agora. Tente de novo." };
   }
 
-  redirect("/painel");
+  const { data: profile } = data.user
+    ? await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle()
+    : { data: null };
+
+  redirect(profile?.role === "member" ? "/membro" : "/painel");
 }
