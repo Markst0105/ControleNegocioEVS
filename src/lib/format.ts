@@ -65,6 +65,15 @@ const brDate = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric",
 });
 
+const brDateTime = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: BUSINESS_TIME_ZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 /**
  * "2026-10-19" -> "19/10/2026" (sem armadilhas de fuso).
  * Timestamps are rendered in the business time zone.
@@ -80,6 +89,14 @@ export function formatDate(iso: string | null | undefined): string {
   const [y, m, d] = iso.slice(0, 10).split("-");
   if (!y || !m || !d) return "—";
   return `${d}/${m}/${y}`;
+}
+
+/** Timestamp in the business time zone as "dd/mm/aaaa às hh:mm". */
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const timestamp = new Date(iso);
+  if (Number.isNaN(timestamp.getTime())) return "—";
+  return brDateTime.format(timestamp).replace(",", " às");
 }
 
 /** "2026-10" -> "outubro de 2026" */
