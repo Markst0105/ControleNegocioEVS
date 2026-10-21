@@ -184,7 +184,12 @@ export default async function PainelPage() {
           <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
             {formatMoney(openReceivables)}
           </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">parcelas em aberto</p>
+          <Link
+            href="/financeiro/recebiveis"
+            className="mt-2 inline-block text-[10.5px] text-ink-soft underline-offset-2 transition-colors hover:text-ink hover:underline"
+          >
+            parcelas em aberto
+          </Link>
         </div>
       </dl>
 

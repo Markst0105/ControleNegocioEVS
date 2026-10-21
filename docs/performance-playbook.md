@@ -1190,9 +1190,13 @@ values before switching the page.
 
 ### Open receivables
 
-The current view uses gross `amount` for rows with `received_on is null`. The
-optimized function in §4.3 preserves that. If you switch to net-of-partial
-amounts, update `v_receivables_schedule` and the function together.
+The source of truth is now the append-only `sale_payment_events` ledger
+(`receipt` and `write_off`). `v_sale_payment_balances` derives the open balance,
+and `v_receivables_schedule`, `open_receivables_total`, `open_receivables_summary`
+and the client views all read from it. If the event semantics change, update
+those functions and views together. Imported `received_on`/`received_amount`
+values are migrated into events once; new code must not read those legacy
+columns.
 
 ### Exact counts
 
@@ -1235,8 +1239,11 @@ Do not log query strings, phone numbers, client names or JWTs.
 | `src/app/(app)/clientes/page.tsx` | Client list/search/count |
 | `src/app/(app)/clientes/[id]/page.tsx` | Client detail |
 | `src/app/(app)/clientes/[id]/mesclar/page.tsx` | Admin merge source lookup |
+| `src/app/(app)/financeiro/recebiveis/page.tsx` | Receivables list and reconciliation |
+| `src/app/(app)/financeiro/recebiveis/[id]/page.tsx` | Installment detail and settlement |
 | `supabase/migrations/20261018000002_rls.sql` | Original RLS policies |
 | `supabase/migrations/20261019000001_clients.sql` | Client view, indexes and merge RPC |
+| `supabase/migrations/20261022000002_phase4a_receivables.sql` | Receipt/write-off ledger, balances, reconciliation |
 | `supabase/tests/rls_test.sql` | RLS access smoke test |
 | `src/lib/supabase/database.types.ts` | Hand-maintained database/RPC types |
 

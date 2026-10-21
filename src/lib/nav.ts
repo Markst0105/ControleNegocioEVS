@@ -1,6 +1,7 @@
 import {
   Activity,
   ChartLine,
+  HandCoins,
   LayoutDashboard,
   Package,
   ReceiptText,
@@ -51,6 +52,14 @@ export const NAV_ITEMS: NavItem[] = [
     label: "MDO",
     shortLabel: "MDO",
     icon: Activity,
+    roles: ["admin", "operator"],
+    mobile: false,
+  },
+  {
+    href: "/financeiro/recebiveis",
+    label: "Recebíveis",
+    shortLabel: "Receber",
+    icon: HandCoins,
     roles: ["admin", "operator"],
     mobile: false,
   },

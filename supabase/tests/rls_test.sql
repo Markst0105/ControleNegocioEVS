@@ -58,6 +58,29 @@ values ('a0000000-0000-4000-8000-000000000001', 'open');
 insert into public.reservations (member_id, status)
 values ('c0000000-0000-4000-8000-000000000003', 'open');
 
+-- a sale with three receivables for the settlement tests below
+insert into public.sales (
+    id, sold_on, client_name_raw, amount_received, product_cost, financial_cost, pv
+) values (
+    'd0000000-0000-4000-8000-000000000004',
+    public.business_today() - 45,
+    'RLS Receivables',
+    120,
+    0,
+    0,
+    0
+);
+
+insert into public.sale_payments (
+    id, sale_id, installment, due_on, amount
+) values
+    ('e0000000-0000-4000-8000-000000000011',
+     'd0000000-0000-4000-8000-000000000004', 1, public.business_today() - 10, 60),
+    ('e0000000-0000-4000-8000-000000000012',
+     'd0000000-0000-4000-8000-000000000004', 2, public.business_today() - 30, 40),
+    ('e0000000-0000-4000-8000-000000000013',
+     'd0000000-0000-4000-8000-000000000004', 3, public.business_today() - 40, 20);
+
 -- ---------------------------------------------------------------------------
 -- 2. ground truth + results table (privileged role, RLS bypassed)
 -- ---------------------------------------------------------------------------
@@ -129,6 +152,8 @@ insert into pg_temp.rls_results
 select 13, 'membro: NÃO vê despesas', (select count(*) from public.expenses) = 0;
 insert into pg_temp.rls_results
 select 14, 'membro: NÃO vê clientes', (select count(*) from public.clients) = 0;
+insert into pg_temp.rls_results
+select 46, 'membro: NÃO vê recebíveis', (select count(*) from public.v_receivables_detail) = 0;
 insert into pg_temp.rls_results
 select 15, 'membro: NÃO vê P&L mensal (v_monthly_pnl)', (select count(*) from public.v_monthly_pnl) = 0;
 insert into pg_temp.rls_results
@@ -366,6 +391,192 @@ insert into pg_temp.rls_results
 select 36, 'operador: exclui despesa do negócio',
        (select count(*) from public.expenses
          where description = 'RLS business expense') = 0;
+
+-- ---------------------------------------------------------------------------
+-- Phase 4a: receivables — partial receipts, write-offs and reconciliation
+-- ---------------------------------------------------------------------------
+-- The operator claim is still active from the expense tests above.
+do $$
+declare
+    v_event_id uuid;
+begin
+    v_event_id := public.receive_sale_payment(
+        'e0000000-0000-4000-8000-000000000011',
+        30,
+        public.business_today() - 9,
+        'RLS partial receipt'
+    );
+
+    insert into pg_temp.rls_results
+    select 37, 'operador: registra recebimento parcial',
+           v_event_id is not null
+           and (select open_amount
+                  from public.v_sale_payment_balances
+                 where id = 'e0000000-0000-4000-8000-000000000011') = 30;
+end $$;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        perform public.write_off_sale_payment(
+            'e0000000-0000-4000-8000-000000000012',
+            public.business_today(),
+            'RLS write-off'
+        );
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (38, 'operador: NÃO baixa saldo sem recebimento', v_blocked);
+end $$;
+
+do $$
+declare
+    v_event_id uuid;
+    v_before bigint;
+    v_after bigint;
+begin
+    select id into v_event_id
+      from public.sale_payment_events
+     where sale_payment_id = 'e0000000-0000-4000-8000-000000000011'
+     limit 1;
+
+    select count(*) into v_before
+      from public.sale_payment_events
+     where sale_payment_id = 'e0000000-0000-4000-8000-000000000011';
+
+    delete from public.sale_payment_events where id = v_event_id;
+
+    select count(*) into v_after
+      from public.sale_payment_events
+     where sale_payment_id = 'e0000000-0000-4000-8000-000000000011';
+
+    insert into pg_temp.rls_results
+    values (39, 'operador: NÃO estorna recebimento',
+            v_before = 1 and v_after = 1);
+end $$;
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        perform public.receive_sale_payment(
+            'e0000000-0000-4000-8000-000000000011',
+            31,
+            public.business_today(),
+            'RLS overpay'
+        );
+    exception when sqlstate '22023' then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (40, 'operador: NÃO recebe acima do saldo', v_blocked);
+end $$;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
+                  true);
+
+do $$
+declare
+    v_event_id uuid;
+begin
+    v_event_id := public.receive_sale_payment(
+        'e0000000-0000-4000-8000-000000000011',
+        30,
+        public.business_today(),
+        'RLS final receipt'
+    );
+
+    insert into pg_temp.rls_results
+    select 41, 'admin: conclui o recebimento da parcela',
+           v_event_id is not null
+           and (select open_amount = 0 and received_amount = 60
+                  from public.v_sale_payment_balances
+                 where id = 'e0000000-0000-4000-8000-000000000011');
+end $$;
+
+do $$
+declare
+    v_event_id uuid;
+begin
+    v_event_id := public.write_off_sale_payment(
+        'e0000000-0000-4000-8000-000000000012',
+        public.business_today(),
+        'RLS historical write-off'
+    );
+
+    insert into pg_temp.rls_results
+    select 42, 'admin: baixa o saldo sem recebimento',
+           v_event_id is not null
+           and (select open_amount = 0 and written_off_amount = 40
+                  from public.v_sale_payment_balances
+                 where id = 'e0000000-0000-4000-8000-000000000012');
+end $$;
+
+do $$
+declare
+    v_count bigint;
+    v_total numeric;
+begin
+    select reconciled_count, reconciled_total
+      into v_count, v_total
+      from public.reconcile_sale_payments_before(
+          public.business_today() - 35,
+          'receipt',
+          'RLS bulk reconciliation'
+      );
+
+    insert into pg_temp.rls_results
+    select 43, 'admin: reconcilia vencidos em lote',
+           v_count = 1
+           and v_total = 20
+           and (select open_amount = 0
+                  from public.v_sale_payment_balances
+                 where id = 'e0000000-0000-4000-8000-000000000013')
+           and exists (
+               select 1
+                 from public.sale_payment_events
+                where sale_payment_id = 'e0000000-0000-4000-8000-000000000013'
+                  and kind = 'receipt'
+                  and amount = 20
+                  and occurred_on = public.business_today() - 40
+           );
+end $$;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'b0000000-0000-4000-8000-000000000002')::text,
+                  true);
+
+do $$
+declare v_blocked boolean := false;
+begin
+    begin
+        perform 1
+          from public.reconcile_sale_payments_before(
+              public.business_today() - 1,
+              'receipt',
+              null
+          );
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (44, 'operador: NÃO reconcilia recebíveis em lote', v_blocked);
+end $$;
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 45, 'admin: vê a trilha dos recebimentos',
+       (select count(*) from public.audit_log
+         where table_name = 'sale_payment_events') >= 4;
 
 -- ---------------------------------------------------------------------------
 -- 3. results

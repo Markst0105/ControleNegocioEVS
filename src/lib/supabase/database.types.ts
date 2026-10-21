@@ -312,6 +312,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      sale_payment_events: {
+        Row: {
+          id: string;
+          sale_payment_id: string;
+          kind: string;
+          occurred_on: string;
+          amount: number;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          sale_payment_id: string;
+          kind: string;
+          occurred_on: string;
+          amount: number;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          sale_payment_id?: string;
+          kind?: string;
+          occurred_on?: string;
+          amount?: number;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       counterparties: {
         Row: {
           id: string;
@@ -913,6 +946,50 @@ export type Database = {
         };
         Relationships: [];
       };
+      v_sale_payment_balances: {
+        Row: {
+          id: string;
+          sale_id: string;
+          installment: number;
+          due_on: string | null;
+          amount: number;
+          method_code: string | null;
+          fee_pct: number | null;
+          received_amount: number;
+          written_off_amount: number;
+          open_amount: number;
+          last_received_on: string | null;
+          written_off_on: string | null;
+          status: string;
+        };
+        Relationships: [];
+      };
+      v_receivables_detail: {
+        Row: {
+          id: string;
+          sale_id: string;
+          installment: number;
+          due_on: string | null;
+          amount: number;
+          received_amount: number;
+          written_off_amount: number;
+          open_amount: number;
+          status: string;
+          last_received_on: string | null;
+          written_off_on: string | null;
+          sold_on: string;
+          client_id: string | null;
+          client_name: string;
+          client_name_raw: string | null;
+          product_name_raw: string | null;
+          deal_type_code: string | null;
+          payment_method_code: string | null;
+          method_label: string | null;
+          sale_amount: number | null;
+          origin: string | null;
+        };
+        Relationships: [];
+      };
       v_stock_on_hand: {
         Row: {
           product_id: string;
@@ -1014,6 +1091,47 @@ export type Database = {
       open_receivables_total: {
         Args: Record<PropertyKey, never>;
         Returns: number;
+      };
+      open_receivables_summary: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          open_total: number;
+          overdue_total: number;
+          due_today_total: number;
+          next7_total: number;
+          open_count: number;
+          overdue_count: number;
+          received_month_total: number;
+          written_off_month_total: number;
+        }[];
+      };
+      receive_sale_payment: {
+        Args: {
+          p_sale_payment_id: string;
+          p_amount: number;
+          p_received_on: string;
+          p_note?: string | null;
+        };
+        Returns: string;
+      };
+      write_off_sale_payment: {
+        Args: {
+          p_sale_payment_id: string;
+          p_written_off_on: string;
+          p_reason: string;
+        };
+        Returns: string;
+      };
+      reconcile_sale_payments_before: {
+        Args: {
+          p_cutoff: string;
+          p_mode: string;
+          p_note?: string | null;
+        };
+        Returns: {
+          reconciled_count: number;
+          reconciled_total: number;
+        }[];
       };
       stock_for_products: {
         Args: { p_ids: string[] };
