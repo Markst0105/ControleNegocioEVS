@@ -25,6 +25,7 @@ import {
   formatInt,
   formatMoney,
 } from "@/lib/format";
+import { getReservationSummary } from "@/lib/reservations-data";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -51,12 +52,8 @@ export default async function MembroReservaDetailPage({
   if (!isUuid(id)) notFound();
 
   const supabase = await createClient();
-  const [reservationResult, itemsResult] = await Promise.all([
-    supabase
-      .from("v_reservation_overview")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle(),
+  const [reservation, itemsResult] = await Promise.all([
+    getReservationSummary(supabase, id, { includeSales: false }),
     supabase
       .from("reservation_items")
       .select("id, product_id, qty, unit_price, pv")
@@ -64,12 +61,7 @@ export default async function MembroReservaDetailPage({
       .order("created_at"),
   ]);
 
-  const firstError = [reservationResult.error, itemsResult.error].find(
-    Boolean,
-  );
-  if (firstError) throw new Error(firstError.message);
-
-  const reservation = reservationResult.data;
+  if (itemsResult.error) throw new Error(itemsResult.error.message);
   if (!reservation) notFound();
 
   const items = itemsResult.data ?? [];
@@ -107,9 +99,7 @@ export default async function MembroReservaDetailPage({
             ? "Convertida em compra"
             : "Concluída",
       date:
-        reservation.status === "converted" || reservation.status === "cancelled"
-          ? reservation.updated_at
-          : null,
+        reservation.status === "converted" ? reservation.confirmed_at : null,
       done:
         reservation.status === "converted" || reservation.status === "cancelled",
     },

@@ -31,6 +31,10 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatInt, formatMoney } from "@/lib/format";
 import {
+  getReservationStatusCounts,
+  getReservationsPage,
+} from "@/lib/reservations-data";
+import {
   RESERVATION_STATUSES,
   RESERVATION_STATUS_LABELS,
 } from "@/lib/reservations";
@@ -66,35 +70,19 @@ export default async function ReservasPage({
 
   const supabase = await createClient();
 
-  let query = supabase
-    .from("v_reservation_overview")
-    .select(
-      "id, member_name, status, created_at, item_count, total, sale_count",
-      { count: "exact" },
-    )
-    .order("created_at", { ascending: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-
-  if (status !== "all") query = query.eq("status", status);
-
-  const [reservationsResult, statusesResult] = await Promise.all([
-    query,
-    supabase.from("v_reservation_overview").select("status"),
+  const [pageResult, countByStatus] = await Promise.all([
+    getReservationsPage(supabase, {
+      page,
+      pageSize: PAGE_SIZE,
+      status: status === "all" ? undefined : status,
+      includeSales: true,
+    }),
+    getReservationStatusCounts(supabase),
   ]);
 
-  const firstError = [reservationsResult.error, statusesResult.error].find(
-    Boolean,
-  );
-  if (firstError) throw new Error(firstError.message);
-
-  const reservations = reservationsResult.data ?? [];
-  const total = reservationsResult.count ?? 0;
+  const reservations = pageResult.rows;
+  const total = pageResult.total;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const statuses = statusesResult.data ?? [];
-  const countByStatus = new Map<string, number>();
-  for (const row of statuses) {
-    countByStatus.set(row.status, (countByStatus.get(row.status) ?? 0) + 1);
-  }
   const filtered = status !== "all";
 
   function pageHref(target: number) {
@@ -140,7 +128,13 @@ export default async function ReservasPage({
           ["Abertas", countByStatus.get("open") ?? 0],
           ["Confirmadas", countByStatus.get("confirmed") ?? 0],
           ["Convertidas", countByStatus.get("converted") ?? 0],
-          ["Total", statuses.length],
+          [
+            "Total",
+            Array.from(countByStatus.values()).reduce(
+              (sum, value) => sum + value,
+              0,
+            ),
+          ],
         ].map(([label, value]) => (
           <div key={label} className="bg-paper px-4 py-4 sm:pl-0">
             <dt className="text-[11px] font-medium text-ink-soft">{label}</dt>

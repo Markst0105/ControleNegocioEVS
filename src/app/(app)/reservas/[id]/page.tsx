@@ -43,6 +43,7 @@ import {
   reservationCanConfirm,
   reservationCanConvert,
 } from "@/lib/reservations";
+import { getReservationSummary } from "@/lib/reservations-data";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -90,13 +91,9 @@ export default async function ReservaDetailPage({
   if (!isUuid(id)) notFound();
 
   const supabase = await createClient();
-  const [reservationResult, itemsResult, methodsResult, dealTypesResult] =
+  const [reservation, itemsResult, methodsResult, dealTypesResult] =
     await Promise.all([
-      supabase
-        .from("v_reservation_overview")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle(),
+      getReservationSummary(supabase, id, { includeSales: true }),
       supabase
         .from("reservation_items")
         .select("id, product_id, qty, unit_price, pv")
@@ -114,14 +111,12 @@ export default async function ReservaDetailPage({
     ]);
 
   const firstError = [
-    reservationResult.error,
     itemsResult.error,
     methodsResult.error,
     dealTypesResult.error,
   ].find(Boolean);
   if (firstError) throw new Error(firstError.message);
 
-  const reservation = reservationResult.data;
   if (!reservation) notFound();
 
   const items = itemsResult.data ?? [];
