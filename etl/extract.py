@@ -498,6 +498,20 @@ for r, cells in sheet("Lançamento de Venda"):
     if sku:
         SKU_MAP_ROWS.append((r, str(sku)))
 
+    # The readable product name: the catalog name when the SKU is in the price
+    # sheets, otherwise the workbook's own description (column E). SKUs that
+    # are missing from the price sheets are created by the Phase 5 catalog
+    # migration with exactly this name.
+    raw_name = None
+    if sku:
+        prod = products.get(sku_key(sku))
+        if prod:
+            raw_name = prod["name"]
+        elif product_name:
+            raw_name = str(product_name).strip()
+    elif product_name:
+        raw_name = str(product_name).strip()
+
     # normalize deal code: floats like 0.14000000000000001 -> '0.14'
     dc_raw = str(deal_code) if deal_code else ""
     dc = dc_raw
@@ -527,10 +541,10 @@ for r, cells in sheet("Lançamento de Venda"):
     emit("004_sales",
          f"insert into sales (sold_on, client_id, client_name_raw, payment_method_code, deal_type_code, "
          f"discount_pct, origin, stock_discount_pct, obs, amount_received, product_cost, financial_cost, pv, "
-         f"sale_seq, legacy_row, created_by) "
+         f"product_name_raw, sale_seq, legacy_row, created_by) "
          f"values ({sql_date(sold_on)}, {client_id_sub}, {sql_str(client_raw)}, {pay_sub}, {deal_sub}, "
          f"{sql_num(disc_pct)}, {sql_str(origin)}, {sql_num(stock_disc)}, {sql_str(obs)}, "
-         f"{sql_num(amount)}, {sql_num(cost)}, {sql_num(fin_cost)}, {sql_num(pv)}, "
+         f"{sql_num(amount)}, {sql_num(cost)}, {sql_num(fin_cost)}, {sql_num(pv)}, {sql_str(raw_name)}, "
          f"{sql_num(sale_seq)}, {r}, (select id from auth.users limit 1));")
 
     # installments: (R,S) (T,U) (V,W)
