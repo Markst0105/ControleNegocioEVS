@@ -64,7 +64,7 @@ export function Combobox({
   }
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <input type="hidden" name={name} value={value} />
 
       <Popover open={open} onOpenChange={setOpen}>
@@ -75,12 +75,13 @@ export function Combobox({
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            title={selected?.label ?? placeholder}
             className={cn(
-              "h-10 w-full justify-between gap-2 bg-surface px-3 font-normal",
+              "h-10 w-full min-w-0 justify-between gap-2 overflow-hidden bg-surface px-3 font-normal",
               !selected && "text-ink-soft",
             )}
           >
-            <span className="truncate">
+            <span className="min-w-0 flex-1 truncate text-left">
               {selected ? selected.label : placeholder}
             </span>
             <ChevronDown className="size-4 shrink-0 opacity-50" />
