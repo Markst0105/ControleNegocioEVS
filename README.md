@@ -6,7 +6,12 @@ the app is the single source of truth. The interface is pt-BR; code, comments an
 database identifiers are in English.
 
 > [!NOTE]
-> **Status: Phase 4b — cash flow and soft month close implemented.**
+> **Status: Phase 5 — production readiness and cutover in progress.**
+> Phase 4b is implemented: cash flow and the soft month close are in the app.
+> Phase 5 adds the single-environment deployment runbook, the read-only
+> pre-cutover report and a fix for the reporting `v_monthly_pnl` view. See
+> [`docs/cutover-runbook.md`](docs/cutover-runbook.md).
+>
 > Login, role-aware app shell, Painel, Vendas, Lançamento de venda, Clientes,
 > Estoque, Compras, Fornecedores, Preços, MDO, Recebíveis, Caixa, Despesas,
 > Resultado, Fechamento and the member catalog are in the code. Clientes includes
@@ -36,10 +41,12 @@ database identifiers are in English.
 > reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261023000001_phase4b_cash_flow_month_close.sql` before
-> deploying. That migration adds the derived cash ledger, the cash and
-> month-close summary functions, the admin-only soft-close snapshot and the
-> close/reopen audit trail. The Phase 4a migration added the receipt/write-off
+> `supabase/migrations/20261024000001_phase5_monthly_pnl_view.sql` before
+> deploying. The Phase 5 migration rewrites `v_monthly_pnl` without a FULL JOIN
+> that some PostgreSQL planners reject, so the reporting view and its RLS check
+> work on production. The Phase 4b migration adds the derived cash ledger, the
+> cash and month-close summary functions, the admin-only soft-close snapshot and
+> the close/reopen audit trail. The Phase 4a migration added the receipt/write-off
 > event ledger, partial-balance views and the admin bulk reconciliation used by
 > Recebíveis; it also updated Painel and Clientes so “A receber” is net of
 > partial receipts and write-offs. The previous Phase 2c migration adds operator
@@ -79,7 +86,7 @@ Three roles, enforced in the database with Row-Level Security:
 | UI | Tailwind CSS v4 + shadcn/ui, Bricolage Grotesque + Instrument Serif + IBM Plex Sans/Mono, pt-BR |
 | Database | Supabase (PostgreSQL) — SQL schema, RLS, reporting views |
 | ETL | Python 3 (standard library only) |
-| Deploy | Vercel |
+| Deploy | Vercel (`cle1`) + Supabase (`us-east-2`), single production environment |
 
 ## Repository layout
 
@@ -92,10 +99,12 @@ src/            Next.js app (App Router, components, lib)
                 (member)/membro
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
-docs/           phase-0-setup.md, design-system.md, design/ (identity study)
+scripts/        db-rls.sh (RLS suite), db-report.sh (pre-cutover report)
+docs/           phase-0-setup.md, cutover-runbook.md, design-system.md, design/
 etl/            workbook → SQL seeds (extract.py), schema checker, validation
 supabase/
   migrations/   schema + RLS/views (idempotent)
+  ops/          read-only pre-cutover report (schema, RLS, receivables, stock)
   seeds/        generated data, one file per step
   seed.sql      combined seed used by `db push --include-seed` / `db reset`
   tests/        RLS smoke test (self-rolling-back)
@@ -165,15 +174,48 @@ Members cannot change their own role or price tier; only an admin can update
 those columns.
 
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
-`npm run typecheck`, and `npm run db:types` (regenerate
-`src/lib/supabase/database.types.ts` from the Supabase project; requires
-`SUPABASE_PROJECT_ID` and a logged-in Supabase CLI).
+`npm run typecheck`, `npm run db:rls` (RLS suite against `DATABASE_URL`),
+`npm run db:report` (read-only pre-cutover report), and `npm run db:types`
+(regenerate `src/lib/supabase/database.types.ts` from the Supabase project;
+requires `SUPABASE_PROJECT_ID` and a logged-in Supabase CLI).
 
 > [!NOTE]
 > PostgREST aggregate selectors are disabled on this Supabase project, so sums
 > shown in the UI come from SQL functions/views — e.g. `open_receivables_total()`,
 > `cash_flow_summary()` and `v_client_overview`. Re-apply migrations after pulling
 > (`supabase db push`, or paste the new files into the SQL editor) so they exist.
+
+## Deploy
+
+Production uses one Supabase project and one Vercel project; there is no staging
+database. Follow **[docs/cutover-runbook.md](docs/cutover-runbook.md)** end to
+end before freezing the workbook.
+
+The short version:
+
+```bash
+# 1. Database first. Never pass --include-seed on an existing database.
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+
+# 2. Verify security and data readiness.
+DATABASE_URL="postgresql://..." npm run db:rls     # 59/59 PASS
+DATABASE_URL="postgresql://..." npm run db:report  # read-only report
+
+# 3. Deploy the app.
+npx vercel login
+npx vercel link
+npx vercel env add NEXT_PUBLIC_SUPABASE_URL production
+npx vercel env add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY production
+npx vercel --prod
+```
+
+`vercel.json` pins functions to `cle1`; the linked Supabase project is in
+`us-east-2`, so the function and database are in the same AWS region. Set the
+Supabase Auth **Site URL** and redirect URLs to the production domain. Enable
+Deployment Protection for previews and do not point an unprotected preview at
+production data.
 
 What this milestone includes:
 
@@ -302,3 +344,5 @@ new `braces`/`micromatch` release ships.
       histórica em lote
 - [x] **Phase 4b** — Caixa: fluxo mensal derivado de recebimentos, despesas e
       compras; fechamento mensal com snapshot e detecção de alterações
+- [ ] **Phase 5** — Produção: deploy Vercel, reconciliação dos recebíveis
+      históricos, backfill de despesas, contagem de estoque e cutover

@@ -361,12 +361,14 @@ analyze public.sale_payments;
 3. In Supabase: **Project Settings → General → Region**.
 4. In Vercel: **Project Settings → Functions → Region**.
 
-The app’s Supabase setup is documented for São Paulo (`sa-east-1`). Vercel’s
-São Paulo region is `gru1`. If the function runs in `iad1` while the database is
-in South America, every Supabase round trip crosses the continent.
+The linked production Supabase project is in `us-east-2` (AWS Ohio). The Vercel
+functions are pinned to `cle1` (Cleveland, also `us-east-2`) in `vercel.json`, so
+Supabase round trips stay inside the same region. If the project is ever
+recreated in South America (`sa-east-1`), use Vercel `gru1`.
 
 Do not change the region until the timings show that network latency is a
-meaningful fraction of the total.
+meaningful fraction of the total. Moving a Supabase project requires a new
+project and a restore; it is not a dashboard toggle.
 
 ### 2.7 Is `getClaims()` local or remote?
 
@@ -1034,11 +1036,14 @@ Compare the Supabase project region with the Vercel function region (§2.6).
 
 If they differ and network time is significant:
 
-- Set the Vercel function region to São Paulo (`gru1`), or the closest region
-  to the Supabase project and the users.
-- In Next.js, a route segment can export `preferredRegion`; verify the current
-  Vercel/Next 16 behavior before applying it globally.
-- Keep the database in `sa-east-1` unless you have a reason to move it.
+- Set the Vercel function region to the database region: `cle1` for the current
+  `us-east-2` project, or `gru1` if the database is ever recreated in
+  `sa-east-1`.
+- `vercel.json` already pins `cle1`. In Next.js, a route segment can also export
+  `preferredRegion`; verify the current Vercel/Next 16 behavior before applying
+  it globally.
+- Keep the database in `us-east-2` unless you have a reason to move it. A region
+  change means creating a new project and restoring a backup.
 
 Do not move a production database as a performance experiment. Measure first.
 
