@@ -205,7 +205,16 @@ export default async function ClientePage({
                 : "num mt-1.5 text-[18px] leading-none font-medium whitespace-nowrap"
             }
           >
-            {formatMoney(client.open_amount)}
+            {Number(client.open_amount) > 0 ? (
+              <Link
+                href={`/financeiro/recebiveis?cliente=${client.id}`}
+                className="underline-offset-2 hover:underline"
+              >
+                {formatMoney(client.open_amount)}
+              </Link>
+            ) : (
+              formatMoney(client.open_amount)
+            )}
           </dd>
         </div>
       </dl>

@@ -9,10 +9,10 @@ database identifiers are in English.
 > product name in the interface is **Controle de Negócio**.
 
 > [!NOTE]
-> **Status: Phase 3 and Phase 2c — MDO, expenses, P&L and member catalog implemented.**
+> **Status: Phase 4a — receivables and historical reconciliation implemented.**
 > Login, role-aware app shell, Painel, Vendas, Lançamento de venda, Clientes,
-> Estoque, Compras, Fornecedores, Preços, MDO, Despesas, Resultado and the member
-> catalog are in the code. Clientes includes search/pagination, name +
+> Estoque, Compras, Fornecedores, Preços, MDO, Recebíveis, Despesas, Resultado
+> and the member catalog are in the code. Clientes includes search/pagination, name +
 > phone/WhatsApp deduplication and an admin-only merge. Estoque includes
 > purchases, manual movements, stock counts, per-location balances, product
 > history and Ouro-tier valuation. Purchases can apply any price tier and keep
@@ -23,8 +23,10 @@ database identifiers are in English.
 > offers a last-seven-days view plus a customisable monthly range with period,
 > month and daily breakdowns. Despesas separates business and personal costs;
 > Resultado turns sales, business expenses and the Herbalife statement into a
-> monthly P&L. Members sign in to a dedicated catalog only, with prices resolved
-> from their tier. The visual identity follows the **Balcão** direction: desktop
+> monthly P&L. Recebíveis tracks partial receipts, write-offs and an admin-only
+> historical reconciliation of the installments imported from the spreadsheet.
+> Members sign in to a dedicated catalog only, with prices resolved from their
+> tier. The visual identity follows the **Balcão** direction: desktop
 > side column, mobile top bar with a leaf-triggered panel, month masthead and an
 > editorial serif for section titles.
 >
@@ -33,15 +35,17 @@ database identifiers are in English.
 > reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261022000001_phase2c_expenses_pnl.sql` before deploying
-> the MDO, Despesas, Resultado and member pages. That migration adds operator
-> write policies for business expenses and converts Herbalife statement USD
-> amounts with their FX rate in the P&L. The Phase 3 migration adds member tier
-> pricing to the safe catalog and a profile guard that prevents members from
-> changing their own role or price tier. The earlier price backfill is idempotent
-> and fills missing prices in databases seeded before the ETL price fix. New
-> sales write a stock movement from cutover onward; historical sales are not
-> backfilled.
+> `supabase/migrations/20261022000002_phase4a_receivables.sql` before deploying.
+> That migration adds the receipt/write-off event ledger, partial-balance views
+> and the admin bulk reconciliation used by Recebíveis. It also updates Painel
+> and Clientes so “A receber” is net of partial receipts and write-offs. The
+> previous Phase 2c migration adds operator write policies for business expenses
+> and converts Herbalife statement USD amounts with their FX rate in the P&L.
+> The Phase 3 migration adds member tier pricing to the safe catalog and a
+> profile guard that prevents members from changing their own role or price
+> tier. New sales write a stock movement from cutover onward; historical sales
+> are not backfilled. Imported installments start open; an admin can settle the
+> historical backlog in bulk from Recebíveis.
 
 ## What it covers
 
@@ -52,6 +56,7 @@ database identifiers are in English.
 | Inventory | Purchases, manual movements and counts, with per-location balances and Ouro-tier valuation |
 | Prices | Counter sheet with retail, discount tiers, membership tiers and print layout |
 | Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L with category breakdown |
+| Receivables | Open installments with partial receipts, write-offs, filters and admin bulk reconciliation of imported history |
 | MDO | Daily activity KPIs plus week and month views with access, sales and profit breakdowns |
 
 Three roles, enforced in the database with Row-Level Security:
@@ -76,7 +81,8 @@ Three roles, enforced in the database with Row-Level Security:
 src/            Next.js app (App Router, components, lib)
   app/          routes: (auth)/login, (app)/painel, (app)/vendas, (app)/clientes,
                 (app)/precos, (app)/estoque, (app)/compras, (app)/fornecedores,
-                (app)/mdo, (app)/despesas, (app)/resultado, (member)/membro
+                (app)/mdo, (app)/financeiro/recebiveis, (app)/despesas,
+                (app)/resultado, (member)/membro
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
 docs/           phase-0-setup.md, design-system.md, design/ (identity study)
@@ -102,7 +108,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 32/32 checks should pass, and nothing is left
+   verify the security policies — 46/46 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -190,6 +196,10 @@ What this milestone includes:
   with a customisable date range, period summary, month summary for every month
   touched by the range and the daily breakdown; a daily editor keeps the 22
   spreadsheet KPIs;
+- **Recebíveis** — open installments with overdue/today/next-seven-day,
+  partial, settled and month filters; full or partial receipt form; write-off
+  with reason (admin only); event history with admin reversal; and a guarded
+  bulk reconciliation for the historical spreadsheet backlog;
 - **Despesas** — monthly ledger with month/type/category/search filters,
   totals for fixed, variable and personal costs, and create/edit/delete;
   operators may write business expenses only, while personal expenses stay
@@ -271,3 +281,5 @@ new `braces`/`micromatch` release ships.
 - [x] **Phase 2b** — Estoque, compras, fornecedores, preços, movimentações e contagens
 - [x] **Phase 2c** — Despesas e Resultado (P&L), com lançamento de despesas do negócio e extrato Herbalife
 - [x] **Phase 3** — MDO diário e área do membro (reservas removidas da interface)
+- [x] **Phase 4a** — Recebíveis: recebimentos parciais, baixas e reconciliação
+      histórica em lote
