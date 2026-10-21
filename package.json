@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/lib/supabase/database.types.ts",
     "db:rls": "bash scripts/db-rls.sh",
-    "db:report": "bash scripts/db-report.sh"
+    "db:report": "bash scripts/db-report.sh",
+    "repo:visibility": "bash scripts/check-repo-visibility.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

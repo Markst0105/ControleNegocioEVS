@@ -32,6 +32,9 @@ means creating a new project and restoring into it.
 - `vercel.json` pins Vercel Functions to `cle1`.
 - `supabase/ops/pre_cutover_checks.sql` is a read-only report for schema, RLS,
   receivables, month completeness, catalog gaps, stock and profile checks.
+- `scripts/db-rls.sh` and `scripts/db-report.sh` wrap the RLS suite and the
+  report behind `DATABASE_URL`; `scripts/check-repo-visibility.sh` fails when
+  the GitHub repository is public while the seed is tracked.
 - `20261024000001_phase5_monthly_pnl_view.sql` rewrites `v_monthly_pnl` without
   the FULL JOIN that some planners reject. The RLS check for the view now runs
   for real instead of being stubbed.
@@ -73,7 +76,31 @@ npm run build
 - [ ] `.env.local` has only the two public Supabase values. Never add a service
       role key to a `NEXT_PUBLIC_*` variable or to Vercel.
 
-### A3. Back up before touching the database
+### A3. Repository visibility — blocker while the seed is tracked
+
+`supabase/seed.sql` and `supabase/seeds/*` are tracked in git, and they contain
+client names, sales, installments, expenses and prices. If the repository is
+public, that data is published to the internet.
+
+```bash
+npm run repo:visibility
+```
+
+- [ ] The check reports that the repository is **not** publicly readable, i.e.
+      GitHub → Settings → General → Danger Zone → **Change visibility →
+      Private**.
+
+While the repository is public, treat the client names, sales history and
+expense descriptions as exposed. If the repository has to stay public, the seed
+has to leave the repository *and* its history (`git filter-repo` or BFG), and
+the seed is regenerated locally from the workbook with `python3 etl/extract.py`.
+Deleting the file from the latest commit is not enough — the history still
+contains it.
+
+`.vercelignore` already keeps the seed out of Vercel uploads; it does not
+protect the GitHub repository.
+
+### A4. Back up before touching the database
 
 - [ ] Confirm the backup policy in Supabase → **Database → Backups**.
 - [ ] If the plan has no recoverable backup, take a logical dump first:
@@ -86,7 +113,7 @@ pg_dump "$DATABASE_URL" --format=custom --file="prod-before-phase5-$(date +%F).d
 - [ ] Record the current row counts for `sales`, `sale_payments`, `expenses`,
       `inventory_movements` and `audit_log`.
 
-### A4. Apply migrations
+### A5. Apply migrations
 
 Use the CLI. Do **not** pass `--include-seed`; the seed has already been loaded
 and running it again duplicates ledger rows.
@@ -109,7 +136,7 @@ npx supabase db push
 If the CLI is unavailable, run the migration files in filename order in the
 Supabase SQL editor. Never run `seed.sql` this way.
 
-### A5. Verify the database
+### A6. Verify the database
 
 - [ ] Run the RLS suite against production. It rolls back and leaves no test
       users or rows.
@@ -145,7 +172,7 @@ select * from public.cash_flow_summary(date_trunc('month', public.business_today
 select * from public.month_close_summary(date_trunc('month', public.business_today())::date);
 ```
 
-### A6. Configure Vercel
+### A7. Configure Vercel
 
 Create or link one Vercel project for `main`. There is no staging project.
 
@@ -173,7 +200,7 @@ npx vercel --prod
 - [ ] The production deployment build succeeds.
 - [ ] Note the deployment URL and commit SHA.
 
-### A7. Configure Supabase Auth
+### A8. Configure Supabase Auth
 
 - [ ] Authentication → URL Configuration → **Site URL**:
       `https://<production-domain>`
@@ -183,7 +210,7 @@ npx vercel --prod
 - [ ] If email confirmation or password recovery is enabled, the redirect URL
       above is the one Supabase will use.
 
-### A8. Production smoke test
+### A9. Production smoke test
 
 Use a real admin, a real operator and a real member (or dedicated test accounts
 that are removed afterwards).
@@ -356,7 +383,7 @@ Gate:
 3. Confirm the RLS suite is 59/59.
 4. Confirm the cutover report has no unexplained gate failure.
 5. Deploy the production build.
-6. Run the A8 smoke test.
+6. Run the A9 smoke test.
 7. Record opening balances: open receivables, stock value, cash accounts.
 8. Announce that the app is the source of truth and the workbook is read-only.
 9. Keep the previous Vercel deployment and the pre-cutover database backup
@@ -380,6 +407,8 @@ Gate:
 Go only when all of these are true:
 
 - [ ] Migrations applied and PostgREST sees the new schema.
+- [ ] The GitHub repository is private, or the seed is out of the repository and
+      its history.
 - [ ] RLS 59/59 on production.
 - [ ] No unexpected open installment before the cutover date.
 - [ ] Final months have expenses and statements, or an explicit incomplete note.
