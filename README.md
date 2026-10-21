@@ -100,7 +100,8 @@ src/            Next.js app (App Router, components, lib)
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
 scripts/        db-rls.sh (RLS suite), db-report.sh (pre-cutover report),
-                check-repo-visibility.sh (repository privacy)
+                check-repo-visibility.sh (repository privacy),
+                smoke-url.sh (public-surface smoke test)
 docs/           phase-0-setup.md, cutover-runbook.md, design-system.md, design/
 etl/            workbook → SQL seeds (extract.py), schema checker, validation
 supabase/
@@ -177,7 +178,8 @@ those columns.
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 `npm run typecheck`, `npm run db:rls` (RLS suite against `DATABASE_URL`),
 `npm run db:report` (read-only pre-cutover report), `npm run repo:visibility`
-(repository privacy check), and `npm run db:types` (regenerate
+(repository privacy check), `npm run smoke:url <url>` (public-surface smoke
+test), and `npm run db:types` (regenerate
 `src/lib/supabase/database.types.ts` from the Supabase project; requires
 `SUPABASE_PROJECT_ID` and a logged-in Supabase CLI).
 
@@ -222,6 +224,9 @@ production data.
 What this milestone includes:
 
 - cookie-based Supabase session (proxy refreshes tokens and gates every route);
+- **/api/health** — public readiness check (env values, Auth service, publishable
+  key, the Phase 4b table and the Phase 5 reporting view); `200` only when the
+  database and the schema are ready;
 - role-aware shell: desktop side column, mobile top bar + leaf-triggered panel, bottom nav;
 - **Painel** — month masthead, monthly P&L KPIs, open receivables, latest sales;
 - **Vendas** — month filter, text search, pagination;

@@ -35,10 +35,31 @@ means creating a new project and restoring into it.
 - `scripts/db-rls.sh` and `scripts/db-report.sh` wrap the RLS suite and the
   report behind `DATABASE_URL`; `scripts/check-repo-visibility.sh` fails when
   the GitHub repository is public while the seed is tracked.
+- `scripts/smoke-url.sh` runs the public-surface smoke test against a
+  deployment.
+- `GET /api/health` is a public readiness endpoint: it checks the Supabase
+  env values, the Auth service, the publishable key, the Phase 4b table and the
+  Phase 5 reporting view. It returns `200` with `{"status":"ok"}` only when
+  everything is in place, and `503` with a reason otherwise.
 - `20261024000001_phase5_monthly_pnl_view.sql` rewrites `v_monthly_pnl` without
   the FULL JOIN that some planners reject. The RLS check for the view now runs
   for real instead of being stubbed.
 - The RLS suite remains self-rolling-back and must pass 59/59 on production.
+
+## Confirmed on the live database
+
+Checked against the linked production project through PostgREST:
+
+- `month_closings` (Phase 4b) and `sale_payment_events` (Phase 4a) exist, so
+  those migrations are already applied.
+- `v_monthly_pnl` answers with
+  `FULL JOIN is only supported with merge-joinable or hash-joinable join
+  conditions` (HTTP 400). The Phase 5 migration is **not** applied yet and the
+  reporting view is broken until it is.
+- `GET /api/health` reports exactly that as `views: not ok`.
+
+Go-live blocker: apply `20261024000001_phase5_monthly_pnl_view.sql` (step A5)
+and re-run the health check before anything else.
 
 ## 5A — Deployment readiness
 
@@ -172,6 +193,16 @@ select * from public.cash_flow_summary(date_trunc('month', public.business_today
 select * from public.month_close_summary(date_trunc('month', public.business_today())::date);
 ```
 
+- [ ] The readiness endpoint is green. It checks the env values, the Auth
+      service, the publishable key, `month_closings` and `v_monthly_pnl`:
+
+```bash
+curl -s https://<production-domain>/api/health | python3 -m json.tool
+```
+
+Expected: `"status": "ok"` and HTTP 200. While the Phase 5 migration is
+missing it reports `views: not ok` with the FULL JOIN error.
+
 ### A7. Configure Vercel
 
 Create or link one Vercel project for `main`. There is no staging project.
@@ -214,6 +245,16 @@ npx vercel --prod
 
 Use a real admin, a real operator and a real member (or dedicated test accounts
 that are removed afterwards).
+
+- [ ] Run the automated public-surface check first:
+
+```bash
+bash scripts/smoke-url.sh https://<production-domain>
+# with Deployment Protection: VERCEL_BYPASS_TOKEN=… bash scripts/smoke-url.sh <url>
+```
+
+It checks the login page, `/api/health` and that `/painel`, `/vendas`,
+`/membro` and `/reservas` send anonymous visitors to `/login`.
 
 - [ ] Anonymous visit redirects to `/login`.
 - [ ] Admin signs in and lands on `/painel`.
@@ -368,8 +409,9 @@ Gate:
 
 - [ ] Supabase backups are enabled and the restore procedure is known.
 - [ ] Vercel deployment logs and Supabase logs are accessible to the owner.
-- [ ] A simple uptime check is configured for `/login` (or the production
-      domain), if available.
+- [ ] A simple uptime check is configured for `/api/health` (or the production
+      domain), if available. The endpoint answers `503` when the database or
+      the schema is not ready.
 - [ ] The admin knows how to rotate the database password and the publishable
       key.
 - [ ] The team knows that PostgREST aggregate selectors are disabled and that
