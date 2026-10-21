@@ -42,29 +42,42 @@ export default async function PainelPage() {
   const from = monthFirstDay(month);
   const to = nextMonthFirstDay(month);
 
-  const [pnlResult, countResult, receivablesResult, recentResult, dealTypesResult] =
-    await Promise.all([
-      supabase.rpc("monthly_pnl", { p_month: from }).maybeSingle(),
-      supabase
-        .from("sales")
-        .select("id", { count: "exact", head: true })
-        .gte("sold_on", from)
-        .lt("sold_on", to),
-      supabase.rpc("open_receivables_total"),
-      supabase
-        .from("sales")
-        .select(
-          "id, sold_on, client_name_raw, product_name_raw, deal_type_code, discount_pct, origin, amount_received",
-        )
-        .order("sold_on", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(8),
-      supabase.from("deal_types").select("code, label"),
-    ]);
+  const [
+    pnlResult,
+    countResult,
+    expensesCountResult,
+    receivablesResult,
+    recentResult,
+    dealTypesResult,
+  ] = await Promise.all([
+    supabase.rpc("monthly_pnl", { p_month: from }).maybeSingle(),
+    supabase
+      .from("sales")
+      .select("id", { count: "exact", head: true })
+      .gte("sold_on", from)
+      .lt("sold_on", to),
+    supabase
+      .from("expenses")
+      .select("id", { count: "exact", head: true })
+      .gte("incurred_on", from)
+      .lt("incurred_on", to)
+      .in("scope", ["negocio_fixo", "negocio_variavel"]),
+    supabase.rpc("open_receivables_total"),
+    supabase
+      .from("sales")
+      .select(
+        "id, sold_on, client_name_raw, product_name_raw, deal_type_code, discount_pct, origin, amount_received",
+      )
+      .order("sold_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(8),
+    supabase.from("deal_types").select("code, label"),
+  ]);
 
   const firstError = [
     pnlResult.error,
     countResult.error,
+    expensesCountResult.error,
     recentResult.error,
     dealTypesResult.error,
   ].find(Boolean);
@@ -87,8 +100,17 @@ export default async function PainelPage() {
     (dealTypesResult.data ?? []).map((deal) => [deal.code, deal.label]),
   );
 
-  const ganho = pnl?.ganho_liquido ?? 0;
+  const hasBusinessExpenses = (expensesCountResult.count ?? 0) > 0;
+  const ganho = hasBusinessExpenses
+    ? (pnl?.ganho_liquido ?? 0)
+    : (pnl?.ganho_vendas ?? 0);
   const ganhoPositive = ganho >= 0;
+  const ganhoLabel = hasBusinessExpenses
+    ? "Ganho líquido"
+    : "Ganho de vendas";
+  const ganhoNote = hasBusinessExpenses
+    ? "Ganho de vendas + royalties/bônus − custos"
+    : "Sem despesas do negócio lançadas neste mês";
 
   const monthLabel = formatMonth(month);
   const [monthNameRaw = monthLabel, year = ""] = monthLabel.split(" de ");
@@ -124,7 +146,7 @@ export default async function PainelPage() {
       <dl className="grid grid-cols-2 gap-px border-y border-line bg-line lg:grid-cols-[2.05fr_1fr_1fr_1fr]">
         <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1 lg:pl-0">
           <dt className="text-[11.5px] font-medium text-ink-soft">
-            Ganho líquido
+            {ganhoLabel}
           </dt>
           <dd
             className={cn(
@@ -134,9 +156,7 @@ export default async function PainelPage() {
           >
             {formatMoney(ganho)}
           </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">
-            Vendas + bônus − custos do mês
-          </p>
+          <p className="mt-2 text-[10.5px] text-ink-soft">{ganhoNote}</p>
         </div>
 
         <div className="bg-paper px-4 py-5 sm:px-5">
@@ -167,6 +187,20 @@ export default async function PainelPage() {
           <p className="mt-2 text-[10.5px] text-ink-soft">parcelas em aberto</p>
         </div>
       </dl>
+
+      {!hasBusinessExpenses ? (
+        <p className="rounded-md border border-citrus/30 bg-citrus-soft px-4 py-3 text-[12px] text-citrus-ink">
+          As despesas do negócio ainda não foram lançadas neste mês. O valor
+          acima considera apenas as vendas.{" "}
+          <Link
+            href="/despesas/nova"
+            className="font-medium underline underline-offset-2"
+          >
+            Lançar despesa
+          </Link>
+          .
+        </p>
+      ) : null}
 
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-4">

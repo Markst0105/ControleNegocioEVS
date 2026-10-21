@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarClock, Search, ShoppingBag } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { PriceTierBadge } from "@/components/app/price-tier-badge";
@@ -83,15 +83,7 @@ export default async function MembroCatalogoPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Catálogo"
-        description={`Olá, ${firstName}. Escolha os produtos e reserve para retirar na loja.`}
-        actions={
-          <Button asChild variant="outline" size="sm" className="h-9">
-            <Link href="/membro/reservas">
-              <CalendarClock />
-              Minhas reservas
-            </Link>
-          </Button>
-        }
+        description={`Olá, ${firstName}. Consulte os produtos e os preços da sua faixa.`}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-y border-line py-3">
@@ -159,11 +151,8 @@ export default async function MembroCatalogoPage({
                   <TableHead className="hidden h-9 text-right text-[10.5px] font-medium text-ink-soft sm:table-cell">
                     PV
                   </TableHead>
-                  <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
-                    Seu preço
-                  </TableHead>
                   <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium text-ink-soft">
-                    <span className="sr-only">Reservar</span>
+                    Seu preço
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -199,7 +188,7 @@ export default async function MembroCatalogoPage({
                       <TableCell className="num hidden px-2 py-3 text-right text-[12px] text-ink-soft sm:table-cell">
                         {formatDecimal(product.pv)}
                       </TableCell>
-                      <TableCell className="num px-2 py-3 text-right">
+                      <TableCell className="num px-2 py-3 pr-3 text-right">
                         <span className="block text-[13px] font-medium whitespace-nowrap">
                           {formatMoney(memberPrice)}
                         </span>
@@ -208,21 +197,6 @@ export default async function MembroCatalogoPage({
                             {formatMoney(product.retail_price)}
                           </span>
                         ) : null}
-                      </TableCell>
-                      <TableCell className="px-2 py-3 pr-3 text-right">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant="outline"
-                          className="h-8"
-                        >
-                          <Link
-                            href={`/membro/reservas/nova?produto=${product.id}`}
-                          >
-                            <ShoppingBag />
-                            Reservar
-                          </Link>
-                        </Button>
                       </TableCell>
                     </TableRow>
                   );

@@ -520,6 +520,34 @@ create policy operator_expenses_negocio on public.expenses
     and scope in ('negocio_fixo', 'negocio_variavel')
   );
 
+drop policy if exists operator_expenses_insert on public.expenses;
+create policy operator_expenses_insert on public.expenses
+  for insert
+  with check (
+    (select public.current_user_role()) = 'operator'
+    and scope in ('negocio_fixo', 'negocio_variavel')
+  );
+
+drop policy if exists operator_expenses_update on public.expenses;
+create policy operator_expenses_update on public.expenses
+  for update
+  using (
+    (select public.current_user_role()) = 'operator'
+    and scope in ('negocio_fixo', 'negocio_variavel')
+  )
+  with check (
+    (select public.current_user_role()) = 'operator'
+    and scope in ('negocio_fixo', 'negocio_variavel')
+  );
+
+drop policy if exists operator_expenses_delete on public.expenses;
+create policy operator_expenses_delete on public.expenses
+  for delete
+  using (
+    (select public.current_user_role()) = 'operator'
+    and scope in ('negocio_fixo', 'negocio_variavel')
+  );
+
 -- herbalife_statements (Painel royalties/bonus)
 drop policy if exists admin_all on public.herbalife_statements;
 create policy admin_all on public.herbalife_statements
@@ -814,20 +842,20 @@ as $$
   ),
   stmt as (
     select
-      coalesce(max(h.royalty_usd), 0) as royalty_usd,
-      coalesce(max(h.bonus_usd), 0) as bonus_usd
+      coalesce(max(h.royalty_usd * coalesce(h.royalty_fx, 1)), 0) as royalties_brl,
+      coalesce(max(h.bonus_usd * coalesce(h.bonus_fx, 1)), 0) as bonus_brl
     from public.herbalife_statements h, bounds b
     where h.month = b.month_start
   )
   select
     b.month_start,
     s.gain_sales,
-    st.royalty_usd,
-    st.bonus_usd,
-    s.gain_sales + st.royalty_usd + st.bonus_usd,
+    st.royalties_brl,
+    st.bonus_brl,
+    s.gain_sales + st.royalties_brl + st.bonus_brl,
     e.custos_fixos,
     e.custos_variaveis,
-    s.gain_sales + st.royalty_usd + st.bonus_usd
+    s.gain_sales + st.royalties_brl + st.bonus_brl
       - e.custos_fixos - e.custos_variaveis,
     e.despesas_pessoais,
     s.pv_total

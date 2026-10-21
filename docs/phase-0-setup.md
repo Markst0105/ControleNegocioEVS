@@ -127,11 +127,11 @@ update public.daily_kpis           set created_by = (select id from public.profi
 Paste the whole of `supabase/tests/rls_test.sql` into the SQL editor
 (or `psql "$DATABASE_URL" -f supabase/tests/rls_test.sql`).
 
-It creates throwaway users, checks 19 access rules (admin sees everything;
-operator never sees personal expenses / royalties / audit; member sees only
-catalog + own reservations) and **rolls everything back**.
+It creates throwaway users, checks 36 access rules (admin sees everything;
+operator never sees personal expenses / royalties / audit; member sees only the
+catalog and its own reservation rows) and **rolls everything back**.
 
-Expected: 19 rows, all `PASS`.
+Expected: 36 rows, all `PASS`.
 
 ## 8. After cutover
 
