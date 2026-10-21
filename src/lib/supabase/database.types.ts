@@ -929,6 +929,7 @@ export type Database = {
           price_bronze: number | null;
           price_prata: number | null;
           price_ouro: number | null;
+          price_valid_from: string | null;
         };
         Relationships: [];
       };
