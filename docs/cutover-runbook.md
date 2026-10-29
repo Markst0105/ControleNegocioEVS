@@ -19,7 +19,7 @@ separate staging Supabase project.
 | Vercel function region | `cle1` (Cleveland, also `us-east-2`), set in `vercel.json` |
 | App framework | Next.js 16 on Vercel |
 | Latest migration | `20261024000001_phase5_monthly_pnl_view.sql` |
-| RLS suite | 61 checks, all passing in the local PostgreSQL-compatible harness |
+| RLS suite | 62 checks, all passing in the local PostgreSQL-compatible harness |
 
 `cle1` and the database are in the same AWS region. Do **not** use `gru1` unless
 the Supabase project is recreated in `sa-east-1`; changing the database region
@@ -51,7 +51,7 @@ means creating a new project and restoring into it.
 - `20261025000002_phase5_reconciliation_preview.sql` adds the preview of the
   bulk reconciliation, and `20261025000003_phase5_price_import.sql` adds the
   price import used by the Preços screen.
-- The RLS suite remains self-rolling-back and must pass 61/61 on production.
+- The RLS suite remains self-rolling-back and must pass 62/62 on production.
 
 ## Confirmed on the live database
 
@@ -165,6 +165,8 @@ npx supabase db push
 - [ ] `20261025000003_phase5_price_import.sql` is applied.
 - [ ] `20261025000004_phase5_price_catalog_valid_from.sql` is applied (the
       price sheet shows the date of the last price update).
+- [ ] `20261029000001_phase5_client_overview_speed.sql` is applied (the Clientes
+      tab aggregates the ledger in one pass).
 - [ ] PostgREST reloaded its schema. The Phase 4b and Phase 5 migrations issue
       `notify pgrst, 'reload schema'`; if the API still returns 404 for
       `month_closings`, wait a few seconds or run:
@@ -183,7 +185,7 @@ DATABASE_URL="postgresql://..." npm run db:rls
 # equivalent: psql "$DATABASE_URL" -f supabase/tests/rls_test.sql
 ```
 
-Expected: 61 rows, every one `PASS`, including `v_monthly_pnl` and the price
+Expected: 62 rows, every one `PASS`, including `v_monthly_pnl` and the price
 import. The script
 exits non-zero on any failure or if the number of checks is not 59.
 
@@ -500,7 +502,7 @@ Gate:
 
 1. Take the final backup.
 2. Confirm the migration list is empty.
-3. Confirm the RLS suite is 61/61 and `npm run db:parity` is 49/49.
+3. Confirm the RLS suite is 62/62 and `npm run db:parity` is 49/49.
 4. Confirm the cutover report has no unexplained gate failure.
 5. Deploy the production build.
 6. Run the A9 smoke test.
@@ -530,7 +532,7 @@ Go only when all of these are true:
 - [ ] `npm run db:parity` reports 47/47 and `GET /api/health` is green.
 - [ ] The GitHub repository is private, or the seed is out of the repository and
       its history.
-- [ ] RLS 61/61 on production.
+- [ ] RLS 62/62 on production.
 - [ ] No unexpected open installment before the cutover date.
 - [ ] Final months have expenses and statements, or an explicit incomplete note.
 - [ ] Unmatched catalog names and negative stock are resolved or documented.

@@ -131,7 +131,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 61/61 checks should pass, and nothing is left
+   verify the security policies — 62/62 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -211,7 +211,7 @@ npx supabase link --project-ref <project-ref>
 npx supabase db push
 
 # 2. Verify security and data readiness.
-DATABASE_URL="postgresql://..." npm run db:rls     # 61/61 PASS
+DATABASE_URL="postgresql://..." npm run db:rls     # 62/62 PASS
 DATABASE_URL="postgresql://..." npm run db:report  # read-only report
 
 # 3. Deploy the app.

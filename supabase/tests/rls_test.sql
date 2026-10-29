@@ -853,6 +853,57 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
+-- Phase 5: the client list aggregate must still match the view after the
+-- single-pass rewrite (same values, no per-client scan of the whole ledger).
+-- ---------------------------------------------------------------------------
+insert into public.clients (id, name, name_normalized)
+values ('f0000000-0000-4000-8000-000000000021', 'RLS Overview', 'rls overview');
+
+insert into public.sales (
+    id, sold_on, client_id, client_name_raw, amount_received,
+    product_cost, financial_cost, pv
+) values (
+    'd0000000-0000-4000-8000-000000000022',
+    public.business_today() - 5,
+    'f0000000-0000-4000-8000-000000000021',
+    'RLS Overview',
+    100,
+    0,
+    0,
+    0
+);
+
+insert into public.sale_payments (id, sale_id, installment, due_on, amount) values
+    ('e0000000-0000-4000-8000-000000000023',
+     'd0000000-0000-4000-8000-000000000022', 1,
+     public.business_today() + 10, 60),
+    ('e0000000-0000-4000-8000-000000000024',
+     'd0000000-0000-4000-8000-000000000022', 2,
+     public.business_today() + 40, 40);
+
+insert into public.sale_payment_events (sale_payment_id, kind, occurred_on, amount)
+values ('e0000000-0000-4000-8000-000000000023', 'receipt',
+        public.business_today(), 25);
+
+insert into pg_temp.rls_results
+select 62, 'admin: resumo do cliente bate com a visão do painel',
+       (
+           select
+               o.sales_count = 1
+               and o.total_spent = 100
+               and o.open_amount = 75
+               and o.last_purchase_on = public.business_today() - 5
+               and v.sales_count = o.sales_count
+               and v.total_spent = o.total_spent
+               and v.open_amount = o.open_amount
+               and v.last_purchase_on = o.last_purchase_on
+           from public.client_overview_for_ids(
+                    array['f0000000-0000-4000-8000-000000000021'::uuid]
+                ) o
+           join public.v_client_overview v on v.id = o.id
+       );
+
+-- ---------------------------------------------------------------------------
 -- 3. results
 -- ---------------------------------------------------------------------------
 reset role;
