@@ -31,6 +31,7 @@ Class:   {}
 - Expense scope is inferred from category; rows without a scope marker default to `pessoal`.
 - `supabase/seed.sql` is the combined copy of seeds 001–007 used by `supabase db push --include-seed` / `supabase db reset`.
 - `etl/check_seed_schema.py` statically validates the seeds against the schema (tables, columns, arity, NULLs, lookups).
+- Cartela sales (`E.AC`) are imported with `product_cost = 0`: the workbook parks the cartela value in "Custo Produto" (`J = I`) to zero the line, but that is a deferral, not a cost. The amount paid for the credits stays as profit, and each access paid with a ticket (TK/NTT) keeps its product cost as a loss.
 ## Validation vs workbook cached values
 
 Recomputed from imported `sales` vs cached in `Consumo e Investimento` (rows 2-26) and `Consolidado` (rows 2-14).

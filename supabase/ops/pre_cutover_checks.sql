@@ -209,10 +209,16 @@ with months as (
 ),
 sales_m as (
     select
-        date_trunc('month', sold_on)::date as month,
+        date_trunc('month', s.sold_on)::date as month,
         count(*) as sales_count,
-        sum(profit) as sales_profit
-    from public.sales
+        -- Same rule as monthly_pnl: client sales only. Personal consumption,
+        -- business transfers, gifts, loans and returns are stock movements.
+        sum(s.profit) filter (
+            where dt.kind in ('sale', 'discount', 'financial')
+               or s.deal_type_code is null
+        ) as sales_profit
+    from public.sales s
+    left join public.deal_types dt on dt.code = s.deal_type_code
     group by 1
 ),
 expenses_m as (

@@ -51,6 +51,15 @@ type Installment = { due: string; amount: string };
 
 const INSTALLMENT_KINDS = ["credit", "ticket", "exception"];
 
+/**
+ * Acesso pago com cartela (TK) ou "não trouxe ticket" (NTT): o cliente não
+ * paga nada no ato. A venda entra sem receita e com o custo do produto, que é
+ * a perda registrada no mês; a cartela que pagou o acesso já carrega o lucro.
+ */
+function isTicketAccess(method?: { code: string; kind: string }): boolean {
+  return !!method && (method.kind === "ticket" || method.code === "NTT");
+}
+
 const initialState: SaleFormState = { error: null };
 
 export function VendaForm({ data }: { data: SaleFormData }) {
@@ -67,12 +76,19 @@ export function VendaForm({ data }: { data: SaleFormData }) {
   const [pv, setPv] = useState("");
   const [pvTouched, setPvTouched] = useState(false);
   const [installments, setInstallments] = useState<Installment[]>([]);
+  const [costsOpen, setCostsOpen] = useState(false);
 
   const payment = data.paymentMethods.find((method) => method.code === paymentCode);
+  const ticketAccess = isTicketAccess(payment);
   const needsInstallments = payment
-    ? INSTALLMENT_KINDS.includes(payment.kind)
+    ? INSTALLMENT_KINDS.includes(payment.kind) && !ticketAccess
     : false;
   const isDiscount = dealCode === "DESC";
+
+  const selectedProduct = data.products.find(
+    (product) => product.id === productId,
+  );
+  const referencePrice = selectedProduct?.retail_price ?? null;
 
   const installmentsTotal = installments.reduce(
     (sum, row) => sum + (parseMoneyInput(row.amount) ?? 0),
@@ -90,7 +106,9 @@ export function VendaForm({ data }: { data: SaleFormData }) {
     if (!pvTouched) {
       setPv(product?.pv != null ? formatDecimalInput(product.pv) : "");
     }
-    if (!amountTouched) {
+    // Acesso pago com cartela fica em 0,00: o preço de tabela aparece apenas
+    // como referência ao lado do valor.
+    if (!amountTouched && !ticketAccess) {
       setAmount(
         product?.retail_price != null
           ? formatMoneyInput(product.retail_price)
@@ -99,7 +117,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
     }
   }
 
-  function seedInstallments(code: string) {
+  function seedInstallments(code: string, amountText: string = amount) {
     const method = data.paymentMethods.find((item) => item.code === code);
     if (!method) return;
 
@@ -109,7 +127,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
     }
 
     const count = /^[123]$/.test(code) ? Number(code) : 1;
-    const parsed = parseMoneyInput(amount);
+    const parsed = parseMoneyInput(amountText);
     const cents = parsed !== null ? Math.round(parsed * 100) : null;
     const base = cents !== null ? Math.floor(cents / count) : null;
     const isCredit = method.kind === "credit";
@@ -139,8 +157,27 @@ export function VendaForm({ data }: { data: SaleFormData }) {
 
   function handlePaymentChange(code: string) {
     setPaymentCode(code);
+    const method = data.paymentMethods.find((item) => item.code === code);
+
+    if (isTicketAccess(method)) {
+      setAmount(formatMoneyInput(0));
+      setAmountTouched(false);
+      setInstallments([]);
+      setCostsOpen(true);
+      return;
+    }
+
+    const nextAmount =
+      !amountTouched && referencePrice != null
+        ? formatMoneyInput(referencePrice)
+        : amount;
+
+    if (!amountTouched) {
+      setAmount(nextAmount);
+    }
+
     if (installments.length === 0) {
-      seedInstallments(code);
+      seedInstallments(code, nextAmount);
     }
   }
 
@@ -324,13 +361,20 @@ export function VendaForm({ data }: { data: SaleFormData }) {
         <Field
           label="Valor recebido (R$)"
           htmlFor="amount"
-          hint="Preenchido pela tabela de preços; ajuste se precisar."
+          hint={
+            ticketAccess
+              ? referencePrice != null
+                ? `Acesso pago com cartela: sem receita. Preço de tabela ${formatMoney(referencePrice)} (referência).`
+                : "Acesso pago com cartela: sem receita; entra só o custo do produto."
+              : "Preenchido pela tabela de preços; ajuste se precisar."
+          }
         >
           <Input
             id="amount"
             name="amount_received"
             inputMode="decimal"
             value={amount}
+            readOnly={ticketAccess}
             onChange={(event) => {
               setAmount(event.target.value);
               setAmountTouched(true);
@@ -338,7 +382,10 @@ export function VendaForm({ data }: { data: SaleFormData }) {
             onBlur={handleAmountBlur}
             placeholder="0,00"
             required
-            className="num h-10"
+            className={cn(
+              "num h-10",
+              ticketAccess && "bg-paper text-ink-soft",
+            )}
           />
         </Field>
 
@@ -445,14 +492,26 @@ export function VendaForm({ data }: { data: SaleFormData }) {
         </section>
       ) : null}
 
-      <details className="group rounded-lg border border-line bg-surface">
+      <details
+        className="group rounded-lg border border-line bg-surface"
+        open={costsOpen}
+        onToggle={(event) => setCostsOpen(event.currentTarget.open)}
+      >
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 font-serif text-[19px] leading-none font-normal select-none [&::-webkit-details-marker]:hidden">
           Custos e observações
           <ChevronDown className="size-4 text-ink-soft transition-transform group-open:rotate-180" />
         </summary>
 
         <div className="grid gap-4 border-t border-line p-4 sm:grid-cols-2">
-          <Field label="Custo do produto (R$)" htmlFor="product-cost">
+          <Field
+            label="Custo do produto (R$)"
+            htmlFor="product-cost"
+            hint={
+              ticketAccess
+                ? "Obrigatório aqui: é a perda que o acesso pago com cartela registra no mês."
+                : undefined
+            }
+          >
             <Input
               id="product-cost"
               name="product_cost"
