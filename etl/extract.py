@@ -483,6 +483,14 @@ for r, cells in sheet("Lançamento de Venda"):
     client_type = cells.get("P")
     sale_seq = cells.get("Z")
 
+    # A cartela sale is a full-profit item: the amount the client paid for the
+    # credits counts as profit, and the product cost is recognised on each
+    # access line (payment TK/NTT, zero cash). The workbook parks the cartela
+    # value in "Custo Produto" (column J = column I) to zero the line; that
+    # parking cost is not a real cost, so the app drops it.
+    if item_class and str(item_class).strip() == "E.AC":
+        cost = 0
+
     if pay_code and str(pay_code) not in PAYMENT_MAP:
         unknown_pay[str(pay_code)] += 1
     if item_class and str(item_class) not in ITEM_CLASS_MAP:
@@ -779,6 +787,7 @@ report.append("- `product_components` (composed EVS items cost build-up) is left
 report.append("- Expense scope is inferred from category; rows without a scope marker default to `pessoal`.")
 report.append("- `supabase/seed.sql` is the combined copy of seeds 001–007 used by `supabase db push --include-seed` / `supabase db reset`.")
 report.append("- `etl/check_seed_schema.py` statically validates the seeds against the schema (tables, columns, arity, NULLs, lookups).")
+report.append("- Cartela sales (`E.AC`) are imported with `product_cost = 0`: the workbook parks the cartela value in \"Custo Produto\" (`J = I`) to zero the line, but that is a deferral, not a cost. The amount paid for the credits stays as profit, and each access paid with a ticket (TK/NTT) keeps its product cost as a loss.")
 report.append("")
 
 with open(os.path.join(ROOT, "etl", "validation_report.md"), "w", encoding="utf-8") as fh:

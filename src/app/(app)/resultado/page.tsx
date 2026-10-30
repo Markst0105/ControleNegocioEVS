@@ -348,6 +348,12 @@ export default async function ResultadoPage({
         </div>
       </dl>
 
+      <p className="text-[10.5px] leading-relaxed text-ink-soft">
+        Ganho de vendas conta só vendas a cliente — inclui descontos e
+        pagamentos de acesso. Consumo próprio, negócio, brindes e devoluções
+        movem estoque, mas não entram como receita. O PV soma todas as linhas.
+      </p>
+
       {isAdmin ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
           <div>

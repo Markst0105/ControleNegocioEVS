@@ -26,10 +26,15 @@ database identifiers are in English.
 > days of activity KPIs and offers a last-seven-days view plus a customisable
 > monthly range with period, month and daily breakdowns. Despesas separates
 > business and personal costs; Resultado turns sales, business expenses and the
-> Herbalife statement into a monthly P&L. Recebíveis tracks partial receipts,
-> write-offs and an admin-only historical reconciliation of the installments
-> imported from the spreadsheet. Caixa derives the month’s cash ledger from
-> receipt events, expenses and stock purchases. Fechamento gives admins a
+> Herbalife statement into a monthly P&L. The P&L counts client sales only
+> (`sale`, `discount`, `financial` and blank deal type): personal consumption,
+> business transfers, gifts, loans and returns move stock but are not revenue.
+> A cartela sale keeps its full value as profit, while an access paid with a
+> ticket (TK/NTT) carries zero cash and the product cost — the loss the owner
+> expects. Recebíveis tracks partial receipts, write-offs and an admin-only
+> historical reconciliation of the installments imported from the spreadsheet.
+> Caixa derives the month’s cash ledger from receipt events, expenses and stock
+> purchases. Fechamento gives admins a
 > soft-close snapshot of result, cash and receivables, with change detection
 > when data is edited after closing. Members sign in to a dedicated catalog
 > only, with prices resolved from their tier. The visual identity follows the
@@ -42,8 +47,12 @@ database identifiers are in English.
 > reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261025000001_phase5_catalog_gaps.sql` before
-> deploying. The Phase 5 migrations close the catalog gaps of the imported
+> `supabase/migrations/20261030000001_phase5_profit_model.sql` before
+> deploying. The latest Phase 5 migration aligns the profit model with the
+> owner's ledger: it zeroes the cartela line's `product_cost` (the workbook's
+> `J = I` parking was a deferral, not a real cost) and rewrites `monthly_pnl`
+> and `v_monthly_pnl` to count client sales only. The previous Phase 5
+> migrations close the catalog gaps of the imported
 > ledger (25 products that the price sheets do not contain, 756 sales) and
 > rewrite `v_monthly_pnl` without a FULL JOIN that some PostgreSQL planners
 > reject, so the reporting view and its RLS check work on production. The
@@ -131,7 +140,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 62/62 checks should pass, and nothing is left
+   verify the security policies — 63/63 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -211,7 +220,7 @@ npx supabase link --project-ref <project-ref>
 npx supabase db push
 
 # 2. Verify security and data readiness.
-DATABASE_URL="postgresql://..." npm run db:rls     # 62/62 PASS
+DATABASE_URL="postgresql://..." npm run db:rls     # 63/63 PASS
 DATABASE_URL="postgresql://..." npm run db:report  # read-only report
 
 # 3. Deploy the app.
@@ -273,10 +282,10 @@ What this milestone includes:
   totals for fixed, variable and personal costs, and create/edit/delete;
   operators may write business expenses only, while personal expenses stay
   admin-only;
-- **Resultado** — monthly P&L with sales profit, Herbalife royalties/bonus
-  converted by the statement FX rate, business costs, personal expenses shown
-  separately, expense breakdown by category and a clear warning when a month has
-  no expenses recorded;
+- **Resultado** — monthly P&L with sales profit (client sales only), Herbalife
+  royalties/bonus converted by the statement FX rate, business costs, personal
+  expenses shown separately, expense breakdown by category and a clear warning
+  when a month has no expenses recorded;
 - **Fechamento** — admin-only soft close with result, cash and receivables
   summary, completeness warnings, a stored snapshot and change detection after
   closing; reopening preserves the last snapshot and is audited;

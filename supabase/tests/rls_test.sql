@@ -904,6 +904,42 @@ select 62, 'admin: resumo do cliente bate com a visão do painel',
        );
 
 -- ---------------------------------------------------------------------------
+-- Phase 5: only client sales count in the monthly P&L. Consumo próprio,
+-- negócio, brinde and devolução move stock and carry cost, but they are not
+-- revenue; `pv_total` still includes every line, like the Consolidado.
+-- Fixture month is outside the imported history and every earlier check.
+-- ---------------------------------------------------------------------------
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
+                  true);
+
+insert into public.sales (
+    id, sold_on, client_name_raw, deal_type_code, amount_received,
+    product_cost, financial_cost, pv
+) values
+    ('d0000000-0000-4000-8000-000000000031', '2023-03-10', 'RLS Profit Client',
+     null, 100, 20, 0, 1),
+    ('d0000000-0000-4000-8000-000000000032', '2023-03-11', 'RLS Profit Consumo',
+     'CONS', 200, 50, 0, 2),
+    ('d0000000-0000-4000-8000-000000000033', '2023-03-12', 'RLS Profit Negocio',
+     'NEG', 300, 60, 0, 3),
+    ('d0000000-0000-4000-8000-000000000034', '2023-03-13', 'RLS Profit Brinde',
+     'BRINDE', 0, 5, 0, 0.5),
+    ('d0000000-0000-4000-8000-000000000035', '2023-03-14', 'RLS Profit Devolucao',
+     'TROUXE', 40, 10, 0, 1);
+
+insert into pg_temp.rls_results
+select 63, 'admin: P&L conta só vendas a cliente e o PV soma tudo',
+       (
+           select p.ganho_vendas = 80
+               and p.pv_total = 7.5
+               and v.ganho_vendas = p.ganho_vendas
+               and v.pv_total = p.pv_total
+           from public.monthly_pnl('2023-03-01') p
+           join public.v_monthly_pnl v on v.month = '2023-03-01'
+       );
+
+-- ---------------------------------------------------------------------------
 -- 3. results
 -- ---------------------------------------------------------------------------
 reset role;

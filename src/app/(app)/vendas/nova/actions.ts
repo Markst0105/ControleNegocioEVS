@@ -14,6 +14,14 @@ export type SaleFormState = {
 const ORIGINS = new Set(["EVS", "CASA"]);
 const INSTALLMENT_KINDS = new Set(["credit", "ticket", "exception"]);
 
+/**
+ * Acesso pago com cartela (TK) ou "não trouxe ticket" (NTT): sem receita no
+ * ato. A venda fica com valor 0,00 e o custo do produto, que é a perda do mês.
+ */
+function isTicketAccess(method: { code: string; kind: string }): boolean {
+  return method.kind === "ticket" || method.code === "NTT";
+}
+
 type ParsedInstallment = {
   due_on: string | null;
   amount: number;
@@ -57,10 +65,7 @@ export async function createSale(
     return { error: "Selecione o tipo de negócio." };
   }
 
-  const amount = parseMoneyInput(formData.get("amount_received"));
-  if (amount === null) {
-    return { error: "Informe o valor recebido (ex.: 1.234,56)." };
-  }
+  const amountInput = parseMoneyInput(formData.get("amount_received"));
 
   const productCost = optionalMoney(formData.get("product_cost"));
   if (!productCost.ok) {
@@ -103,6 +108,12 @@ export async function createSale(
 
   if (!method) {
     return { error: "Forma de pagamento inválida." };
+  }
+
+  const ticketAccess = isTicketAccess(method);
+  const amount = ticketAccess ? 0 : amountInput;
+  if (amount === null) {
+    return { error: "Informe o valor recebido (ex.: 1.234,56)." };
   }
 
   const { data: dealType } = await supabase
@@ -153,7 +164,7 @@ export async function createSale(
 
   const parsedInstallments: ParsedInstallment[] = [];
 
-  if (INSTALLMENT_KINDS.has(method.kind)) {
+  if (INSTALLMENT_KINDS.has(method.kind) && !ticketAccess) {
     for (let index = 1; index <= 3; index += 1) {
       const dueRaw = formData.get(`installment_due_${index}`);
       const amountRaw = formData.get(`installment_amount_${index}`);
