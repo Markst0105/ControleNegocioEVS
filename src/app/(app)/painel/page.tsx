@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { DealBadge, OriginBadge } from "@/components/app/badges";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Empty,
   EmptyDescription,
@@ -18,14 +20,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  addDays,
   currentMonthISO,
   formatDate,
   formatDecimal,
   formatInt,
   formatMoney,
   formatMonth,
+  isMonthISO,
   monthFirstDay,
   nextMonthFirstDay,
+  shiftMonth,
   todayISO,
 } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -35,12 +40,23 @@ export const metadata: Metadata = {
   title: "Painel",
 };
 
-export default async function PainelPage() {
+type SearchParams = Promise<{ mes?: string }>;
+
+export default async function PainelPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
 
-  const month = currentMonthISO();
+  const currentMonth = currentMonthISO();
+  const requestedMonth = isMonthISO(params.mes) ? params.mes : currentMonth;
+  const month = requestedMonth > currentMonth ? currentMonth : requestedMonth;
+  const isCurrentMonth = month === currentMonth;
   const from = monthFirstDay(month);
   const to = nextMonthFirstDay(month);
+  const receivablesAsOf = isCurrentMonth ? todayISO() : addDays(to, -1);
 
   const [
     pnlResult,
@@ -62,12 +78,16 @@ export default async function PainelPage() {
       .gte("incurred_on", from)
       .lt("incurred_on", to)
       .in("scope", ["negocio_fixo", "negocio_variavel"]),
-    supabase.rpc("open_receivables_total"),
+    supabase
+      .rpc("open_receivables_as_of", { p_date: receivablesAsOf })
+      .maybeSingle(),
     supabase
       .from("sales")
       .select(
         "id, sold_on, client_name_raw, product_name_raw, deal_type_code, discount_pct, origin, amount_received",
       )
+      .gte("sold_on", from)
+      .lt("sold_on", to)
       .order("sold_on", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(8),
@@ -86,15 +106,24 @@ export default async function PainelPage() {
   }
 
   // Não derruba o Painel se a migração da função ainda não foi aplicada.
+  let openReceivables: number | null = null;
   if (receivablesResult.error) {
-    console.error("painel: falha ao calcular valores a receber", receivablesResult.error);
+    console.error(
+      "painel: falha ao calcular valores a receber",
+      receivablesResult.error,
+    );
+    if (isCurrentMonth) {
+      const fallback = await supabase.rpc("open_receivables_total");
+      if (!fallback.error) {
+        openReceivables = Number(fallback.data ?? 0);
+      }
+    }
+  } else {
+    openReceivables = Number(receivablesResult.data?.open_total ?? 0);
   }
 
   const pnl = pnlResult.data;
   const salesCount = countResult.count ?? 0;
-  const openReceivables = receivablesResult.error
-    ? null
-    : Number(receivablesResult.data ?? 0);
   const recent = recentResult.data ?? [];
   const dealLabels = new Map(
     (dealTypesResult.data ?? []).map((deal) => [deal.code, deal.label]),
@@ -117,12 +146,16 @@ export default async function PainelPage() {
   const monthName =
     monthNameRaw.charAt(0).toUpperCase() + monthNameRaw.slice(1);
 
+  function monthHref(ym: string) {
+    return ym === currentMonth ? "/painel" : `/painel?mes=${ym}`;
+  }
+
   return (
     <div className="flex flex-col gap-8 lg:gap-10">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="text-[11.5px] font-medium text-ink-soft">
-            Painel · mês corrente
+            Painel · {isCurrentMonth ? "mês corrente" : "histórico"}
           </p>
           <h1 className="mt-1.5 font-display text-[44px] leading-[0.95] font-semibold tracking-[-0.045em] sm:text-[58px]">
             <mark className="month-mark">{monthName}</mark>{" "}
@@ -133,15 +166,76 @@ export default async function PainelPage() {
         </div>
 
         <div className="flex shrink-0 flex-row items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-sm border border-moss/35 px-2 py-1 text-[10px] font-medium tracking-[0.08em] text-moss-ink uppercase">
-            <span aria-hidden className="size-1.5 rounded-full bg-citrus" />
-            Em aberto
-          </span>
+          {isCurrentMonth ? (
+            <span className="inline-flex items-center gap-1.5 rounded-sm border border-moss/35 px-2 py-1 text-[10px] font-medium tracking-[0.08em] text-moss-ink uppercase">
+              <span aria-hidden className="size-1.5 rounded-full bg-citrus" />
+              Em aberto
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-sm border border-line px-2 py-1 text-[10px] font-medium tracking-[0.08em] text-ink-soft uppercase">
+              Histórico
+            </span>
+          )}
           <span className="num text-[10.5px] text-ink-soft">
             atualizado em {formatDate(todayISO())}
           </span>
         </div>
       </header>
+
+      <div className="-mt-4 flex flex-wrap items-center justify-between gap-2 border-y border-line py-3">
+        <div className="flex items-center gap-1">
+          <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8">
+            <Link
+              href={monthHref(shiftMonth(month, -1))}
+              aria-label="Mês anterior"
+            >
+              <ChevronLeft />
+            </Link>
+          </Button>
+          <span className="num min-w-36 text-center text-[13px] font-medium">
+            {formatMonth(month)}
+          </span>
+          {isCurrentMonth ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="h-8 w-8"
+              disabled
+              aria-label="Próximo mês"
+            >
+              <ChevronRight />
+            </Button>
+          ) : (
+            <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8">
+              <Link
+                href={monthHref(shiftMonth(month, 1))}
+                aria-label="Próximo mês"
+              >
+                <ChevronRight />
+              </Link>
+            </Button>
+          )}
+          {!isCurrentMonth ? (
+            <Button asChild variant="ghost" className="h-8">
+              <Link href="/painel">Mês atual</Link>
+            </Button>
+          ) : null}
+        </div>
+
+        <form method="get" action="/painel" className="flex items-center gap-2">
+          <Input
+            type="month"
+            name="mes"
+            max={currentMonth}
+            defaultValue={month}
+            aria-label="Escolher mês"
+            className="num h-8 w-40"
+          />
+          <Button type="submit" variant="secondary" size="sm" className="h-8">
+            Ir
+          </Button>
+        </form>
+      </div>
 
       <dl className="grid grid-cols-2 gap-px border-y border-line bg-line lg:grid-cols-[2.05fr_1fr_1fr_1fr]">
         <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1 lg:pl-0">
@@ -188,17 +282,19 @@ export default async function PainelPage() {
             href="/financeiro/recebiveis"
             className="mt-2 inline-block text-[10.5px] text-ink-soft underline-offset-2 transition-colors hover:text-ink hover:underline"
           >
-            parcelas em aberto
+            {isCurrentMonth
+              ? "parcelas em aberto"
+              : `em aberto em ${formatDate(receivablesAsOf)}`}
           </Link>
         </div>
       </dl>
 
       {!hasBusinessExpenses ? (
         <p className="rounded-md border border-citrus/30 bg-citrus-soft px-4 py-3 text-[12px] text-citrus-ink">
-          As despesas do negócio ainda não foram lançadas neste mês. O valor
-          acima considera apenas as vendas.{" "}
+          As despesas do negócio ainda não foram lançadas em{" "}
+          {formatMonth(month)}. O valor acima considera apenas as vendas.{" "}
           <Link
-            href="/despesas/nova"
+            href={`/despesas/nova?mes=${month}`}
             className="font-medium underline underline-offset-2"
           >
             Lançar despesa
@@ -210,10 +306,10 @@ export default async function PainelPage() {
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="font-serif text-[25px] leading-none font-normal tracking-[-0.01em] sm:text-[28px]">
-            Últimos lançamentos
+            {isCurrentMonth ? "Últimos lançamentos" : "Lançamentos do mês"}
           </h2>
           <Link
-            href="/vendas"
+            href={`/vendas?mes=${month}`}
             className="text-xs font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
           >
             Ver todas
@@ -224,10 +320,14 @@ export default async function PainelPage() {
           <Empty className="rounded-none border-y border-line bg-paper py-12">
             <EmptyHeader>
               <EmptyTitle className="font-serif text-[24px] font-normal">
-                Nenhum lançamento ainda
+                {isCurrentMonth
+                  ? "Nenhum lançamento ainda"
+                  : "Nenhum lançamento neste mês"}
               </EmptyTitle>
               <EmptyDescription>
-                Registre a primeira venda para começar o controle.
+                {isCurrentMonth
+                  ? "Registre a primeira venda para começar o controle."
+                  : "Navegue para outro mês ou registre uma venda."}
               </EmptyDescription>
             </EmptyHeader>
             <Button asChild size="sm" className="font-bold">

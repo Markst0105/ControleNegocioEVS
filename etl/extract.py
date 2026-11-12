@@ -688,6 +688,12 @@ emit("001_reference_data", "")
 emit("001_reference_data", "-- accounts discovered in the expense ledger (Lançamento Despesas 2023-07)")
 for name in sorted(account_names):
     emit("001_reference_data", f"insert into accounts (name) values ({sql_str(name)}) on conflict (name) do nothing;")
+# Card accounts keep stock purchases pending until each transaction is checked.
+emit("001_reference_data", "-- card accounts: purchases stay pending until each transaction is confirmed")
+for name in sorted(account_names):
+    if name.strip().lower().startswith(("crédito", "credito", "cartão", "cartao")):
+        emit("001_reference_data",
+             f"update accounts set is_credit_card = true where name = {sql_str(name)};")
 emit("001_reference_data", "-- expense categories discovered in the ledger")
 for name in sorted(category_names):
     scope = EXPENSE_SCOPE.get(name, "pessoal")

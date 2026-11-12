@@ -67,6 +67,10 @@ const FUNCTION_PROBES = {
     p_notes: null,
     p_items: [],
   },
+  set_purchase_paid_on: {
+    p_purchase_id: INVALID_UUID,
+    p_paid_on: OLD_DATE,
+  },
   create_stock_count: {
     p_counted_on: INVALID_DATE,
     p_location_code: "EVS",

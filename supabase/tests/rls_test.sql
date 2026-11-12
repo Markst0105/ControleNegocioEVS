@@ -942,6 +942,67 @@ select 63, 'admin: P&L conta só vendas a cliente e o PV soma tudo',
        );
 
 -- ---------------------------------------------------------------------------
+-- Card purchases: the purchase is registered, but it only enters cash when
+-- the card transaction is confirmed.
+-- ---------------------------------------------------------------------------
+insert into public.accounts (id, name, is_credit_card)
+values ('f0000000-0000-4000-8000-000000000030', 'RLS Cartão', true);
+
+do $$
+declare
+    v_purchase_id uuid;
+begin
+    v_purchase_id := public.create_purchase(
+        '2023-03-20',
+        null,
+        'f0000000-0000-4000-8000-000000000030',
+        'EVS',
+        'RLS-CARD',
+        null,
+        jsonb_build_array(
+            jsonb_build_object(
+                'product_id', (select id::text from public.products order by sku limit 1),
+                'qty', 3,
+                'unit_cost', 10
+            )
+        )
+    );
+
+    insert into pg_temp.rls_results
+    select 65, 'admin: compra no cartão nasce pendente e fora do caixa',
+           (select paid_on is null and is_credit_card
+              from public.v_purchase_overview
+             where id = v_purchase_id)
+           and not exists (
+               select 1 from public.v_cash_flow_entries
+                where reference_id = v_purchase_id
+           );
+
+    perform public.set_purchase_paid_on(v_purchase_id, '2023-03-25');
+
+    insert into pg_temp.rls_results
+    select 66, 'admin: confirmação entra no caixa na data do pagamento',
+           exists (
+               select 1 from public.v_cash_flow_entries
+                where reference_id = v_purchase_id
+                  and occurred_on = '2023-03-25'
+                  and amount = 30
+           );
+
+    perform public.set_purchase_paid_on(v_purchase_id, null);
+
+    insert into pg_temp.rls_results
+    select 67, 'admin: desmarcar volta a compra para pendente',
+           (select paid_on is null
+              from public.purchases
+             where id = v_purchase_id)
+           and not exists (
+               select 1 from public.v_cash_flow_entries
+                where reference_id = v_purchase_id
+           );
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- 3. results
 -- ---------------------------------------------------------------------------
 reset role;

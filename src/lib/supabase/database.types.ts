@@ -419,6 +419,7 @@ export type Database = {
           id: string;
           name: string;
           is_bank: boolean | null;
+          is_credit_card: boolean;
           active: boolean | null;
           created_at: string | null;
         };
@@ -426,6 +427,7 @@ export type Database = {
           id?: string;
           name: string;
           is_bank?: boolean | null;
+          is_credit_card?: boolean;
           active?: boolean | null;
           created_at?: string | null;
         };
@@ -433,6 +435,7 @@ export type Database = {
           id?: string;
           name?: string;
           is_bank?: boolean | null;
+          is_credit_card?: boolean;
           active?: boolean | null;
           created_at?: string | null;
         };
@@ -591,6 +594,7 @@ export type Database = {
           location_code: string;
           invoice_no: string | null;
           notes: string | null;
+          paid_on: string | null;
           created_at: string | null;
           updated_at: string | null;
           created_by: string | null;
@@ -603,6 +607,7 @@ export type Database = {
           location_code: string;
           invoice_no?: string | null;
           notes?: string | null;
+          paid_on?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
           created_by?: string | null;
@@ -615,6 +620,7 @@ export type Database = {
           location_code?: string;
           invoice_no?: string | null;
           notes?: string | null;
+          paid_on?: string | null;
           created_at?: string | null;
           updated_at?: string | null;
           created_by?: string | null;
@@ -1112,8 +1118,10 @@ export type Database = {
           invoice_no: string | null;
           notes: string | null;
           created_at: string | null;
+          paid_on: string | null;
           supplier_name: string | null;
           account_name: string | null;
+          is_credit_card: boolean;
           item_count: number;
           total_units: number;
           total_cost: number;
@@ -1352,6 +1360,13 @@ export type Database = {
           p_items: Json;
         };
         Returns: string;
+      };
+      set_purchase_paid_on: {
+        Args: {
+          p_purchase_id: string;
+          p_paid_on: string | null;
+        };
+        Returns: undefined;
       };
       create_reservation: {
         Args: {

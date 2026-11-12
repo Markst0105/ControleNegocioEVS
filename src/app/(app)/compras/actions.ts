@@ -14,6 +14,10 @@ export type PurchaseFormState = {
   error: string | null;
 };
 
+export type PaymentFormState = {
+  error: string | null;
+};
+
 type PurchaseLine = {
   product_id: string;
   qty: number;
@@ -146,4 +150,61 @@ export async function createPurchase(
   }
 
   redirect(`/compras/${data}?ok=novo`);
+}
+
+/**
+ * Confirms (or reverts) the payment of a card purchase. Cash purchases are
+ * paid on the purchase date and are not editable here.
+ */
+export async function setPurchasePaidOn(
+  _previous: PaymentFormState,
+  formData: FormData,
+): Promise<PaymentFormState> {
+  const session = await getSession();
+  if (
+    !session?.profile ||
+    (session.profile.role !== "admin" && session.profile.role !== "operator")
+  ) {
+    return { error: "Sua conta não tem permissão para confirmar pagamentos." };
+  }
+
+  const purchaseId = String(formData.get("purchase_id") ?? "").trim();
+  if (!isUuid(purchaseId)) {
+    return { error: "Compra inválida." };
+  }
+
+  const paidRaw = String(formData.get("paid_on") ?? "").trim();
+  const paidOn = paidRaw ? parseDateInput(paidRaw) : null;
+  if (paidRaw && !paidOn) {
+    return { error: "Informe uma data de pagamento válida." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_purchase_paid_on", {
+    p_purchase_id: purchaseId,
+    p_paid_on: paidOn,
+  });
+
+  if (error) {
+    console.error("setPurchasePaidOn: falha ao atualizar pagamento", error);
+    if (error.code === "42501") {
+      return { error: "Sua conta não tem permissão para confirmar pagamentos." };
+    }
+    if (error.code === "22023" || error.code === "P0001") {
+      return { error: error.message };
+    }
+    return {
+      error: "Não foi possível atualizar o pagamento. Tente novamente.",
+    };
+  }
+
+  revalidatePath("/compras");
+  revalidatePath(`/compras/${purchaseId}`);
+  revalidatePath("/painel");
+  revalidatePath("/financeiro/caixa");
+  revalidatePath("/financeiro/fechamento");
+
+  redirect(
+    `/compras/${purchaseId}?ok=${paidOn ? "pagamento" : "pagamento_removido"}`,
+  );
 }

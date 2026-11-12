@@ -56,7 +56,7 @@ export default async function NovaCompraPage({
       .order("name"),
     supabase
       .from("accounts")
-      .select("id, name")
+      .select("id, name, is_credit_card")
       .eq("active", true)
       .order("name"),
     supabase
