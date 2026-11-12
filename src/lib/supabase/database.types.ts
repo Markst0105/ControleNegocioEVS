@@ -992,6 +992,28 @@ export type Database = {
         };
         Relationships: [];
       };
+      v_sale_purchases: {
+        Row: {
+          id: string;
+          sold_on: string;
+          client_id: string | null;
+          client_name: string;
+          payment_method_code: string | null;
+          payment_label: string | null;
+          item_count: number;
+          total_amount: number;
+          total_cost: number;
+          total_fee: number;
+          total_profit: number;
+          total_pv: number;
+          discount_pct: number;
+          origins: string[] | null;
+          deal_codes: string[] | null;
+          items: Json | null;
+          products_text: string | null;
+        };
+        Relationships: [];
+      };
       v_sale_payment_balances: {
         Row: {
           id: string;

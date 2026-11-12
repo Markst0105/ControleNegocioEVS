@@ -16,31 +16,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   currentMonthISO,
   formatDate,
+  formatDecimal,
   formatInt,
   formatMoney,
   formatMonth,
+  formatPercent,
   isMonthISO,
   monthFirstDay,
   nextMonthFirstDay,
 } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Vendas",
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 12;
 
 type SearchParams = Promise<{
   mes?: string;
@@ -48,6 +43,48 @@ type SearchParams = Promise<{
   pagina?: string;
   ok?: string;
 }>;
+
+type PurchaseItem = {
+  name: string;
+  qty: number;
+  amount: number;
+};
+
+function parseItems(value: Json | null): PurchaseItem[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    return [
+      {
+        name: typeof entry.name === "string" ? entry.name : "—",
+        qty: typeof entry.qty === "number" ? entry.qty : 1,
+        amount: typeof entry.amount === "number" ? entry.amount : 0,
+      },
+    ];
+  });
+}
+
+function PaymentBadge({
+  code,
+  label,
+}: {
+  code: string | null;
+  label: string | null;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-paper px-2 py-1">
+      <span className="num text-[11px] font-semibold tracking-wide">
+        {code ?? "—"}
+      </span>
+      {label ? (
+        <span className="text-[10.5px] whitespace-nowrap text-ink-soft">
+          {label}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 export default async function VendasPage({
   searchParams,
@@ -68,24 +105,25 @@ export default async function VendasPage({
   const search = q.replace(/[",()%]/g, " ").replace(/\s+/g, " ").trim();
 
   let query = supabase
-    .from("sales")
+    .from("v_sale_purchases")
     .select(
-      "id, sold_on, client_id, client_name_raw, product_name_raw, deal_type_code, discount_pct, origin, amount_received, profit",
+      "id, sold_on, client_id, client_name, payment_method_code, payment_label, item_count, total_amount, total_profit, total_pv, discount_pct, origins, deal_codes, items",
       { count: "exact" },
     )
     .gte("sold_on", from)
     .lt("sold_on", to)
     .order("sold_on", { ascending: false })
-    .order("created_at", { ascending: false })
+    .order("client_name", { ascending: true })
+    .order("payment_method_code", { ascending: true })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   if (search) {
     query = query.or(
-      `client_name_raw.ilike."%${search}%",product_name_raw.ilike."%${search}%"`,
+      `client_name.ilike."%${search}%",products_text.ilike."%${search}%"`,
     );
   }
 
-  const [{ data: sales, count, error }, dealTypesResult] = await Promise.all([
+  const [{ data: purchases, count, error }, dealTypesResult] = await Promise.all([
     query,
     supabase.from("deal_types").select("code, label"),
   ]);
@@ -182,114 +220,138 @@ export default async function VendasPage({
         </Empty>
       ) : (
         <>
-          <div className="border-t border-ink/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-ink/70 hover:bg-transparent">
-                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Data
-                  </TableHead>
-                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Cliente
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft md:table-cell">
-                    Produto
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft lg:table-cell">
-                    Negócio
-                  </TableHead>
-                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Origem
-                  </TableHead>
-                  <TableHead className="h-9 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Valor
-                  </TableHead>
-                  <TableHead className="hidden h-9 pr-3 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft sm:table-cell">
-                    Lucro
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sales?.map((sale) => {
-                  const profit = sale.profit;
-                  return (
-                    <TableRow
-                      key={sale.id}
-                      className="border-line/80 hover:bg-moss-soft/25"
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {purchases?.map((purchase) => {
+              const items = parseItems(purchase.items);
+              const origins = purchase.origins ?? [];
+              const dealCodes = purchase.deal_codes ?? [];
+              const profit = Number(purchase.total_profit);
+
+              return (
+                <article
+                  key={purchase.id}
+                  className="flex flex-col rounded-lg border border-line bg-surface"
+                >
+                  <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+                    <time
+                      dateTime={purchase.sold_on}
+                      className="num text-[11px] tracking-[0.01em] text-ink-soft"
                     >
-                      <TableCell
-                        className={cn(
-                          "num border-l-[3px] py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft",
-                          sale.origin === "CASA"
-                            ? "border-l-steel"
-                            : sale.origin === "EVS"
-                              ? "border-l-moss"
-                              : "border-l-line-strong",
-                        )}
+                      {formatDate(purchase.sold_on)}
+                    </time>
+                    <PaymentBadge
+                      code={purchase.payment_method_code}
+                      label={purchase.payment_label}
+                    />
+                  </header>
+
+                  <div className="flex flex-1 flex-col gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <h2
+                        className="truncate text-[15px] leading-tight font-medium"
+                        title={purchase.client_name}
                       >
-                        {formatDate(sale.sold_on)}
-                      </TableCell>
-                      <TableCell className="max-w-[190px] px-2 py-2.5 text-[13px]">
-                        {sale.client_id ? (
-                          <Link
-                            href={`/clientes/${sale.client_id}`}
-                            className="block truncate font-medium underline-offset-2 hover:underline"
-                          >
-                            {sale.client_name_raw ?? "Cliente"}
-                          </Link>
-                        ) : (
-                          <span
-                            className={
-                              sale.client_name_raw
-                                ? "block truncate font-medium"
-                                : "block truncate text-ink-soft"
-                            }
-                          >
-                            {sale.client_name_raw ?? "Balcão"}
+                        {purchase.client_name}
+                      </h2>
+                      <p className="mt-0.5 text-[10.5px] text-ink-soft">
+                        {formatInt(purchase.item_count)}{" "}
+                        {purchase.item_count === 1 ? "item" : "itens"}
+                      </p>
+                    </div>
+
+                    <ul className="grid gap-1">
+                      {items.map((item, index) => (
+                        <li
+                          key={`${item.name}-${index}`}
+                          className="flex items-baseline justify-between gap-3"
+                        >
+                          <span className="min-w-0 truncate text-[12px] text-ink-soft">
+                            {item.name}
+                            {item.qty > 1 ? (
+                              <span className="num text-ink-soft">
+                                {" "}
+                                ×{formatInt(item.qty)}
+                              </span>
+                            ) : null}
                           </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="hidden max-w-[240px] px-2 py-2.5 text-[13px] text-ink-soft md:table-cell">
-                        <span className="block truncate">
-                          {sale.product_name_raw ?? "—"}
+                          <span className="num text-[12px] whitespace-nowrap">
+                            {formatMoney(item.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line/70 pt-2.5">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[10px] tracking-[0.01em] text-ink-soft">
+                          Negócio
                         </span>
-                      </TableCell>
-                      <TableCell className="hidden px-2 py-2.5 lg:table-cell">
-                        <DealBadge
-                          label={
-                            sale.deal_type_code
-                              ? dealLabels.get(sale.deal_type_code)
-                              : null
-                          }
-                          discountPct={sale.discount_pct}
-                        />
-                      </TableCell>
-                      <TableCell className="px-2 py-2.5">
-                        <OriginBadge origin={sale.origin} />
-                      </TableCell>
-                      <TableCell className="num px-2 py-2.5 text-right text-[13px] whitespace-nowrap">
-                        {formatMoney(sale.amount_received)}
-                      </TableCell>
-                      <TableCell
-                        className={
-                          profit !== null && profit < 0
-                            ? "num hidden px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap text-rust-ink sm:table-cell"
-                            : "num hidden px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap text-ink-soft sm:table-cell"
-                        }
+                        {dealCodes.length === 0 ? (
+                          <DealBadge label={null} />
+                        ) : (
+                          dealCodes.map((code) => (
+                            <DealBadge
+                              key={code}
+                              label={dealLabels.get(code) ?? code}
+                            />
+                          ))
+                        )}
+                        {purchase.discount_pct > 0 ? (
+                          <span className="num inline-flex items-center rounded-sm bg-citrus-soft px-1.5 py-px text-[10px] font-medium text-citrus-ink">
+                            −{formatPercent(purchase.discount_pct)}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[10px] tracking-[0.01em] text-ink-soft">
+                          Origem
+                        </span>
+                        {origins.length === 0 ? (
+                          <OriginBadge origin={null} />
+                        ) : (
+                          origins.map((origin) => (
+                            <OriginBadge key={origin} origin={origin} />
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <dl className="grid grid-cols-3 divide-x divide-line/70 border-t border-line">
+                    <div className="px-3 py-2.5">
+                      <dt className="text-[10px] text-ink-soft">PV</dt>
+                      <dd className="num mt-0.5 text-[13px] font-medium whitespace-nowrap">
+                        {formatDecimal(purchase.total_pv)}
+                      </dd>
+                    </div>
+                    <div className="px-3 py-2.5">
+                      <dt className="text-[10px] text-ink-soft">Total</dt>
+                      <dd className="num mt-0.5 text-[13px] font-medium whitespace-nowrap">
+                        {formatMoney(purchase.total_amount)}
+                      </dd>
+                    </div>
+                    <div className="px-3 py-2.5">
+                      <dt className="text-[10px] text-ink-soft">Lucro</dt>
+                      <dd
+                        className={cn(
+                          "num mt-0.5 text-[13px] font-medium whitespace-nowrap",
+                          profit < 0 ? "text-rust-ink" : "text-ink",
+                        )}
                       >
                         {formatMoney(profit)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-ink-soft">
-              {formatInt(total)} {total === 1 ? "lançamento" : "lançamentos"} ·
-              página {page} de {totalPages}
+              {formatInt(total)} {total === 1 ? "compra" : "compras"} · página{" "}
+              {page} de {totalPages}
             </p>
 
             <div className="flex items-center gap-2">

@@ -261,10 +261,6 @@ export default async function DespesasPage({
             </Button>
           ) : null}
         </div>
-
-        <Button asChild variant="outline" size="sm" className="h-8">
-          <Link href={`/resultado?mes=${mes}`}>Ver resultado</Link>
-        </Button>
       </div>
 
       <form

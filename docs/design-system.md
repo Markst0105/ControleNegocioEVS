@@ -191,12 +191,11 @@ the exact cents.
   to it.
 - Empty states use the shadcn `Empty` pattern with a single clear action; their
   title uses Instrument Serif and the action is bold.
-- **Clientes** follows the Vendas ledger pattern: a full-bleed table with client
-  name, stacked phone/WhatsApp, last purchase, purchase count and open balance.
-  The detail page uses a four-cell KPI band, a two-column contact/notes block and
-  a recent-purchase table. Forms reuse the flat VendaForm field grid with inline
-  hints. Duplicate contacts appear in a rust alert with links to the existing records;
-  admin merge uses the destructive style and an explicit confirmation.
+- **Vendas** uses a purchase-card grid (one card per date + client + payment
+  method): date and payment chip in the header, client and item list with each
+  product's value, deal/origin chips and a three-cell PV / total / profit footer.
+  Cards use the 8 px radius, a hairline border and no shadow; a negative profit
+  uses `--rust-ink`.
 - **Estoque** reuses the ledger table with a KPI band (products, units, low
   stock, out of stock, value). Location balances are compact `EVS 12` chips; the
   product detail page repeats the KPI band and shows a movement history with

@@ -13,19 +13,18 @@ database identifiers are in English.
 > ledger (the reporting view and the catalog gaps). See
 > [`docs/cutover-runbook.md`](docs/cutover-runbook.md).
 >
-> Login, role-aware app shell, Painel, Vendas, Lançamento de venda, Clientes,
-> Estoque, Compras, Fornecedores, Preços, MDO, Recebíveis, Caixa, Despesas,
-> Resultado, Fechamento and the member catalog are in the code. Clientes includes
-> search/pagination, name + phone/WhatsApp deduplication and an admin-only merge.
-> Estoque includes purchases, manual movements, stock counts, per-location
+> Login, role-aware app shell, Painel, Vendas, Lançamento de venda,
+> Estoque, Compras, Preços, MDO, Recebíveis, Caixa, Despesas,
+> Fechamento and the member catalog are in the code. Vendas lists one card per
+> purchase, grouped by date, client and payment method. Estoque includes
+> purchases, manual movements, stock counts, per-location
 > balances, product history and Ouro-tier valuation. Purchases can apply any
-> price tier and keep the chosen tier on each line. Fornecedores includes
-> create/edit/deactivate and the known distributors from the workbook. Preços is
+> price tier and keep the chosen tier on each line. Preços is
 > a print-friendly counter sheet with retail, discount tiers and PV; the sale
 > form prefills the retail amount from the selected product. MDO imports 730
 > days of activity KPIs and offers a last-seven-days view plus a customisable
 > monthly range with period, month and daily breakdowns. Despesas separates
-> business and personal costs; Resultado turns sales, business expenses and the
+> business and personal costs; Fechamento turns sales, business expenses and the
 > Herbalife statement into a monthly P&L. The P&L counts client sales only
 > (`sale`, `discount`, `financial` and blank deal type): personal consumption,
 > business transfers, gifts, loans and returns move stock but are not revenue.
@@ -47,11 +46,12 @@ database identifiers are in English.
 > reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261030000001_phase5_profit_model.sql` before
-> deploying. The latest Phase 5 migration aligns the profit model with the
-> owner's ledger: it zeroes the cartela line's `product_cost` (the workbook's
-> `J = I` parking was a deferral, not a real cost) and rewrites `monthly_pnl`
-> and `v_monthly_pnl` to count client sales only. The previous Phase 5
+> `supabase/migrations/20261030000002_phase5_sale_purchases_view.sql` before
+> deploying. The latest Phase 5 migrations align the profit model with the
+> owner's ledger and group sales lines into purchases: they zero the cartela
+> line's `product_cost` (the workbook's `J = I` parking was a deferral, not a
+> real cost), rewrite `monthly_pnl` and `v_monthly_pnl` to count client sales
+> only, and add `v_sale_purchases` for the Vendas cards. The previous Phase 5
 > migrations close the catalog gaps of the imported
 > ledger (25 products that the price sheets do not contain, 756 sales) and
 > rewrite `v_monthly_pnl` without a FULL JOIN that some PostgreSQL planners
@@ -104,10 +104,10 @@ Three roles, enforced in the database with Row-Level Security:
 
 ```
 src/            Next.js app (App Router, components, lib)
-  app/          routes: (auth)/login, (app)/painel, (app)/vendas, (app)/clientes,
-                (app)/precos, (app)/estoque, (app)/compras, (app)/fornecedores,
+  app/          routes: (auth)/login, (app)/painel, (app)/vendas,
+                (app)/precos, (app)/estoque, (app)/compras,
                 (app)/mdo, (app)/financeiro/recebiveis, (app)/financeiro/caixa,
-                (app)/financeiro/fechamento, (app)/despesas, (app)/resultado,
+                (app)/financeiro/fechamento, (app)/despesas,
                 (member)/membro
   components/   ui (shadcn) + app (shell, nav, combobox, badges…)
   lib/          Supabase clients, auth, formatting, nav
@@ -140,7 +140,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 63/63 checks should pass, and nothing is left
+   verify the security policies — 64/64 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -220,7 +220,7 @@ npx supabase link --project-ref <project-ref>
 npx supabase db push
 
 # 2. Verify security and data readiness.
-DATABASE_URL="postgresql://..." npm run db:rls     # 63/63 PASS
+DATABASE_URL="postgresql://..." npm run db:rls     # 64/64 PASS
 DATABASE_URL="postgresql://..." npm run db:report  # read-only report
 
 # 3. Deploy the app.
@@ -245,19 +245,16 @@ What this milestone includes:
   database and the schema are ready;
 - role-aware shell: desktop side column, mobile top bar + leaf-triggered panel, bottom nav;
 - **Painel** — month masthead, monthly P&L KPIs, open receivables, latest sales;
-- **Vendas** — month filter, text search, pagination;
+- **Vendas** — one card per purchase (grouped by date, client and payment
+  method) with products and per-product values, deal, origin, PV, total, profit
+  and payment type; month filter, text search and pagination;
 - **Lançar venda** — client/product comboboxes, payment method with up to three
   installments, discount handling, costs, PV, observation;
-- **Clientes** — search and pagination, create/edit with phone/WhatsApp
-  normalization, duplicate detection, purchase history/open balance and an
-  admin-only transactional merge;
 - **Estoque** — product balances, per-location chips, low/out-of-stock filters,
   Ouro-tier unit value, stock value and product movement history;
 - **Compras** — purchase entry with supplier, account, destination, invoice,
   multiple line items, a price-tier picker that prefills unit cost, and totals;
   the chosen tier is stored on each line and shown in the purchase detail;
-- **Fornecedores** — supplier directory with search, create/edit, active status,
-  purchase totals and the known workbook distributors pre-seeded;
 - **Preços** — searchable, print-friendly counter sheet with retail, 25–50%
   tiers, Bronze/Prata/Ouro and PV; values use the spreadsheet’s whole-reais
   rounding while the database keeps exact cents; an admin can update the whole
@@ -282,13 +279,12 @@ What this milestone includes:
   totals for fixed, variable and personal costs, and create/edit/delete;
   operators may write business expenses only, while personal expenses stay
   admin-only;
-- **Resultado** — monthly P&L with sales profit (client sales only), Herbalife
-  royalties/bonus converted by the statement FX rate, business costs, personal
-  expenses shown separately, expense breakdown by category and a clear warning
-  when a month has no expenses recorded;
-- **Fechamento** — admin-only soft close with result, cash and receivables
-  summary, completeness warnings, a stored snapshot and change detection after
-  closing; reopening preserves the last snapshot and is audited;
+- **Fechamento** — admin-only soft close with the monthly P&L (sales profit from
+  client sales only, Herbalife royalties/bonus converted by the statement FX
+  rate, business costs and personal expenses shown separately), the Herbalife
+  statement form, cash and receivables summary, completeness warnings, a stored
+  snapshot and change detection after closing; reopening preserves the last
+  snapshot and is audited;
 - **Área do membro** — dedicated catalog with the member price, search and
   pagination; members cannot change prices.
 
@@ -336,8 +332,8 @@ deactivates the empty `#497K` duplicate created by the old case-sensitive match.
   has a product and a readable product name; four rows in the workbook have
   no product and one has no description, so they stay empty on purpose. The
   imported expenses
-  cover July 2023 only; later months are entered in the app, so Resultado warns
-  when a month has no business expenses.
+  cover July 2023 only; later months are entered in the app, so Fechamento
+  warns when a month has no business expenses.
 - Of the imported installment rows, **3,422 are open balances with a due date,
   R$ 197,885.33 in total** (2023: 531; 2024: 1,048; 2025: 875; 2026: 968).
   The remaining rows are zero-value placeholders. This is the backlog the

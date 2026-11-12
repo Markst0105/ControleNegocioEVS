@@ -40,6 +40,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
 import { CloseMonthForm, ReopenMonthForm } from "./month-close-forms";
+import { StatementForm, type StatementInitial } from "./statement-form";
 
 export const metadata: Metadata = {
   title: "Fechamento",
@@ -48,6 +49,8 @@ export const metadata: Metadata = {
 const OK_MESSAGES: Record<string, string> = {
   fechado: "Mês fechado. O snapshot foi registrado.",
   reaberto: "Mês reaberto. O último snapshot foi preservado.",
+  extrato: "Extrato Herbalife salvo.",
+  extrato_removido: "Extrato Herbalife removido do mês.",
 };
 
 type SearchParams = Promise<{
@@ -114,7 +117,7 @@ export default async function FechamentoPage({
   const from = monthFirstDay(month);
   const supabase = await createClient();
 
-  const [summaryResult, closingResult] = await Promise.all([
+  const [summaryResult, closingResult, statementResult] = await Promise.all([
     supabase.rpc("month_close_summary", { p_month: from }).maybeSingle(),
     supabase
       .from("month_closings")
@@ -123,14 +126,24 @@ export default async function FechamentoPage({
       )
       .eq("month", from)
       .maybeSingle(),
+    supabase
+      .from("herbalife_statements")
+      .select("royalty_usd, royalty_fx, bonus_usd, bonus_fx")
+      .eq("month", from)
+      .maybeSingle(),
   ]);
 
-  const firstError = [summaryResult.error, closingResult.error].find(Boolean);
+  const firstError = [
+    summaryResult.error,
+    closingResult.error,
+    statementResult.error,
+  ].find(Boolean);
   if (firstError) throw new Error(firstError.message);
 
   const summary = summaryResult.data as MonthCloseSummary | null;
   if (!summary) throw new Error("Não foi possível carregar o resumo do mês.");
 
+  const statement = (statementResult.data ?? null) as StatementInitial | null;
   const closing = closingResult.data;
   const profileIds = [closing?.closed_by, closing?.reopened_by].filter(
     (value): value is string => Boolean(value),
@@ -565,6 +578,25 @@ export default async function FechamentoPage({
                 ))}
               </ul>
             )}
+          </section>
+
+          <section className="overflow-hidden rounded-lg border border-line bg-surface">
+            <header className="border-b border-line px-4 py-3">
+              <h2 className="font-serif text-[20px] leading-none font-normal">
+                Extrato Herbalife
+              </h2>
+              <p className="mt-1 text-[10.5px] text-ink-soft">
+                Royalties e bônus em dólar, convertidos pelo câmbio informado.
+              </p>
+            </header>
+            <div className="px-4 py-4">
+              <p className="mb-4 text-[11px] text-ink-soft">
+                {statement
+                  ? `Extrato salvo para ${formatMonth(month)}.`
+                  : `Nenhum extrato salvo para ${formatMonth(month)}.`}
+              </p>
+              <StatementForm month={month} initial={statement} />
+            </div>
           </section>
         </div>
 

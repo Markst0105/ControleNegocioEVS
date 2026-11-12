@@ -328,17 +328,8 @@ export default async function RecebivelPage({
           <dl className="mt-3 divide-y divide-line border-y border-line text-sm">
             <div className="flex items-start justify-between gap-4 py-3">
               <dt className="text-ink-soft">Cliente</dt>
-              <dd className="max-w-[13rem] text-right">
-                {payment.client_id ? (
-                  <Link
-                    href={`/clientes/${payment.client_id}`}
-                    className="font-medium underline-offset-2 hover:underline"
-                  >
-                    {payment.client_name}
-                  </Link>
-                ) : (
-                  <span className="font-medium">{payment.client_name}</span>
-                )}
+              <dd className="max-w-[13rem] text-right font-medium">
+                {payment.client_name}
               </dd>
             </div>
 

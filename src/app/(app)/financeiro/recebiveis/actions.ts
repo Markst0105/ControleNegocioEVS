@@ -27,7 +27,6 @@ function revalidateReceivablePaths(paymentId?: string) {
   revalidatePath("/financeiro/recebiveis");
   if (paymentId) revalidatePath(`/financeiro/recebiveis/${paymentId}`);
   revalidatePath("/painel");
-  revalidatePath("/clientes");
 }
 
 function noteError(note: string, maxLength = 500): string | null {
