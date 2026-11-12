@@ -43,7 +43,7 @@ export type PurchaseFormData = {
     price_ouro: number | null;
   }[];
   suppliers: { id: string; name: string }[];
-  accounts: { id: string; name: string }[];
+  accounts: { id: string; name: string; is_credit_card: boolean }[];
   locations: { code: string; label: string }[];
   today: string;
   initialProductId?: string;
@@ -194,6 +194,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
   const accountOptions = data.accounts.map((account) => ({
     value: account.id,
     label: account.name,
+    hint: account.is_credit_card ? "Cartão" : undefined,
   }));
 
   const total = lines.reduce((sum, line) => {
@@ -275,7 +276,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
         <Field
           label="Conta"
           htmlFor="account"
-          hint="Opcional — de onde saiu o pagamento."
+          hint="Opcional — no cartão, o pagamento fica pendente até a confirmação."
         >
           <Combobox
             id="account"

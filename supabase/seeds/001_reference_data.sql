@@ -43,6 +43,9 @@ insert into accounts (name) values ('Cash Yumi') on conflict (name) do nothing;
 insert into accounts (name) values ('Crédito Art Salsa') on conflict (name) do nothing;
 insert into accounts (name) values ('Crédito Bom Tempero') on conflict (name) do nothing;
 insert into accounts (name) values ('Itaú') on conflict (name) do nothing;
+-- card accounts: purchases stay pending until each transaction is confirmed
+update accounts set is_credit_card = true where name = 'Crédito Art Salsa';
+update accounts set is_credit_card = true where name = 'Crédito Bom Tempero';
 -- expense categories discovered in the ledger
 insert into expense_categories (name, scope) values ('Alimentação', 'pessoal') on conflict (name) do nothing;
 insert into expense_categories (name, scope) values ('Compras', 'pessoal') on conflict (name) do nothing;

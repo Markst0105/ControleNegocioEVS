@@ -128,7 +128,11 @@ box bottom. It is a partial marker, not a filled highlight.
   clear the nav. Safe-area insets respected.
 - **Painel masthead**: “Painel · mês corrente” eyebrow, large month with the
   partial `--marker` band, year in soft ink, an “Em aberto” stamp and the update
-  date in mono. No page title “Painel” — navigation provides that context.
+  date in mono. Previous months use a neutral “Histórico” stamp and the eyebrow
+  changes to “Painel · histórico”. A month bar below the masthead has previous/
+  next chevrons, the month, a “Mês atual” link and a native month input; the next
+  chevron is disabled for the current month. No page title “Painel” — navigation
+  provides that context.
 - **KPI strip**: a single `dl` on `--paper` with 1 px `--line` gaps and top/bottom
   rules. No cards; the dominant ganho value is display type, the other three are
   mono. On mobile the first and last cells span both columns.
@@ -197,13 +201,17 @@ the exact cents.
   Cards use the 8 px radius, a hairline border and no shadow; a negative profit
   uses `--rust-ink`.
 - **Estoque** reuses the ledger table with a KPI band (products, units, low
-  stock, out of stock, value). Location balances are compact `EVS 12` chips; the
+  stock, out of stock, value). Only catalog products (SKU starting with `#`)
+  appear here; support/access items keep their history and product pages through
+  direct links. Location balances are compact `EVS 12` chips; the
   product detail page repeats the KPI band and shows a movement history with
   `+`/`−` quantities. Stock value uses the current **Ouro** table price, not the
   last purchase cost. Purchases and counts use a line-item editor with product
   combobox, quantity, unit cost and a running total; purchases add a price-tier
   picker (Normal, 25–50%, Bronze, Prata, Ouro) that prefills the unit cost. The
   selected tier is carried as a small tinted chip in the form and purchase detail.
+  Card purchases show a citrus “Pendente” chip until confirmed and a moss
+  “Pago dd/mm” chip afterwards; the detail page carries the confirmation form.
 - Movement, stock and purchase states are text chips: moss for entries, steel
   for transfers/sales, citrus for counts/adjustments and rust for shortages or
   exits. Color is never the only signal — the chip, the route and the signed

@@ -74,6 +74,7 @@ export default async function EstoquePage({
       "product_id, sku, name, kind, is_active, qty_on_hand, price_ouro, stock_value",
       { count: "exact" },
     )
+    .like("sku", "#%")
     .order("name")
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
@@ -120,7 +121,7 @@ export default async function EstoquePage({
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Estoque"
-        description="Saldo por produto e local, com valor pela faixa Ouro."
+        description="Catálogo (#): saldo por produto e local, com valor pela faixa Ouro."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild size="sm" className="h-9 font-bold">

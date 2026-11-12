@@ -7,6 +7,7 @@ import { ChevronLeft, Plus } from "lucide-react";
 import { FlashToast } from "@/components/app/flash-toast";
 import { PageHeader } from "@/components/app/page-header";
 import { PriceTierBadge } from "@/components/app/price-tier-badge";
+import { PurchasePaymentBadge } from "@/components/app/purchase-payment-badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -22,8 +23,11 @@ import {
   formatDecimal,
   formatInt,
   formatMoney,
+  todayISO,
 } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+
+import { PurchasePaymentForm } from "./payment-form";
 
 export const metadata: Metadata = {
   title: "Compra",
@@ -49,7 +53,7 @@ export default async function CompraPage({
     supabase
       .from("v_purchase_overview")
       .select(
-        "id, purchased_on, supplier_name, account_name, location_code, invoice_no, notes, item_count, total_units, total_cost",
+        "id, purchased_on, supplier_name, account_name, location_code, invoice_no, notes, item_count, total_units, total_cost, paid_on, is_credit_card",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -82,6 +86,15 @@ export default async function CompraPage({
     (productsResult.data ?? []).map((product) => [product.id, product]),
   );
 
+  const okMessage =
+    query.ok === "pagamento"
+      ? "Pagamento confirmado."
+      : query.ok === "pagamento_removido"
+        ? "Pagamento desmarcado. A compra voltou a ficar pendente."
+        : query.ok
+          ? "Compra registrada."
+          : null;
+
   const title = purchase.invoice_no
     ? `Compra ${purchase.invoice_no}`
     : "Compra";
@@ -96,7 +109,7 @@ export default async function CompraPage({
   return (
     <div className="flex flex-col gap-6">
       <Suspense fallback={null}>
-        {query.ok ? <FlashToast message="Compra registrada." /> : null}
+        {okMessage ? <FlashToast message={okMessage} /> : null}
       </Suspense>
 
       <div>
@@ -150,6 +163,40 @@ export default async function CompraPage({
           </dd>
         </div>
       </dl>
+
+      {purchase.is_credit_card ? (
+        <section
+          className={
+            purchase.paid_on
+              ? "rounded-lg border border-line bg-surface"
+              : "rounded-lg border border-citrus/30 bg-citrus-soft/60"
+          }
+        >
+          <header className="border-b border-line/70 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-serif text-[20px] leading-none font-normal">
+                Pagamento no cartão
+              </h2>
+              <PurchasePaymentBadge
+                paidOn={purchase.paid_on}
+                isCreditCard={purchase.is_credit_card}
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] text-ink-soft">
+              {purchase.paid_on
+                ? "Esta compra entra no caixa na data do pagamento."
+                : "A compra ainda não saiu do caixa. Confirme quando a transação aparecer na fatura."}
+            </p>
+          </header>
+          <div className="px-4 py-4">
+            <PurchasePaymentForm
+              purchaseId={purchase.id}
+              today={todayISO()}
+              paidOn={purchase.paid_on}
+            />
+          </div>
+        </section>
+      ) : null}
 
       <section>
         <h2 className="font-serif text-[24px] leading-none font-normal">

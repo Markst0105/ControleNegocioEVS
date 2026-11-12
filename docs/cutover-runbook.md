@@ -18,8 +18,8 @@ separate staging Supabase project.
 | Supabase region | `us-east-2` (AWS Ohio, from the project pooler) |
 | Vercel function region | `cle1` (Cleveland, also `us-east-2`), set in `vercel.json` |
 | App framework | Next.js 16 on Vercel |
-| Latest migration | `20261030000002_phase5_sale_purchases_view.sql` |
-| RLS suite | 64 checks, all passing in the local PostgreSQL-compatible harness |
+| Latest migration | `20261112000002_stock_catalog_only.sql` |
+| RLS suite | 67 checks, all passing in the local PostgreSQL-compatible harness |
 
 `cle1` and the database are in the same AWS region. Do **not** use `gru1` unless
 the Supabase project is recreated in `sa-east-1`; changing the database region
@@ -56,7 +56,13 @@ means creating a new project and restoring into it.
   client sales only (`sale`, `discount`, `financial`, blank deal type). Personal
   consumption, business transfers, gifts, loans and returns still move stock
   and keep their cost, but they no longer drag the monthly result down.
-- The RLS suite remains self-rolling-back and must pass 64/64 on production.
+- `20261112000001_card_purchases.sql` marks credit-card accounts, adds
+  `purchases.paid_on` and keeps card purchases pending until
+  `set_purchase_paid_on` confirms each transaction. `v_cash_flow_entries` uses
+  the payment date and only includes purchases that are paid.
+- `20261112000002_stock_catalog_only.sql` limits `inventory_summary` to catalog
+  products (`#` SKU), matching the Estoque overview.
+- The RLS suite remains self-rolling-back and must pass 67/67 on production.
 
 ## Confirmed on the live database
 
@@ -176,6 +182,10 @@ npx supabase db push
       full value; P&L counts client sales only).
 - [ ] `20261030000002_phase5_sale_purchases_view.sql` is applied (Vendas groups
       sales lines into one row per purchase).
+- [ ] `20261112000001_card_purchases.sql` is applied (card purchases stay
+      pending and enter cash on the confirmation date).
+- [ ] `20261112000002_stock_catalog_only.sql` is applied (Estoque KPIs count
+      only `#` catalog products).
 - [ ] PostgREST reloaded its schema. The Phase 4b and Phase 5 migrations issue
       `notify pgrst, 'reload schema'`; if the API still returns 404 for
       `month_closings`, wait a few seconds or run:
@@ -194,9 +204,9 @@ DATABASE_URL="postgresql://..." npm run db:rls
 # equivalent: psql "$DATABASE_URL" -f supabase/tests/rls_test.sql
 ```
 
-Expected: 64 rows, every one `PASS`, including `v_monthly_pnl`, the price
+Expected: 67 rows, every one `PASS`, including `v_monthly_pnl`, the price
 import and the profit model. The script
-exits non-zero on any failure or if the number of checks is not 64.
+exits non-zero on any failure or if the number of checks is not 67.
 
 - [ ] Run the read-only cutover report and save the output:
 
@@ -236,7 +246,7 @@ Expected: `"status": "ok"` and HTTP 200.
 npm run db:parity
 ```
 
-Expected: `Schema parity: 49/49 relations available.` The check only reads: it
+Expected: `Schema parity: 48/48 relations available.` The check only reads: it
 probes each table and function through PostgREST and never runs a mutating
 function.
 
@@ -518,7 +528,7 @@ Gate:
 
 1. Take the final backup.
 2. Confirm the migration list is empty.
-3. Confirm the RLS suite is 64/64 and `npm run db:parity` is 49/49.
+3. Confirm the RLS suite is 67/67 and `npm run db:parity` is 48/48.
 4. Confirm the cutover report has no unexplained gate failure.
 5. Deploy the production build.
 6. Run the A9 smoke test.
@@ -545,10 +555,10 @@ Gate:
 Go only when all of these are true:
 
 - [ ] Migrations applied and PostgREST sees the new schema.
-- [ ] `npm run db:parity` reports 47/47 and `GET /api/health` is green.
+- [ ] `npm run db:parity` reports 48/48 and `GET /api/health` is green.
 - [ ] The GitHub repository is private, or the seed is out of the repository and
       its history.
-- [ ] RLS 64/64 on production.
+- [ ] RLS 67/67 on production.
 - [ ] No unexpected open installment before the cutover date.
 - [ ] Final months have expenses and statements, or an explicit incomplete note.
 - [ ] Unmatched catalog names and negative stock are resolved or documented.

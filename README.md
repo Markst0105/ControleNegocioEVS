@@ -46,8 +46,12 @@ database identifiers are in English.
 > reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261030000002_phase5_sale_purchases_view.sql` before
-> deploying. The latest Phase 5 migrations align the profit model with the
+> `supabase/migrations/20261112000002_stock_catalog_only.sql` before
+> deploying. The latest migrations keep card purchases pending until the card
+> transaction is confirmed (pending purchases stay out of cash until their
+> confirmation date), restrict the Estoque overview and its KPIs to catalog
+> products (`#` SKU), and let the Painel open previous months. The Phase 5
+> migrations before them align the profit model with the
 > owner's ledger and group sales lines into purchases: they zero the cartela
 > line's `product_cost` (the workbook's `J = I` parking was a deferral, not a
 > real cost), rewrite `monthly_pnl` and `v_monthly_pnl` to count client sales
@@ -140,7 +144,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 64/64 checks should pass, and nothing is left
+   verify the security policies — 67/67 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -220,7 +224,7 @@ npx supabase link --project-ref <project-ref>
 npx supabase db push
 
 # 2. Verify security and data readiness.
-DATABASE_URL="postgresql://..." npm run db:rls     # 64/64 PASS
+DATABASE_URL="postgresql://..." npm run db:rls     # 67/67 PASS
 DATABASE_URL="postgresql://..." npm run db:report  # read-only report
 
 # 3. Deploy the app.
@@ -244,17 +248,22 @@ What this milestone includes:
   key, the Phase 4b table and the Phase 5 reporting view); `200` only when the
   database and the schema are ready;
 - role-aware shell: desktop side column, mobile top bar + leaf-triggered panel, bottom nav;
-- **Painel** — month masthead, monthly P&L KPIs, open receivables, latest sales;
+- **Painel** — month masthead with previous-month navigation, monthly P&L
+  KPIs, receivables as of the month end and that month’s latest sales;
 - **Vendas** — one card per purchase (grouped by date, client and payment
   method) with products and per-product values, deal, origin, PV, total, profit
   and payment type; month filter, text search and pagination;
 - **Lançar venda** — client/product comboboxes, payment method with up to three
   installments, discount handling, costs, PV, observation;
-- **Estoque** — product balances, per-location chips, low/out-of-stock filters,
-  Ouro-tier unit value, stock value and product movement history;
+- **Estoque** — catalog balances (products with a `#` SKU), per-location chips,
+  low/out-of-stock filters, Ouro-tier unit value, stock value and product
+  movement history; support/access items keep their history and product pages
+  but are not listed here;
 - **Compras** — purchase entry with supplier, account, destination, invoice,
   multiple line items, a price-tier picker that prefills unit cost, and totals;
-  the chosen tier is stored on each line and shown in the purchase detail;
+  the chosen tier is stored on each line and shown in the purchase detail.
+  Card-account purchases are created as pending and have a per-transaction
+  payment confirmation with its own date; pending purchases stay out of cash;
 - **Preços** — searchable, print-friendly counter sheet with retail, 25–50%
   tiers, Bronze/Prata/Ouro and PV; values use the spreadsheet’s whole-reais
   rounding while the database keeps exact cents; an admin can update the whole
@@ -273,8 +282,8 @@ What this milestone includes:
   with reason (admin only); event history with admin reversal; and a guarded
   bulk reconciliation for the historical spreadsheet backlog;
 - **Caixa** — monthly cash ledger with receipts by payment date, expenses by
-  incurred date and stock purchases by purchase date; direction/type/search
-  filters, daily movement table and month totals;
+  incurred date and confirmed stock purchases by payment date; direction/type/
+  search filters, daily movement table and month totals;
 - **Despesas** — monthly ledger with month/type/category/search filters,
   totals for fixed, variable and personal costs, and create/edit/delete;
   operators may write business expenses only, while personal expenses stay
