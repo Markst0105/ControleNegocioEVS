@@ -258,17 +258,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
         <Field
           label="Fornecedor"
           htmlFor="supplier"
-          hint={
-            <>
-              Opcional — distribuidora, Herbalife ou outro.{" "}
-              <Link
-                href="/fornecedores"
-                className="underline underline-offset-2 hover:text-ink"
-              >
-                Gerenciar fornecedores
-              </Link>
-            </>
-          }
+          hint="Opcional — distribuidora, Herbalife ou outro."
         >
           <Combobox
             id="supplier"

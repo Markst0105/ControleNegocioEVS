@@ -8,7 +8,7 @@
 # behind in the database.
 set -euo pipefail
 
-expected=63
+expected=64
 
 if [ -z "${DATABASE_URL:-}" ]; then
   echo "DATABASE_URL is not set." >&2

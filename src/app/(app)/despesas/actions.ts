@@ -144,7 +144,7 @@ async function validateLookups(
 function revalidateExpensePaths(expenseId?: string) {
   revalidatePath("/despesas");
   if (expenseId) revalidatePath(`/despesas/${expenseId}`);
-  revalidatePath("/resultado");
+  revalidatePath("/financeiro/fechamento");
   revalidatePath("/painel");
 }
 

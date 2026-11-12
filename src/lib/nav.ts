@@ -1,7 +1,6 @@
 import {
   Activity,
   Banknote,
-  ChartLine,
   HandCoins,
   LayoutDashboard,
   LockKeyhole,
@@ -9,8 +8,6 @@ import {
   ReceiptText,
   ShoppingCart,
   Tags,
-  Truck,
-  Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -40,13 +37,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Vendas",
     shortLabel: "Vendas",
     icon: ReceiptText,
-    roles: ["admin", "operator"],
-  },
-  {
-    href: "/clientes",
-    label: "Clientes",
-    shortLabel: "Clientes",
-    icon: Users,
     roles: ["admin", "operator"],
   },
   {
@@ -82,14 +72,6 @@ export const NAV_ITEMS: NavItem[] = [
     mobile: false,
   },
   {
-    href: "/resultado",
-    label: "Resultado",
-    shortLabel: "Resultado",
-    icon: ChartLine,
-    roles: ["admin", "operator"],
-    mobile: false,
-  },
-  {
     href: "/financeiro/fechamento",
     label: "Fechamento",
     shortLabel: "Fechar",
@@ -118,14 +100,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Compras",
     shortLabel: "Compras",
     icon: ShoppingCart,
-    roles: ["admin", "operator"],
-    mobile: false,
-  },
-  {
-    href: "/fornecedores",
-    label: "Fornecedores",
-    shortLabel: "Fornecedores",
-    icon: Truck,
     roles: ["admin", "operator"],
     mobile: false,
   },

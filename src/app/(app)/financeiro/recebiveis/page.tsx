@@ -515,18 +515,9 @@ export default async function RecebiveisPage({
                           {formatDate(row.due_on)}
                         </TableCell>
                         <TableCell className="max-w-[260px] px-2 py-2.5">
-                          {row.client_id ? (
-                            <Link
-                              href={`/clientes/${row.client_id}`}
-                              className="block truncate text-[13px] font-medium underline-offset-2 hover:underline"
-                            >
-                              {row.client_name}
-                            </Link>
-                          ) : (
-                            <span className="block truncate text-[13px] font-medium">
-                              {row.client_name}
-                            </span>
-                          )}
+                          <span className="block truncate text-[13px] font-medium">
+                            {row.client_name}
+                          </span>
                           <span className="block truncate text-[11px] text-ink-soft">
                             {row.product_name_raw ?? "—"} ·{" "}
                             {formatDate(row.sold_on)}

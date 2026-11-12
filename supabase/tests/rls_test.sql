@@ -149,6 +149,8 @@ select set_config('request.jwt.claims',
 insert into pg_temp.rls_results
 select 12, 'membro: NÃO vê vendas', (select count(*) from public.sales) = 0;
 insert into pg_temp.rls_results
+select 64, 'membro: NÃO vê compras de venda (v_sale_purchases)', (select count(*) from public.v_sale_purchases) = 0;
+insert into pg_temp.rls_results
 select 13, 'membro: NÃO vê despesas', (select count(*) from public.expenses) = 0;
 insert into pg_temp.rls_results
 select 14, 'membro: NÃO vê clientes', (select count(*) from public.clients) = 0;
