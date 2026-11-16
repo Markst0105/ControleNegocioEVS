@@ -36,7 +36,10 @@ export async function updateSession(request: NextRequest) {
   const claims = data?.claims;
 
   const { pathname, search } = request.nextUrl;
-  const isLoginPath = pathname === "/login";
+  const isLoginPath =
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname === "/cadastro";
   const isAuthPath = pathname.startsWith("/auth");
 
   if (!claims && !isLoginPath && !isAuthPath) {

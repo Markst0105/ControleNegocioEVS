@@ -18,8 +18,8 @@ separate staging Supabase project.
 | Supabase region | `us-east-2` (AWS Ohio, from the project pooler) |
 | Vercel function region | `cle1` (Cleveland, also `us-east-2`), set in `vercel.json` |
 | App framework | Next.js 16 on Vercel |
-| Latest migration | `20261112000002_stock_catalog_only.sql` |
-| RLS suite | 67 checks, all passing in the local PostgreSQL-compatible harness |
+| Latest migration | `20261112000003_credits.sql` |
+| RLS suite | 76 checks, all passing in the local PostgreSQL-compatible harness |
 
 `cle1` and the database are in the same AWS region. Do **not** use `gru1` unless
 the Supabase project is recreated in `sa-east-1`; changing the database region
@@ -62,7 +62,11 @@ means creating a new project and restoring into it.
   the payment date and only includes purchases that are paid.
 - `20261112000002_stock_catalog_only.sql` limits `inventory_summary` to catalog
   products (`#` SKU), matching the Estoque overview.
-- The RLS suite remains self-rolling-back and must pass 67/67 on production.
+- `20261112000003_credits.sql` replaces the cartela with credit purchases,
+  adds the staff approval/issuance screen RPCs, the client PIN login helpers
+  (self-registration profile trigger, profile e-mail mirror, name/e-mail
+  resolution) and includes approved credits in cash and the P&L.
+- The RLS suite remains self-rolling-back and must pass 76/76 on production.
 
 ## Confirmed on the live database
 
@@ -73,9 +77,9 @@ Checked against the linked production project through PostgREST:
 - `v_monthly_pnl` answered with
   `FULL JOIN is only supported with merge-joinable or hash-joinable join
   conditions` (HTTP 400) and now answers `200` after the Phase 5 migration.
-- Every table, view and function the code calls is exposed: **48/49** in
-  `npm run db:parity` — the missing one is `import_price_sheet`, which arrives
-  with `20261025000003_phase5_price_import.sql`.
+- Every table, view and function the code calls is exposed: **53/53** in
+  `npm run db:parity` once `20261025000003_phase5_price_import.sql` and
+  `20261112000003_credits.sql` are applied.
 - The catalog gaps are still open until
   `20261025000001_phase5_catalog_gaps.sql` is applied: 756 sales have no
   product and every imported sale has an empty product name.
@@ -186,6 +190,10 @@ npx supabase db push
       pending and enter cash on the confirmation date).
 - [ ] `20261112000002_stock_catalog_only.sql` is applied (Estoque KPIs count
       only `#` catalog products).
+- [ ] `20261112000003_credits.sql` is applied (credits, client PIN login,
+      credit views/RPCs and cash/P&L integration).
+- [ ] Client e-mail confirmation is off in Supabase Auth (the login form
+      reports that confirmation is required if it is turned on).
 - [ ] PostgREST reloaded its schema. The Phase 4b and Phase 5 migrations issue
       `notify pgrst, 'reload schema'`; if the API still returns 404 for
       `month_closings`, wait a few seconds or run:
@@ -204,9 +212,9 @@ DATABASE_URL="postgresql://..." npm run db:rls
 # equivalent: psql "$DATABASE_URL" -f supabase/tests/rls_test.sql
 ```
 
-Expected: 67 rows, every one `PASS`, including `v_monthly_pnl`, the price
-import and the profit model. The script
-exits non-zero on any failure or if the number of checks is not 67.
+Expected: 76 rows, every one `PASS`, including `v_monthly_pnl`, the price
+import, the profit model, credits and client login. The script
+exits non-zero on any failure or if the number of checks is not 76.
 
 - [ ] Run the read-only cutover report and save the output:
 
@@ -246,7 +254,7 @@ Expected: `"status": "ok"` and HTTP 200.
 npm run db:parity
 ```
 
-Expected: `Schema parity: 48/48 relations available.` The check only reads: it
+Expected: `Schema parity: 53/53 relations available.` The check only reads: it
 probes each table and function through PostgREST and never runs a mutating
 function.
 
@@ -528,7 +536,7 @@ Gate:
 
 1. Take the final backup.
 2. Confirm the migration list is empty.
-3. Confirm the RLS suite is 67/67 and `npm run db:parity` is 48/48.
+3. Confirm the RLS suite is 76/76 and `npm run db:parity` is 53/53.
 4. Confirm the cutover report has no unexplained gate failure.
 5. Deploy the production build.
 6. Run the A9 smoke test.
@@ -555,10 +563,10 @@ Gate:
 Go only when all of these are true:
 
 - [ ] Migrations applied and PostgREST sees the new schema.
-- [ ] `npm run db:parity` reports 48/48 and `GET /api/health` is green.
+- [ ] `npm run db:parity` reports 53/53 and `GET /api/health` is green.
 - [ ] The GitHub repository is private, or the seed is out of the repository and
       its history.
-- [ ] RLS 67/67 on production.
+- [ ] RLS 76/76 on production.
 - [ ] No unexpected open installment before the cutover date.
 - [ ] Final months have expenses and statements, or an explicit incomplete note.
 - [ ] Unmatched catalog names and negative stock are resolved or documented.

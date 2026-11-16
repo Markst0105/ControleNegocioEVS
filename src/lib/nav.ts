@@ -1,6 +1,7 @@
 import {
   Activity,
   Banknote,
+  Coins,
   HandCoins,
   LayoutDashboard,
   LockKeyhole,
@@ -38,6 +39,14 @@ export const NAV_ITEMS: NavItem[] = [
     shortLabel: "Vendas",
     icon: ReceiptText,
     roles: ["admin", "operator"],
+  },
+  {
+    href: "/creditos",
+    label: "Créditos",
+    shortLabel: "Créditos",
+    icon: Coins,
+    roles: ["admin", "operator"],
+    mobile: false,
   },
   {
     href: "/mdo",

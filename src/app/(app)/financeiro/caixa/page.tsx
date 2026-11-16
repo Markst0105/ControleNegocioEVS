@@ -524,7 +524,9 @@ export default async function CaixaPage({
                                 ? "border-moss/40 bg-moss-soft text-moss-ink"
                                 : row.entry_kind === "purchase"
                                   ? "border-citrus/40 bg-citrus-soft text-citrus-ink"
-                                  : "border-line bg-paper text-ink-soft",
+                                  : row.entry_kind === "credit"
+                                    ? "border-steel/40 bg-steel-soft text-steel-ink"
+                                    : "border-line bg-paper text-ink-soft",
                             )}
                           >
                             {cashEntryKindLabel(row.entry_kind)}

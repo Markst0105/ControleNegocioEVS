@@ -212,6 +212,16 @@ the exact cents.
   selected tier is carried as a small tinted chip in the form and purchase detail.
   Card purchases show a citrus “Pendente” chip until confirmed and a moss
   “Pago dd/mm” chip afterwards; the detail page carries the confirmation form.
+- **Créditos** (staff) uses the same KPI band, a pending-purchase table with
+  approve/reject actions, the issuance form (member, amount, payment method,
+  purchase day) and a compact balances list. Credit states reuse the text-chip
+  grammar: citrus “Pendente”, moss “Aprovado” and rust “Recusado”; the status is
+  never the only signal (the history also carries the purchase date and whether
+  the credit came from the site or the team).
+- **Área do membro** is deliberately small: a dominant available-balance KPI,
+  pending amount, the current-month total and only the client's own purchase
+  history. It shares the ledger table and the same status chips, with no
+  navigation into staff data.
 - Movement, stock and purchase states are text chips: moss for entries, steel
   for transfers/sales, citrus for counts/adjustments and rust for shortages or
   exits. Color is never the only signal — the chip, the route and the signed

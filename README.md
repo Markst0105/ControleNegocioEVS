@@ -15,9 +15,14 @@ database identifiers are in English.
 >
 > Login, role-aware app shell, Painel, Vendas, Lançamento de venda,
 > Estoque, Compras, Preços, MDO, Recebíveis, Caixa, Despesas,
-> Fechamento and the member catalog are in the code. Vendas lists one card per
-> purchase, grouped by date, client and payment method. Estoque includes
-> purchases, manual movements, stock counts, per-location
+> Fechamento, Créditos and the member credits screen are in the code. Credits
+> replace the cartela: clients self-register with full name, e-mail and a 4–6
+> digit PIN, buy credits in the amount they choose, and staff approve the
+> site purchases or issue credits directly in Créditos. Approved credits are
+> cash in and revenue on the purchase date; historical cartela sales keep their
+> full value as profit. Members only see their own credits screen. Vendas lists
+> one card per purchase, grouped by date, client and payment method. Estoque
+> includes purchases, manual movements, stock counts, per-location
 > balances, product history and Ouro-tier valuation. Purchases can apply any
 > price tier and keep the chosen tier on each line. Preços is
 > a print-friendly counter sheet with retail, discount tiers and PV; the sale
@@ -28,15 +33,16 @@ database identifiers are in English.
 > Herbalife statement into a monthly P&L. The P&L counts client sales only
 > (`sale`, `discount`, `financial` and blank deal type): personal consumption,
 > business transfers, gifts, loans and returns move stock but are not revenue.
-> A cartela sale keeps its full value as profit, while an access paid with a
-> ticket (TK/NTT) carries zero cash and the product cost — the loss the owner
-> expects. Recebíveis tracks partial receipts, write-offs and an admin-only
+> A historical cartela sale keeps its full value as profit, while an access paid
+> with a ticket (TK/NTT) carries zero cash and the product cost — the loss the
+> owner expects. Credits bought by clients are recognised as cash and revenue on
+> the purchase date once approved. Recebíveis tracks partial receipts, write-offs and an admin-only
 > historical reconciliation of the installments imported from the spreadsheet.
 > Caixa derives the month’s cash ledger from receipt events, expenses and stock
 > purchases. Fechamento gives admins a
 > soft-close snapshot of result, cash and receivables, with change detection
-> when data is edited after closing. Members sign in to a dedicated catalog
-> only, with prices resolved from their tier. The visual identity follows the
+> when data is edited after closing. Members sign in with name or e-mail and a
+> PIN and see only their own credits. The visual identity follows the
 > **Balcão** direction: desktop side column, mobile top bar with a
 > leaf-triggered panel, month masthead and an editorial serif for section
 > titles.
@@ -46,8 +52,11 @@ database identifiers are in English.
 > reversibility, but no app route exposes them.
 >
 > Apply the migrations through
-> `supabase/migrations/20261112000002_stock_catalog_only.sql` before
-> deploying. The latest migrations keep card purchases pending until the card
+> `supabase/migrations/20261112000003_credits.sql` before deploying. The
+> credits migration adds `credit_purchases`, the credits views and RPCs, the
+> client PIN login helpers (self-registration profile trigger, e-mail mirror,
+> name/e-mail resolution) and includes approved credits in cash and the P&L.
+> The previous migrations keep card purchases pending until the card
 > transaction is confirmed (pending purchases stay out of cash until their
 > confirmation date), restrict the Estoque overview and its KPIs to catalog
 > products (`#` SKU), and let the Painel open previous months. The Phase 5
@@ -84,7 +93,8 @@ database identifiers are in English.
 | Prices | Counter sheet with retail, discount tiers, membership tiers and print layout; prices can be updated from a supplier spreadsheet |
 | Expenses & P&L | Business costs (fixed/variable) kept apart from personal expenses; royalties and bonus from Herbalife statements; monthly P&L with category breakdown |
 | Receivables | Open installments with partial receipts, write-offs, filters and admin bulk reconciliation of imported history |
-| Cash flow | Derived monthly ledger from receipt events, expenses and stock purchases, with daily movement detail and running month totals |
+| Credits | Client self-registration and PIN login; staff approval of site purchases, manual issuance, balances and history; approved credits enter cash and the P&L |
+| Cash flow | Derived monthly ledger from receipt events, expenses, stock purchases and approved credits, with daily movement detail and running month totals |
 | Month close | Admin-only soft close with result/cash/receivables snapshot, warnings, change detection and an audited reopen path |
 | MDO | Daily activity KPIs plus week and month views with access, sales and profit breakdowns |
 
@@ -92,7 +102,7 @@ Three roles, enforced in the database with Row-Level Security:
 
 - **admin** — owner: full access, including personal expenses, Herbalife statements and month close;
 - **operator** — day-to-day operations and business expenses; no access to personal expenses, royalties, the audit log or month close;
-- **member** — product catalog only, with prices resolved from their tier.
+- **member** — client: sees only their own credit balance and purchase history; no staff data.
 
 ## Stack
 
@@ -108,7 +118,8 @@ Three roles, enforced in the database with Row-Level Security:
 
 ```
 src/            Next.js app (App Router, components, lib)
-  app/          routes: (auth)/login, (app)/painel, (app)/vendas,
+  app/          routes: (auth)/login (+ /login/admin, /cadastro),
+                (app)/painel, (app)/vendas, (app)/creditos,
                 (app)/precos, (app)/estoque, (app)/compras,
                 (app)/mdo, (app)/financeiro/recebiveis, (app)/financeiro/caixa,
                 (app)/financeiro/fechamento, (app)/despesas,
@@ -144,7 +155,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 67/67 checks should pass, and nothing is left
+   verify the security policies — 76/76 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -168,8 +179,13 @@ npm run dev          # http://localhost:3000
 ```
 
 Sign in with the admin user created in
-[`docs/phase-0-setup.md`](docs/phase-0-setup.md). To add an operator, create the
-user in Supabase Auth and insert their profile:
+[`docs/phase-0-setup.md`](docs/phase-0-setup.md) at `/login/admin` (e-mail and
+password). The default `/login` form is for clients: full name or e-mail plus a
+4–6 digit PIN. Clients create their own account from `/login` → **Criar conta**
+(full name, e-mail and PIN entered twice); the auth trigger creates the
+`member` profile automatically.
+
+To add an operator, create the user in Supabase Auth and insert their profile:
 
 ```sql
 insert into public.profiles (id, name, role)
@@ -177,21 +193,15 @@ select id, 'Nome', 'operator' from auth.users where email = 'email@exemplo.com'
 on conflict (id) do update set name = excluded.name, role = excluded.role;
 ```
 
-To open the member area, create the user in Supabase Auth and give them a
-`member` profile with a price tier (`retail`, `t0.25`, `t0.35`, `t0.42`,
-`t0.5`, `bronze`, `prata` or `ouro`):
+To create another admin:
 
 ```sql
-insert into public.profiles (id, name, role, price_tier)
-select id, 'Nome', 'member', 'retail' from auth.users where email = 'membro@exemplo.com'
-on conflict (id) do update
-  set name = excluded.name,
-      role = excluded.role,
-      price_tier = excluded.price_tier;
+insert into public.profiles (id, name, role)
+select id, 'Nome', 'admin' from auth.users where email = 'email@exemplo.com'
+on conflict (id) do update set name = excluded.name, role = excluded.role;
 ```
 
-Members cannot change their own role or price tier; only an admin can update
-those columns.
+Only an admin can change another profile's `role` or `price_tier`.
 
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`,
 `npm run typecheck`, `npm run db:rls` (RLS suite against `DATABASE_URL`),
@@ -224,7 +234,7 @@ npx supabase link --project-ref <project-ref>
 npx supabase db push
 
 # 2. Verify security and data readiness.
-DATABASE_URL="postgresql://..." npm run db:rls     # 67/67 PASS
+DATABASE_URL="postgresql://..." npm run db:rls     # 76/76 PASS
 DATABASE_URL="postgresql://..." npm run db:report  # read-only report
 
 # 3. Deploy the app.
@@ -294,8 +304,16 @@ What this milestone includes:
   statement form, cash and receivables summary, completeness warnings, a stored
   snapshot and change detection after closing; reopening preserves the last
   snapshot and is audited;
-- **Área do membro** — dedicated catalog with the member price, search and
-  pagination; members cannot change prices.
+- **Créditos** — staff screen (admin/operator) with the pending site purchases
+  to approve or reject, a form to issue an approved credit for a registered
+  member (user, amount, payment method, purchase day), current balances and the
+  recent history; approved credits enter Caixa and the monthly P&L on the
+  purchase date;
+- **Área do membro** — clients sign in with full name or e-mail and a 4–6 digit
+  PIN and only see their credit balance, pending purchases and history. Client
+  self-registration creates a `member` profile; staff use the admin switch
+  (`/login/admin`) with e-mail and password. Members cannot change prices,
+  roles or their own credits.
 
 New sales with a stock-affecting deal type write an inventory movement in the
 same request; a failed movement rolls the sale back. Expense changes revalidate
@@ -396,5 +414,7 @@ new `braces`/`micromatch` release ships.
       histórica em lote
 - [x] **Phase 4b** — Caixa: fluxo mensal derivado de recebimentos, despesas e
       compras; fechamento mensal com snapshot e detecção de alterações
+- [x] **Phase 5a** — Créditos: cadastro e login por PIN, aprovação de compras
+      pelo site, lançamento pela equipe e substituição da cartela
 - [ ] **Phase 5** — Produção: deploy Vercel, reconciliação dos recebíveis
       históricos, backfill de despesas, contagem de estoque e cutover

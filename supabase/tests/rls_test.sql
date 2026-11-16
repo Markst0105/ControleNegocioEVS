@@ -521,21 +521,40 @@ end $$;
 
 do $$
 declare
+    v_cutoff date := public.business_today() - 35;
     v_count bigint;
     v_total numeric;
+    v_expected_count bigint;
+    v_expected_total numeric;
 begin
+    -- Compare the bulk settlement with every installment still open before the
+    -- cutoff, so the check also works on a database with imported history.
+    select count(*), coalesce(sum(open_amount), 0)
+      into v_expected_count, v_expected_total
+      from (
+          select greatest(sp.amount - coalesce(sum(e.amount), 0), 0)
+                     as open_amount
+            from public.sale_payments sp
+            left join public.sale_payment_events e
+                   on e.sale_payment_id = sp.id
+           where sp.due_on is not null
+             and sp.due_on <= v_cutoff
+           group by sp.id, sp.amount
+      ) open_rows
+     where open_amount > 0;
+
     select reconciled_count, reconciled_total
       into v_count, v_total
       from public.reconcile_sale_payments_before(
-          public.business_today() - 35,
+          v_cutoff,
           'receipt',
           'RLS bulk reconciliation'
       );
 
     insert into pg_temp.rls_results
     select 43, 'admin: reconcilia vencidos em lote',
-           v_count = 1
-           and v_total = 20
+           v_count = v_expected_count
+           and v_total = v_expected_total
            and (select open_amount = 0
                   from public.v_sale_payment_balances
                  where id = 'e0000000-0000-4000-8000-000000000013')
@@ -915,31 +934,41 @@ select set_config('request.jwt.claims',
                   json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
                   true);
 
-insert into public.sales (
-    id, sold_on, client_name_raw, deal_type_code, amount_received,
-    product_cost, financial_cost, pv
-) values
-    ('d0000000-0000-4000-8000-000000000031', '2023-03-10', 'RLS Profit Client',
-     null, 100, 20, 0, 1),
-    ('d0000000-0000-4000-8000-000000000032', '2023-03-11', 'RLS Profit Consumo',
-     'CONS', 200, 50, 0, 2),
-    ('d0000000-0000-4000-8000-000000000033', '2023-03-12', 'RLS Profit Negocio',
-     'NEG', 300, 60, 0, 3),
-    ('d0000000-0000-4000-8000-000000000034', '2023-03-13', 'RLS Profit Brinde',
-     'BRINDE', 0, 5, 0, 0.5),
-    ('d0000000-0000-4000-8000-000000000035', '2023-03-14', 'RLS Profit Devolucao',
-     'TROUXE', 40, 10, 0, 1);
+do $$
+declare
+    v_base_gain numeric;
+    v_base_pv numeric;
+begin
+    select coalesce(ganho_vendas, 0), coalesce(pv_total, 0)
+      into v_base_gain, v_base_pv
+      from public.monthly_pnl('2023-03-01');
 
-insert into pg_temp.rls_results
-select 63, 'admin: P&L conta só vendas a cliente e o PV soma tudo',
-       (
-           select p.ganho_vendas = 80
-               and p.pv_total = 7.5
-               and v.ganho_vendas = p.ganho_vendas
-               and v.pv_total = p.pv_total
-           from public.monthly_pnl('2023-03-01') p
-           join public.v_monthly_pnl v on v.month = '2023-03-01'
-       );
+    insert into public.sales (
+        id, sold_on, client_name_raw, deal_type_code, amount_received,
+        product_cost, financial_cost, pv
+    ) values
+        ('d0000000-0000-4000-8000-000000000031', '2023-03-10', 'RLS Profit Client',
+         null, 100, 20, 0, 1),
+        ('d0000000-0000-4000-8000-000000000032', '2023-03-11', 'RLS Profit Consumo',
+         'CONS', 200, 50, 0, 2),
+        ('d0000000-0000-4000-8000-000000000033', '2023-03-12', 'RLS Profit Negocio',
+         'NEG', 300, 60, 0, 3),
+        ('d0000000-0000-4000-8000-000000000034', '2023-03-13', 'RLS Profit Brinde',
+         'BRINDE', 0, 5, 0, 0.5),
+        ('d0000000-0000-4000-8000-000000000035', '2023-03-14', 'RLS Profit Devolucao',
+         'TROUXE', 40, 10, 0, 1);
+
+    insert into pg_temp.rls_results
+    select 63, 'admin: P&L conta só vendas a cliente e o PV soma tudo',
+           (
+               select p.ganho_vendas = v_base_gain + 80
+                   and p.pv_total = v_base_pv + 7.5
+                   and v.ganho_vendas = p.ganho_vendas
+                   and v.pv_total = p.pv_total
+               from public.monthly_pnl('2023-03-01') p
+               join public.v_monthly_pnl v on v.month = '2023-03-01'
+           );
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- Card purchases: the purchase is registered, but it only enters cash when
@@ -999,6 +1028,299 @@ begin
            and not exists (
                select 1 from public.v_cash_flow_entries
                 where reference_id = v_purchase_id
+           );
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Credits replace the cartela + client PIN login.
+--
+-- A site purchase is pending until staff review it; staff issuance is
+-- approved on creation. Approved credits are cash in on the purchase date and
+-- revenue in the monthly P&L. Members only ever see their own credits.
+-- ---------------------------------------------------------------------------
+reset role;
+
+-- Self-registration is simulated by the auth.users trigger: `full_name`
+-- metadata creates the member profile and mirrors the login e-mail.
+insert into auth.users
+    (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+     raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values
+    ('00000000-0000-0000-0000-000000000000',
+     'c0000000-0000-4000-8000-000000000004',
+     'authenticated', 'authenticated', 'rls-other-member@test.local',
+     '$2a$10$01234567890123456789012345678901234567890123456789012', now(),
+     '{"provider":"email","providers":["email"]}',
+     '{"full_name":"RLS Other Member"}', now(), now()),
+    ('00000000-0000-0000-0000-000000000000',
+     'c0000000-0000-4000-8000-000000000005',
+     'authenticated', 'authenticated', 'rls-member-two@test.local',
+     '$2a$10$01234567890123456789012345678901234567890123456789012', now(),
+     '{"provider":"email","providers":["email"]}',
+     '{"full_name":"RLS Test Member Editado"}', now(), now());
+
+-- Baseline for the credit month so the P&L check also works on a database
+-- that already has sales or expenses in May 2023.
+create temp table rls_credit_baseline as
+select ganho_vendas, pv_total
+from public.monthly_pnl('2023-05-01');
+grant select on pg_temp.rls_credit_baseline to authenticated;
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 68, 'cadastro: perfil de membro criado automaticamente com e-mail',
+       (
+           select p.role = 'member'
+               and p.name = 'RLS Other Member'
+               and p.email = 'rls-other-member@test.local'
+           from public.profiles p
+           where p.id = 'c0000000-0000-4000-8000-000000000004'
+       );
+
+insert into pg_temp.rls_results
+select 69, 'login: nome/e-mail de membro resolve; equipe e nome ambíguo não',
+       public.resolve_login_identifier('RLS Other Member')
+           = 'rls-other-member@test.local'
+       and public.resolve_login_identifier('RLS Test Member Editado') is null
+       and public.resolve_login_identifier('rls-member@test.local')
+           = 'rls-member@test.local'
+       and public.resolve_login_identifier('rls-other-member@test.local')
+           = 'rls-other-member@test.local'
+       and public.resolve_login_identifier('RLS Test Admin') is null
+       and public.login_name_available('RLS Other Member') = false
+       and public.login_name_available('RLS Novo Nome') = true;
+
+-- Member: a site purchase is a pending request, not cash or balance yet.
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'c0000000-0000-4000-8000-000000000003')::text,
+                  true);
+
+do $$
+declare
+    v_credit_id uuid;
+begin
+    v_credit_id := public.request_credit(
+        80, '$', '2023-05-15', 'RLS site credit'
+    );
+
+    insert into pg_temp.rls_results
+    select 70, 'membro: compra pelo site entra pendente, sem saldo nem caixa',
+           (
+               select c.status = 'pending'
+                   and c.source = 'site'
+                   and c.amount = 80
+                   and c.purchased_on = '2023-05-15'
+               from public.credit_purchases c
+               where c.id = v_credit_id
+           )
+           and (
+               select b.balance = 0 and b.pending_amount = 80
+               from public.v_credit_balances b
+               where b.profile_id = 'c0000000-0000-4000-8000-000000000003'
+           )
+           and not exists (
+               select 1
+               from public.v_cash_flow_entries e
+               where e.entry_kind = 'credit'
+                 and e.reference_id = v_credit_id
+           );
+end $$;
+
+do $$
+declare
+    v_blocked boolean := false;
+begin
+    begin
+        perform public.issue_credit(
+            'c0000000-0000-4000-8000-000000000003',
+            10, '$', '2023-05-16', null
+        );
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    if v_blocked then
+        v_blocked := false;
+        begin
+            perform public.review_credit(
+                (select id from public.credit_purchases
+                  where notes = 'RLS site credit'),
+                true
+            );
+        exception when insufficient_privilege then
+            v_blocked := true;
+        end;
+    end if;
+
+    insert into pg_temp.rls_results
+    values (71, 'membro: NÃO lança nem aprova créditos', v_blocked);
+end $$;
+
+-- Admin creates an approved credit for a different member; the member must
+-- not see it in either the credit list or the balance view.
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
+                  true);
+
+select public.issue_credit(
+    'c0000000-0000-4000-8000-000000000004',
+    50, 'P', '2023-04-10', 'RLS other credit'
+);
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'c0000000-0000-4000-8000-000000000003')::text,
+                  true);
+
+insert into pg_temp.rls_results
+select 72, 'membro: vê apenas os próprios créditos e o próprio saldo',
+       (select count(*) from public.credit_purchases) = 1
+       and (select count(*) from public.v_credit_purchases) = 1
+       and (select count(*) from public.v_credit_balances) = 1
+       and exists (
+           select 1
+           from public.v_credit_balances
+           where profile_id = 'c0000000-0000-4000-8000-000000000003'
+       );
+
+-- Operator issues an approved credit for the member on the same P&L month.
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'b0000000-0000-4000-8000-000000000002')::text,
+                  true);
+
+do $$
+begin
+    perform public.issue_credit(
+        'c0000000-0000-4000-8000-000000000003',
+        120.50, 'P', '2023-05-10', 'RLS staff credit'
+    );
+
+    insert into pg_temp.rls_results
+    select 73, 'operador: lança crédito já aprovado para um membro',
+           (
+               select c.status = 'approved'
+                   and c.source = 'staff'
+                   and c.amount = 120.50
+                   and c.reviewed_by = 'b0000000-0000-4000-8000-000000000002'
+               from public.credit_purchases c
+               where c.notes = 'RLS staff credit'
+           )
+           and (
+               select b.balance = 120.50 and b.pending_amount = 80
+               from public.v_credit_balances b
+               where b.profile_id = 'c0000000-0000-4000-8000-000000000003'
+           );
+end $$;
+
+do $$
+declare
+    v_blocked boolean := false;
+begin
+    begin
+        perform public.issue_credit(
+            'a0000000-0000-4000-8000-000000000001',
+            10, '$', '2023-05-16', null
+        );
+    exception when sqlstate '22023' then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (74, 'operador: NÃO lança crédito para perfil da equipe', v_blocked);
+end $$;
+
+-- Admin approves the pending site purchase: balance, cash and P&L agree.
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
+                  true);
+
+select public.review_credit(
+    (select id from public.credit_purchases where notes = 'RLS site credit'),
+    true
+);
+
+insert into pg_temp.rls_results
+select 75, 'admin: aprova compra e crédito entra no caixa e no P&L',
+       (
+           select c.status = 'approved' and c.reviewed_at is not null
+           from public.credit_purchases c
+           where c.notes = 'RLS site credit'
+       )
+       and (
+           select b.balance = 200.50 and b.pending_amount = 0
+           from public.v_credit_balances b
+           where b.profile_id = 'c0000000-0000-4000-8000-000000000003'
+       )
+       and (
+           select coalesce(sum(e.amount), 0) = 200.50
+               and count(*) = 2
+               and bool_and(e.occurred_on = c.purchased_on)
+           from public.v_cash_flow_entries e
+           join public.credit_purchases c on c.id = e.reference_id
+           where e.entry_kind = 'credit'
+             and c.profile_id = 'c0000000-0000-4000-8000-000000000003'
+       )
+       and (
+           select p.ganho_vendas = b.ganho_vendas + 200.50
+               and p.pv_total = b.pv_total
+               and v.ganho_vendas = p.ganho_vendas
+               and v.pv_total = p.pv_total
+           from public.monthly_pnl('2023-05-01') p
+           cross join pg_temp.rls_credit_baseline b
+           join public.v_monthly_pnl v on v.month = '2023-05-01'
+       );
+
+-- A reviewed credit is final; rejection keeps the balance untouched.
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'c0000000-0000-4000-8000-000000000004')::text,
+                  true);
+
+select public.request_credit(30, 'P', '2023-04-11', 'RLS reject credit');
+
+select set_config('request.jwt.claims',
+                  json_build_object('sub', 'a0000000-0000-4000-8000-000000000001')::text,
+                  true);
+
+do $$
+declare
+    v_credit_id uuid;
+    v_blocked boolean := false;
+begin
+    select id into v_credit_id
+    from public.credit_purchases
+    where notes = 'RLS reject credit';
+
+    perform public.review_credit(v_credit_id, false);
+
+    begin
+        perform public.review_credit(v_credit_id, true);
+    exception when sqlstate '22023' then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    select 76, 'admin: recusa e revisão é final (saldo e caixa intactos)',
+           v_blocked
+           and (
+               select c.status = 'rejected'
+               from public.credit_purchases c
+               where c.id = v_credit_id
+           )
+           and (
+               select b.balance = 50 and b.pending_amount = 0
+               from public.v_credit_balances b
+               where b.profile_id = 'c0000000-0000-4000-8000-000000000004'
+           )
+           and not exists (
+               select 1
+               from public.v_cash_flow_entries e
+               where e.entry_kind = 'credit'
+                 and e.reference_id = v_credit_id
            );
 end $$;
 

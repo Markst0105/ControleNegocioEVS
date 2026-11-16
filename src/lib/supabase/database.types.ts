@@ -15,6 +15,7 @@ export type Database = {
         Row: {
           id: string;
           name: string;
+          email: string | null;
           role: string;
           price_tier: string | null;
           created_at: string | null;
@@ -22,6 +23,7 @@ export type Database = {
         Insert: {
           id: string;
           name: string;
+          email?: string | null;
           role: string;
           price_tier?: string | null;
           created_at?: string | null;
@@ -29,6 +31,7 @@ export type Database = {
         Update: {
           id?: string;
           name?: string;
+          email?: string | null;
           role?: string;
           price_tier?: string | null;
           created_at?: string | null;
@@ -438,6 +441,57 @@ export type Database = {
           is_credit_card?: boolean;
           active?: boolean | null;
           created_at?: string | null;
+        };
+        Relationships: [];
+      };
+      credit_purchases: {
+        Row: {
+          id: string;
+          profile_id: string;
+          amount: number;
+          payment_method_code: string;
+          purchased_on: string;
+          status: string;
+          source: string;
+          notes: string | null;
+          requested_at: string;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          amount: number;
+          payment_method_code: string;
+          purchased_on: string;
+          status?: string;
+          source?: string;
+          notes?: string | null;
+          requested_at?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          amount?: number;
+          payment_method_code?: string;
+          purchased_on?: string;
+          status?: string;
+          source?: string;
+          notes?: string | null;
+          requested_at?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -956,6 +1010,37 @@ export type Database = {
         };
         Relationships: [];
       };
+      v_credit_balances: {
+        Row: {
+          profile_id: string;
+          name: string;
+          email: string | null;
+          balance: number;
+          pending_amount: number;
+          approved_count: number;
+          last_purchase_on: string | null;
+        };
+        Relationships: [];
+      };
+      v_credit_purchases: {
+        Row: {
+          id: string;
+          profile_id: string;
+          profile_name: string;
+          profile_email: string | null;
+          amount: number;
+          payment_method_code: string;
+          payment_method_label: string;
+          purchased_on: string;
+          status: string;
+          source: string;
+          notes: string | null;
+          requested_at: string;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Relationships: [];
+      };
       v_reservation_overview: {
         Row: {
           id: string;
@@ -1298,6 +1383,40 @@ export type Database = {
           p_note?: string | null;
         };
         Returns: string;
+      };
+      issue_credit: {
+        Args: {
+          p_profile_id: string;
+          p_amount: number;
+          p_payment_method_code: string;
+          p_purchased_on: string;
+          p_notes: string | null;
+        };
+        Returns: string;
+      };
+      review_credit: {
+        Args: {
+          p_credit_id: string;
+          p_approve: boolean;
+        };
+        Returns: undefined;
+      };
+      request_credit: {
+        Args: {
+          p_amount: number;
+          p_payment_method_code: string;
+          p_purchased_on: string;
+          p_notes: string | null;
+        };
+        Returns: string;
+      };
+      resolve_login_identifier: {
+        Args: { p_identifier: string };
+        Returns: string | null;
+      };
+      login_name_available: {
+        Args: { p_name: string };
+        Returns: boolean;
       };
       write_off_sale_payment: {
         Args: {

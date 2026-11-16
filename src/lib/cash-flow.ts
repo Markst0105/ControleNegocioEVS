@@ -6,6 +6,7 @@ export const CASH_ENTRY_FILTER_VALUES = [
   "recebimento",
   "despesa",
   "compra",
+  "credito",
 ] as const;
 export type CashEntryFilter = (typeof CASH_ENTRY_FILTER_VALUES)[number];
 
@@ -17,6 +18,7 @@ export const CASH_ENTRY_FILTER_OPTIONS: {
   { value: "recebimento", label: "Recebimentos" },
   { value: "despesa", label: "Despesas" },
   { value: "compra", label: "Compras de estoque" },
+  { value: "credito", label: "Créditos" },
 ];
 
 export function isCashDirectionFilter(
@@ -39,10 +41,11 @@ export function isCashEntryFilter(
 
 export function cashEntryKindFromFilter(
   filter: CashEntryFilter,
-): "receipt" | "expense" | "purchase" | null {
+): "receipt" | "expense" | "purchase" | "credit" | null {
   if (filter === "recebimento") return "receipt";
   if (filter === "despesa") return "expense";
   if (filter === "compra") return "purchase";
+  if (filter === "credito") return "credit";
   return null;
 }
 
@@ -50,5 +53,6 @@ export function cashEntryKindLabel(kind: string): string {
   if (kind === "receipt") return "Recebimento";
   if (kind === "expense") return "Despesa";
   if (kind === "purchase") return "Compra";
+  if (kind === "credit") return "Crédito";
   return kind;
 }

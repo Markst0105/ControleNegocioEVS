@@ -42,9 +42,25 @@ const FUNCTION_PROBES = {
   open_receivables_total: {},
   open_receivables_summary: {},
   business_today: {},
+  resolve_login_identifier: { p_identifier: "probe" },
+  login_name_available: { p_name: "probe" },
   // mutating — the cast fails, the body never runs
   close_month: { p_month: INVALID_DATE },
   reopen_month: { p_month: INVALID_DATE },
+  issue_credit: {
+    p_profile_id: INVALID_UUID,
+    p_amount: 1,
+    p_payment_method_code: "probe",
+    p_purchased_on: OLD_DATE,
+    p_notes: null,
+  },
+  review_credit: { p_credit_id: INVALID_UUID, p_approve: true },
+  request_credit: {
+    p_amount: 1,
+    p_payment_method_code: "probe",
+    p_purchased_on: OLD_DATE,
+    p_notes: null,
+  },
   import_price_sheet: { p_rows: [] },
   receive_sale_payment: {
     p_sale_payment_id: INVALID_UUID,
