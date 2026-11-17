@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Coins } from "lucide-react";
 
 import { CreditStatusBadge } from "@/components/app/credit-status-badge";
+import { FlashToast } from "@/components/app/flash-toast";
 import { PageHeader } from "@/components/app/page-header";
 import {
   Empty,
@@ -18,26 +20,37 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getSession } from "@/lib/auth";
+import { isCreditPaymentKind } from "@/lib/credits";
 import {
   formatDate,
   formatInt,
   formatMoney,
   formatMonth,
   currentMonthISO,
+  todayISO,
 } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+
+import { PurchaseCreditsDialog } from "./purchase-form";
 
 export const metadata: Metadata = {
   title: "Créditos",
 };
 
-export default async function MembroCreditosPage() {
+type SearchParams = Promise<{ ok?: string }>;
+
+export default async function MembroCreditosPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
   const session = await getSession();
   const user = session?.user;
 
   const supabase = await createClient();
 
-  const [balanceResult, historyResult] = await Promise.all([
+  const [balanceResult, historyResult, methodsResult] = await Promise.all([
     user
       ? supabase
           .from("v_credit_balances")
@@ -58,13 +71,26 @@ export default async function MembroCreditosPage() {
           .order("created_at", { ascending: false })
           .limit(50)
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("payment_methods")
+      .select("code, label, kind")
+      .eq("active", true)
+      .order("label"),
   ]);
 
-  const firstError = [balanceResult.error, historyResult.error].find(Boolean);
+  const firstError = [
+    balanceResult.error,
+    historyResult.error,
+    methodsResult.error,
+  ].find(Boolean);
   if (firstError) throw new Error(firstError.message);
 
   const balance = balanceResult.data;
   const history = historyResult.data ?? [];
+  const methods = (methodsResult.data ?? [])
+    .filter((method) => isCreditPaymentKind(method.kind))
+    .map((method) => ({ code: method.code, label: method.label }));
+  const today = todayISO();
   const firstName = session?.profile?.name.trim().split(/\s+/)[0] ?? "cliente";
   const approvedThisMonth = history
     .filter(
@@ -76,9 +102,16 @@ export default async function MembroCreditosPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      <Suspense fallback={null}>
+        {params.ok === "credito" ? (
+          <FlashToast message="Compra enviada. A equipe confirma o pagamento e o saldo entra na sua conta." />
+        ) : null}
+      </Suspense>
+
       <PageHeader
         title="Créditos"
         description={`Olá, ${firstName}. Acompanhe seu saldo e suas compras de créditos.`}
+        actions={<PurchaseCreditsDialog methods={methods} today={today} />}
       />
 
       <dl className="grid grid-cols-2 gap-px border-y border-line bg-line sm:grid-cols-3">
@@ -124,9 +157,9 @@ export default async function MembroCreditosPage() {
 
       <p className="flex items-center gap-2 rounded-md border border-line bg-surface px-4 py-3 text-[12px] text-ink-soft">
         <Coins aria-hidden className="size-4 shrink-0 text-moss" />
-        Seus créditos ficam disponíveis para pagar acessos e produtos. Compras
-        feitas pelo site aparecem como pendentes até a equipe confirmar o
-        pagamento.
+        Seus créditos ficam disponíveis para pagar acessos e produtos. Use
+        “Comprar créditos” para pedir um valor; a equipe confirma o pagamento e
+        o saldo entra na sua conta.
       </p>
 
       <section>
@@ -147,7 +180,8 @@ export default async function MembroCreditosPage() {
                 Nenhum crédito ainda
               </EmptyTitle>
               <EmptyDescription>
-                Quando você comprar créditos pelo site, eles aparecem aqui.
+                Use “Comprar créditos” para pedir seu primeiro valor. A equipe
+                confirma o pagamento e o registro aparece aqui.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>

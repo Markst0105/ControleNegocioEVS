@@ -19,7 +19,7 @@ separate staging Supabase project.
 | Vercel function region | `cle1` (Cleveland, also `us-east-2`), set in `vercel.json` |
 | App framework | Next.js 16 on Vercel |
 | Latest migration | `20261112000003_credits.sql` |
-| RLS suite | 76 checks, all passing in the local PostgreSQL-compatible harness |
+| RLS suite | 77 checks, all passing in the local PostgreSQL-compatible harness |
 
 `cle1` and the database are in the same AWS region. Do **not** use `gru1` unless
 the Supabase project is recreated in `sa-east-1`; changing the database region
@@ -66,7 +66,7 @@ means creating a new project and restoring into it.
   adds the staff approval/issuance screen RPCs, the client PIN login helpers
   (self-registration profile trigger, profile e-mail mirror, name/e-mail
   resolution) and includes approved credits in cash and the P&L.
-- The RLS suite remains self-rolling-back and must pass 76/76 on production.
+- The RLS suite remains self-rolling-back and must pass 77/77 on production.
 
 ## Confirmed on the live database
 
@@ -77,7 +77,7 @@ Checked against the linked production project through PostgREST:
 - `v_monthly_pnl` answered with
   `FULL JOIN is only supported with merge-joinable or hash-joinable join
   conditions` (HTTP 400) and now answers `200` after the Phase 5 migration.
-- Every table, view and function the code calls is exposed: **53/53** in
+- Every table, view and function the code calls is exposed: **54/54** in
   `npm run db:parity` once `20261025000003_phase5_price_import.sql` and
   `20261112000003_credits.sql` are applied.
 - The catalog gaps are still open until
@@ -192,8 +192,9 @@ npx supabase db push
       only `#` catalog products).
 - [ ] `20261112000003_credits.sql` is applied (credits, client PIN login,
       credit views/RPCs and cash/P&L integration).
-- [ ] Client e-mail confirmation is off in Supabase Auth (the login form
-      reports that confirmation is required if it is turned on).
+- [ ] E-mail confirmation is either off in Supabase Auth or the
+      `/auth/confirm` redirect is allowlisted (A8); the link then lands on
+      `/confirmado` rather than the app root.
 - [ ] PostgREST reloaded its schema. The Phase 4b and Phase 5 migrations issue
       `notify pgrst, 'reload schema'`; if the API still returns 404 for
       `month_closings`, wait a few seconds or run:
@@ -212,9 +213,9 @@ DATABASE_URL="postgresql://..." npm run db:rls
 # equivalent: psql "$DATABASE_URL" -f supabase/tests/rls_test.sql
 ```
 
-Expected: 76 rows, every one `PASS`, including `v_monthly_pnl`, the price
+Expected: 77 rows, every one `PASS`, including `v_monthly_pnl`, the price
 import, the profit model, credits and client login. The script
-exits non-zero on any failure or if the number of checks is not 76.
+exits non-zero on any failure or if the number of checks is not 77.
 
 - [ ] Run the read-only cutover report and save the output:
 
@@ -254,7 +255,7 @@ Expected: `"status": "ok"` and HTTP 200.
 npm run db:parity
 ```
 
-Expected: `Schema parity: 53/53 relations available.` The check only reads: it
+Expected: `Schema parity: 54/54 relations available.` The check only reads: it
 probes each table and function through PostgREST and never runs a mutating
 function.
 
@@ -292,6 +293,10 @@ npx vercel --prod
       `https://<production-domain>`
 - [ ] Redirect URLs:
       `https://<production-domain>/**` and `http://localhost:3000/**`
+- [ ] The client confirmation link lands on `/confirmado` (through
+      `/auth/confirm`). Either set `NEXT_PUBLIC_SITE_URL=https://<domain>` or
+      make sure the request host is the public domain, and keep
+      `https://<production-domain>/auth/confirm` in the redirect allowlist.
 - [ ] Email/password sign-in works for a real admin.
 - [ ] If email confirmation or password recovery is enabled, the redirect URL
       above is the one Supabase will use.
@@ -315,6 +320,13 @@ It checks the login page, `/api/health` and that `/painel`, `/vendas`,
 - [ ] Admin signs in and lands on `/painel`.
 - [ ] Operator signs in and lands on `/painel`.
 - [ ] Member signs in and lands on `/membro`.
+- [ ] Member uses “Comprar créditos”, sends a pending request and sees it in
+      their own history.
+- [ ] Admin sees that request under Créditos → “Compras para aprovar” with the
+      member name, amount, payment method and purchase date; approving it
+      credits the balance.
+- [ ] With e-mail confirmation enabled, a new registration link opens
+      `/confirmado` (not the app root) and the PIN login works afterwards.
 - [ ] Member sees only the catalog and cannot open `/painel`, `/vendas`,
       `/financeiro/recebiveis`, `/financeiro/fechamento` or `/reservas`.
 - [ ] Operator does not see Fechamento, personal expenses, Herbalife statements
@@ -536,7 +548,7 @@ Gate:
 
 1. Take the final backup.
 2. Confirm the migration list is empty.
-3. Confirm the RLS suite is 76/76 and `npm run db:parity` is 53/53.
+3. Confirm the RLS suite is 77/77 and `npm run db:parity` is 54/54.
 4. Confirm the cutover report has no unexplained gate failure.
 5. Deploy the production build.
 6. Run the A9 smoke test.
@@ -563,10 +575,10 @@ Gate:
 Go only when all of these are true:
 
 - [ ] Migrations applied and PostgREST sees the new schema.
-- [ ] `npm run db:parity` reports 53/53 and `GET /api/health` is green.
+- [ ] `npm run db:parity` reports 54/54 and `GET /api/health` is green.
 - [ ] The GitHub repository is private, or the seed is out of the repository and
       its history.
-- [ ] RLS 76/76 on production.
+- [ ] RLS 77/77 on production.
 - [ ] No unexpected open installment before the cutover date.
 - [ ] Final months have expenses and statements, or an explicit incomplete note.
 - [ ] Unmatched catalog names and negative stock are resolved or documented.

@@ -220,8 +220,16 @@ the exact cents.
   the credit came from the site or the team).
 - **Área do membro** is deliberately small: a dominant available-balance KPI,
   pending amount, the current-month total and only the client's own purchase
-  history. It shares the ledger table and the same status chips, with no
-  navigation into staff data.
+  history. A “Comprar créditos” button opens a dialog with amount, payment
+  method, purchase day and an optional note; the server action carries no
+  profile id, so the request always belongs to the signed-in client and waits as
+  pending for staff approval. It shares the ledger table and the same status
+  chips, with no navigation into staff data.
+- **Confirmação de e-mail** lands on `/confirmado` through `/auth/confirm`, not
+  on the app root. The page reuses the auth shell: moss check and “E-mail
+  confirmado” on success, citrus warning and “Link não confirmado” when the link
+  expired or was already used. Success sends signed-in clients to `/membro` and
+  everyone else to `/login`.
 - Movement, stock and purchase states are text chips: moss for entries, steel
   for transfers/sales, citrus for counts/adjustments and rust for shortages or
   exits. Color is never the only signal — the chip, the route and the signed

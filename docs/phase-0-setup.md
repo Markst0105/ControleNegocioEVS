@@ -130,13 +130,13 @@ update public.daily_kpis           set created_by = (select id from public.profi
 Paste the whole of `supabase/tests/rls_test.sql` into the SQL editor
 (or `psql "$DATABASE_URL" -f supabase/tests/rls_test.sql`).
 
-It creates throwaway users, checks 76 access, settlement, cash, month-close,
+It creates throwaway users, checks 77 access, settlement, cash, month-close,
 price-import, credits and client-login rules (admin sees everything; operator
 never sees personal expenses / royalties / audit / closings; member sees only
 the catalog, its own reservation rows and its own credits) and **rolls
 everything back**.
 
-Expected: 76 rows, all `PASS`, including `v_monthly_pnl`, credits and client
+Expected: 77 rows, all `PASS`, including `v_monthly_pnl`, credits and client
 login.
 
 ## 8. After cutover

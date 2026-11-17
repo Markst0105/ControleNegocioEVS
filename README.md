@@ -155,7 +155,7 @@ Python 3.10+ only if you need to re-run the ETL.
    ```
 
 2. *(Optional)* Run `supabase/tests/rls_test.sql` in the Supabase SQL editor to
-   verify the security policies — 76/76 checks should pass, and nothing is left
+   verify the security policies — 77/77 checks should pass, and nothing is left
    behind (the test rolls back).
 
 > [!WARNING]
@@ -183,7 +183,10 @@ Sign in with the admin user created in
 password). The default `/login` form is for clients: full name or e-mail plus a
 4–6 digit PIN. Clients create their own account from `/login` → **Criar conta**
 (full name, e-mail and PIN entered twice); the auth trigger creates the
-`member` profile automatically.
+`member` profile automatically. With e-mail confirmation enabled, the link lands
+on `/confirmado` through `/auth/confirm` instead of the app root. Set
+`NEXT_PUBLIC_SITE_URL` (or rely on the request host) and add
+`https://<domain>/auth/confirm` to the Supabase redirect allowlist.
 
 To add an operator, create the user in Supabase Auth and insert their profile:
 
@@ -234,7 +237,7 @@ npx supabase link --project-ref <project-ref>
 npx supabase db push
 
 # 2. Verify security and data readiness.
-DATABASE_URL="postgresql://..." npm run db:rls     # 76/76 PASS
+DATABASE_URL="postgresql://..." npm run db:rls     # 77/77 PASS
 DATABASE_URL="postgresql://..." npm run db:report  # read-only report
 
 # 3. Deploy the app.
@@ -308,12 +311,16 @@ What this milestone includes:
   to approve or reject, a form to issue an approved credit for a registered
   member (user, amount, payment method, purchase day), current balances and the
   recent history; approved credits enter Caixa and the monthly P&L on the
-  purchase date;
+  purchase date. Purchases requested by clients from `/membro` land in the same
+  pending table with the client name, amount, payment method and purchase date;
 - **Área do membro** — clients sign in with full name or e-mail and a 4–6 digit
-  PIN and only see their credit balance, pending purchases and history. Client
-  self-registration creates a `member` profile; staff use the admin switch
-  (`/login/admin`) with e-mail and password. Members cannot change prices,
-  roles or their own credits.
+  PIN and only see their credit balance, pending purchases and history. The
+  “Comprar créditos” button opens the purchase form (amount, payment method,
+  purchase day, optional note); the request is always tied to the signed-in
+  member and waits for staff approval. Client self-registration creates a
+  `member` profile and the confirmation e-mail returns to `/confirmado`; staff
+  use the admin switch (`/login/admin`) with e-mail and password. Members cannot
+  change prices, roles or their own credits.
 
 New sales with a stock-affecting deal type write an inventory movement in the
 same request; a failed movement rolls the sale back. Expense changes revalidate

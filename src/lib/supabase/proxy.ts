@@ -41,8 +41,22 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/login/") ||
     pathname === "/cadastro";
   const isAuthPath = pathname.startsWith("/auth");
+  const isConfirmationPath = pathname === "/confirmado";
 
-  if (!claims && !isLoginPath && !isAuthPath) {
+  // Some Supabase e-mail templates fall back to the Site URL, dropping the
+  // ?code=/?token_hash= on "/". Forward those hits to the confirmation handler
+  // instead of asking for a login and looking like a failure.
+  if (
+    pathname === "/" &&
+    (request.nextUrl.searchParams.has("code") ||
+      request.nextUrl.searchParams.has("token_hash"))
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/confirm";
+    return NextResponse.redirect(url);
+  }
+
+  if (!claims && !isLoginPath && !isAuthPath && !isConfirmationPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = search ? `?proximo=${encodeURIComponent(pathname + search)}` : "";

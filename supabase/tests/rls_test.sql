@@ -1324,6 +1324,22 @@ begin
            );
 end $$;
 
+-- Staff cannot use the client self-purchase path: `request_credit` only accepts
+-- members, and the request is always tied to auth.uid().
+do $$
+declare
+    v_blocked boolean := false;
+begin
+    begin
+        perform public.request_credit(10, 'P', '2023-05-17', 'RLS staff request');
+    exception when insufficient_privilege then
+        v_blocked := true;
+    end;
+
+    insert into pg_temp.rls_results
+    values (77, 'equipe: NÃO solicita crédito como cliente', v_blocked);
+end $$;
+
 -- ---------------------------------------------------------------------------
 -- 3. results
 -- ---------------------------------------------------------------------------

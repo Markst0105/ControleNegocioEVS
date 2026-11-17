@@ -9,6 +9,7 @@ import {
   normalizeFullName,
   pinToPassword,
 } from "@/lib/client-auth";
+import { resolveSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 export type SignupState = {
@@ -64,10 +65,15 @@ export async function registerClient(
     };
   }
 
+  const siteUrl = await resolveSiteUrl();
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password: pinToPassword(pin),
-    options: { data: { full_name: name } },
+    options: {
+      data: { full_name: name },
+      emailRedirectTo: `${siteUrl}/auth/confirm`,
+    },
   });
 
   if (error) {
@@ -102,7 +108,7 @@ export async function registerClient(
     return {
       error: null,
       message:
-        "Conta criada. Confirme seu e-mail para entrar com o nome e o PIN.",
+        "Conta criada. Enviamos um link de confirmação para seu e-mail. Depois de confirmar, entre com seu nome e PIN.",
     };
   }
 
