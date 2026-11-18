@@ -125,27 +125,19 @@ npm run build
 
 ### A3. Repository visibility — blocker while the seed is tracked
 
-`supabase/seed.sql` and `supabase/seeds/*` are tracked in git, and they contain
-client names, sales, installments, expenses and prices. If the repository is
-public, that data is published to the internet.
+`supabase/seed.sql`, `supabase/seeds/*` and `*.xlsx` contain client names,
+sales, installments, expenses and prices. Because the GitHub repository is
+public, those files are gitignored and purged from Git history (kept on disk
+locally and regenerable from the workbook with `python3 etl/extract.py`).
 
 ```bash
 npm run repo:visibility
 ```
 
-- [ ] The check reports that the repository is **not** publicly readable, i.e.
-      GitHub → Settings → General → Danger Zone → **Change visibility →
-      Private**.
+- [ ] The check reports that no sensitive seed, spreadsheet or secret files are
+      tracked in Git or present in Git history.
 
-While the repository is public, treat the client names, sales history and
-expense descriptions as exposed. If the repository has to stay public, the seed
-has to leave the repository *and* its history (`git filter-repo` or BFG), and
-the seed is regenerated locally from the workbook with `python3 etl/extract.py`.
-Deleting the file from the latest commit is not enough — the history still
-contains it.
-
-`.vercelignore` already keeps the seed out of Vercel uploads; it does not
-protect the GitHub repository.
+`.vercelignore` also keeps the seed out of Vercel uploads.
 
 ### A4. Back up before touching the database
 

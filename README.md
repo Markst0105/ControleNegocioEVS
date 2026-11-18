@@ -390,12 +390,13 @@ deactivates the empty `#497K` duplicate created by the old case-sensitive match.
 
 ## Security notes
 
-`supabase/seed.sql` and `supabase/seeds/*` are tracked in git and contain real
-business data: client names, 18k sales, 17,971 installments, expenses and
-prices. The GitHub repository must stay **private** — check with
-`npm run repo:visibility`, which fails while the repository is publicly
-readable. `.vercelignore` keeps the seed out of Vercel uploads, but it does not
-protect the repository. See
+`supabase/seed.sql`, `supabase/seeds/*` and `*.xlsx` contain real business data
+(client names, 18k sales, 17,971 installments, expenses and prices) and are
+kept **local-only** via `.gitignore` and purged from Git history so the GitHub
+repository can remain public without exposing client data. Regenerate the seeds
+locally from the workbook with `python3 etl/extract.py` whenever needed, and
+verify with `npm run repo:visibility`. `.vercelignore` also keeps them out of
+Vercel uploads. See
 [`docs/cutover-runbook.md`](docs/cutover-runbook.md#a3-repository-visibility--blocker-while-the-seed-is-tracked).
 
 `npm audit` reports five high-severity advisories, all from one development-only

@@ -17,7 +17,7 @@ begin transaction read only;
 -- 1. Schema gate
 -- All four values must be true. If one is false, apply the missing migration
 -- before continuing. The latest migration is
--- 20261023000001_phase4b_cash_flow_month_close.sql.
+-- 20261112000003_credits.sql.
 -- ---------------------------------------------------------------------------
 select
     to_regclass('public.sale_payment_events') is not null as phase4a_receivables,
@@ -69,7 +69,12 @@ where n.nspname = 'public'
       'v_cash_flow_entries',
       'v_monthly_pnl',
       'v_stock_on_hand',
-      'v_stock_product_totals'
+      'v_stock_product_totals',
+      'v_sale_purchases',
+      'v_credit_purchases',
+      'v_credit_balances',
+      'v_purchase_overview',
+      'v_stock_count_overview'
   )
   and not coalesce('security_invoker=true' = any(c.reloptions), false)
 order by 1;

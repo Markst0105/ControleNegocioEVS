@@ -17,8 +17,8 @@ next-env.d.ts
 .env.*
 !.env.example
 
-# Supabase CLI local state — supabase/config.toml and supabase/seed.sql are
-# part of the project and stay tracked
+# Supabase CLI local state — supabase/config.toml is tracked; generated seeds
+# contain private business data and stay local-only
 supabase/.temp/
 supabase/.branches/
 
@@ -28,6 +28,8 @@ supabase/.branches/
 *.xlsx
 *.xls
 *.xlsm
+supabase/seed.sql
+supabase/seeds/
 
 # ---------------------------------------------------------------------------
 # Local agent/tooling state (machine-specific)
@@ -57,3 +59,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 coverage/
+
+# ---------------------------------------------------------------------------
+# Local scanner / session logs
+# ---------------------------------------------------------------------------
+.scannerwork/
+sonarqube_scan.txt
+sonarquebe_scan.txt
+docs/session-*.md

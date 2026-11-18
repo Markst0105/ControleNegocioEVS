@@ -1,12 +1,11 @@
 # Controle de Negócio — Project Summary
 
 > **Snapshot:** 18 November 2026
-> **Status:** Phase 5A (application and credits) complete; Phase 5 (production
-> cutover and business-data reconciliation) still in progress.
+> **Status:** Phase 5A (application and credits) complete; Phase 6 tailored changes
 
 ## 1. What this is
 
-**Controle de Negócio** (repository `BioAvalia`) is a web-based management
+**Controle de Negócio** (repository `ControleNegocioEVS`) is a web-based management
 console for a Herbalife distributor operating as **EVS Mooca + CASA**. It
 replaces the owner's `Controle do Negócio` spreadsheet with a single source of
 truth for sales, clients, stock, prices, expenses, receivables, cash, monthly
@@ -229,9 +228,11 @@ Client login is intentionally separate from staff login:
 
 ## 9. Constraints and guardrails
 
-- **The repository must stay private.** Seeds contain real client names, 18k
-  sales, expenses and prices. `npm run repo:visibility` fails while the GitHub
-  repository is public.
+- **Sensitive data stays out of Git.** `supabase/seed.sql`, `supabase/seeds/*`
+  and `*.xlsx` contain real client names, 18k sales, expenses and prices, so
+  they are gitignored and purged from Git history (regenerated locally via
+  `python3 etl/extract.py`). `npm run repo:visibility` fails if any sensitive
+  file is tracked or present in Git history.
 - **Load the seed exactly once.** Ledger rows have no natural unique key;
   re-running the seed duplicates them. Migrations are idempotent.
 - **No service-role key in the app.** Only the publishable/anon key is used.
@@ -243,8 +244,6 @@ Client login is intentionally separate from staff login:
   comments and migrations are English.
 - **Light theme only**, pt-BR money/date formats, reduced-motion compliance and
   no entrance animations.
-- **Current Next.js version is flagged by a security advisory.** A `next build`
-  prints the recommendation and needs a retry; an upgrade should be scheduled.
 - **Accepted dev-only audit advisories.** The `braces`/`micromatch` chain comes
   from ESLint tooling, is not bundled, and has no patched release yet.
 
@@ -326,7 +325,8 @@ database with the full seed. The live project parity check reports 54/54.
   depends on the count.
 - Preview deployments can expose production data if Deployment Protection is
   not enabled.
-- The tracked seeds make repository privacy a hard operational requirement.
+- Sensitive seeds (`supabase/seed.sql`, `supabase/seeds/*`) and spreadsheets
+  must remain gitignored so the public repository never exposes client PII.
 
 ## 12. Operating commands
 

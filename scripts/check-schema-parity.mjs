@@ -18,8 +18,9 @@
 // (`npm run db:rls`) checks those with a signed-in role.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 const INVALID_DATE = "not-a-date";
 const INVALID_UUID = "not-a-uuid";
