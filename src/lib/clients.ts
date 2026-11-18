@@ -45,7 +45,7 @@ export type ParsedPhone = {
 export function parsePhoneBR(
   value: FormDataEntryValue | null | undefined,
 ): ParsedPhone {
-  const raw = value === null || value === undefined ? "" : String(value).trim();
+  const raw = typeof value === "string" ? value.trim() : "";
   if (!raw) return { formatted: null, digits: null, error: null };
 
   const digits = nationalDigits(raw);

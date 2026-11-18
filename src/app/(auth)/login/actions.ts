@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { isPin, pinToPassword } from "@/lib/client-auth";
+import { formString } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = {
@@ -13,8 +14,8 @@ export async function signIn(
   _previous: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
+  const email = formString(formData, "email").trim();
+  const password = formString(formData, "password");
 
   if (!email || !password) {
     return { error: "Informe e-mail e senha." };
@@ -56,10 +57,10 @@ export async function signInWithPin(
   _previous: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
-  const identifier = String(formData.get("identifier") ?? "")
+  const identifier = formString(formData, "identifier")
     .trim()
     .replace(/\s+/g, " ");
-  const pin = String(formData.get("pin") ?? "").trim();
+  const pin = formString(formData, "pin").trim();
 
   if (!identifier || !isPin(pin)) {
     return {

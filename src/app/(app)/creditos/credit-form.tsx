@@ -33,11 +33,11 @@ export function CreditForm({
   members,
   methods,
   today,
-}: {
+}: Readonly<{
   members: CreditMemberOption[];
   methods: CreditMethodOption[];
   today: string;
-}) {
+}>) {
   const [state, formAction, pending] = useActionState(
     createCredit,
     initialState,

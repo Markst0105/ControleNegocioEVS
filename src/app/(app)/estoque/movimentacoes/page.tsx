@@ -54,11 +54,196 @@ type SearchParams = Promise<{
   ok?: string;
 }>;
 
+function pageHref(q: string, typeFilter: string, target: number) {
+  const sp = new URLSearchParams();
+  if (q) sp.set("q", q);
+  if (typeFilter) sp.set("tipo", typeFilter);
+  if (target > 1) sp.set("pagina", String(target));
+  const queryString = sp.toString();
+  return queryString
+    ? `/estoque/movimentacoes?${queryString}`
+    : "/estoque/movimentacoes";
+}
+
+type MovementRow = {
+  id: string;
+  product_id: string;
+  moved_on: string | null;
+  type: string;
+  location_from: string | null;
+  location_to: string | null;
+  qty: number;
+  event_label: string | null;
+  notes: string | null;
+  purchase_id: string | null;
+  sale_id: string | null;
+  created_at: string | null;
+};
+
+type ProductInfo = {
+  id: string;
+  name: string;
+  sku: string;
+};
+
+function MovimentacoesTable({
+  movements,
+  products,
+}: Readonly<{
+  movements: MovementRow[];
+  products: Map<string, ProductInfo>;
+}>) {
+  return (
+    <div className="border-t border-ink/70">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-b-ink/70 hover:bg-transparent">
+            <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium text-ink-soft">
+              Data
+            </TableHead>
+            <TableHead className="h-9 text-[10.5px] font-medium text-ink-soft">
+              Produto
+            </TableHead>
+            <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft sm:table-cell">
+              Tipo
+            </TableHead>
+            <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft md:table-cell">
+              Local
+            </TableHead>
+            <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
+              Qtd.
+            </TableHead>
+            <TableHead className="hidden h-9 pr-3 text-[10.5px] font-medium text-ink-soft lg:table-cell">
+              Observação
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {movements.map((movement) => {
+            const product = products.get(movement.product_id);
+            const signed = signedMovementQty(movement);
+
+            return (
+              <TableRow
+                key={movement.id}
+                className="border-line/80 hover:bg-moss-soft/25"
+              >
+                <TableCell className="num border-l-[3px] border-l-transparent py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft">
+                  {formatDate(movement.moved_on)}
+                </TableCell>
+                <TableCell className="max-w-[260px] px-2 py-2.5 text-[13px]">
+                  <Link
+                    href={`/estoque/${movement.product_id}`}
+                    className="block truncate font-medium underline-offset-2 hover:underline"
+                  >
+                    {product?.name ?? "Produto"}
+                  </Link>
+                  <span className="num block truncate text-[11px] text-ink-soft">
+                    {product?.sku ?? "—"}
+                  </span>
+                </TableCell>
+                <TableCell className="hidden px-2 py-2.5 sm:table-cell">
+                  <MovementTypeBadge type={movement.type} />
+                </TableCell>
+                <TableCell className="num hidden px-2 py-2.5 text-[11.5px] text-ink-soft md:table-cell">
+                  {movementRoute(movement)}
+                </TableCell>
+                <TableCell
+                  className={
+                    signed < 0
+                      ? "num px-2 py-2.5 text-right text-[12px] whitespace-nowrap text-rust-ink"
+                      : "num px-2 py-2.5 text-right text-[12px] whitespace-nowrap text-moss-ink"
+                  }
+                >
+                  {formatMovementQty(movement)}
+                </TableCell>
+                <TableCell className="hidden max-w-[220px] px-2 py-2.5 pr-3 text-[11.5px] text-ink-soft lg:table-cell">
+                  <span className="block truncate">
+                    {movement.notes || movement.event_label || "—"}
+                  </span>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function MovimentacoesEmptyState({
+  filtered,
+}: Readonly<{ filtered: boolean }>) {
+  return (
+    <Empty className="rounded-none border-y border-line bg-paper py-12">
+      <EmptyHeader>
+        <EmptyTitle className="font-serif text-[24px] font-normal">
+          {filtered
+            ? "Nenhuma movimentação encontrada"
+            : "Nenhuma movimentação registrada"}
+        </EmptyTitle>
+        <EmptyDescription>
+          {filtered
+            ? "Ajuste o tipo ou a busca para encontrar o histórico."
+            : "Registre a primeira entrada ou transferência de estoque."}
+        </EmptyDescription>
+      </EmptyHeader>
+      <Button asChild size="sm" className="font-bold">
+        <Link href="/estoque/movimentacoes/nova">Nova movimentação</Link>
+      </Button>
+    </Empty>
+  );
+}
+
+function MovimentacoesPagination({
+  total,
+  page,
+  totalPages,
+  q,
+  typeFilter,
+}: Readonly<{
+  total: number;
+  page: number;
+  totalPages: number;
+  q: string;
+  typeFilter: string;
+}>) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-ink-soft">
+        {formatInt(total)} {total === 1 ? "movimentação" : "movimentações"} ·
+        página {page} de {totalPages}
+      </p>
+
+      <div className="flex items-center gap-2">
+        {page > 1 ? (
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <Link href={pageHref(q, typeFilter, page - 1)}>Anterior</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="h-8" disabled>
+            Anterior
+          </Button>
+        )}
+        {page < totalPages ? (
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <Link href={pageHref(q, typeFilter, page + 1)}>Próxima</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="h-8" disabled>
+            Próxima
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default async function MovimentacoesPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const q = (params.q ?? "").trim().slice(0, 80);
   const typeFilter = MOVEMENT_TYPE_LABELS[params.tipo ?? ""]
@@ -121,17 +306,6 @@ export default async function MovimentacoesPage({
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const filtered = Boolean(q) || Boolean(typeFilter);
-
-  function pageHref(target: number) {
-    const sp = new URLSearchParams();
-    if (q) sp.set("q", q);
-    if (typeFilter) sp.set("tipo", typeFilter);
-    if (target > 1) sp.set("pagina", String(target));
-    const queryString = sp.toString();
-    return queryString
-      ? `/estoque/movimentacoes?${queryString}`
-      : "/estoque/movimentacoes";
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -203,130 +377,18 @@ export default async function MovimentacoesPage({
       </form>
 
       {total === 0 ? (
-        <Empty className="rounded-none border-y border-line bg-paper py-12">
-          <EmptyHeader>
-            <EmptyTitle className="font-serif text-[24px] font-normal">
-              {filtered
-                ? "Nenhuma movimentação encontrada"
-                : "Nenhuma movimentação registrada"}
-            </EmptyTitle>
-            <EmptyDescription>
-              {filtered
-                ? "Ajuste o tipo ou a busca para encontrar o histórico."
-                : "Registre a primeira entrada ou transferência de estoque."}
-            </EmptyDescription>
-          </EmptyHeader>
-          <Button asChild size="sm" className="font-bold">
-            <Link href="/estoque/movimentacoes/nova">
-              Nova movimentação
-            </Link>
-          </Button>
-        </Empty>
+        <MovimentacoesEmptyState filtered={filtered} />
       ) : (
         <>
-          <div className="border-t border-ink/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-ink/70 hover:bg-transparent">
-                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium text-ink-soft">
-                    Data
-                  </TableHead>
-                  <TableHead className="h-9 text-[10.5px] font-medium text-ink-soft">
-                    Produto
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft sm:table-cell">
-                    Tipo
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft md:table-cell">
-                    Local
-                  </TableHead>
-                  <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
-                    Qtd.
-                  </TableHead>
-                  <TableHead className="hidden h-9 pr-3 text-[10.5px] font-medium text-ink-soft lg:table-cell">
-                    Observação
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {movements.map((movement) => {
-                  const product = products.get(movement.product_id);
-                  const signed = signedMovementQty(movement);
+          <MovimentacoesTable movements={movements} products={products} />
 
-                  return (
-                    <TableRow
-                      key={movement.id}
-                      className="border-line/80 hover:bg-moss-soft/25"
-                    >
-                      <TableCell className="num border-l-[3px] border-l-transparent py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft">
-                        {formatDate(movement.moved_on)}
-                      </TableCell>
-                      <TableCell className="max-w-[260px] px-2 py-2.5 text-[13px]">
-                        <Link
-                          href={`/estoque/${movement.product_id}`}
-                          className="block truncate font-medium underline-offset-2 hover:underline"
-                        >
-                          {product?.name ?? "Produto"}
-                        </Link>
-                        <span className="num block truncate text-[11px] text-ink-soft">
-                          {product?.sku ?? "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="hidden px-2 py-2.5 sm:table-cell">
-                        <MovementTypeBadge type={movement.type} />
-                      </TableCell>
-                      <TableCell className="num hidden px-2 py-2.5 text-[11.5px] text-ink-soft md:table-cell">
-                        {movementRoute(movement)}
-                      </TableCell>
-                      <TableCell
-                        className={
-                          signed < 0
-                            ? "num px-2 py-2.5 text-right text-[12px] whitespace-nowrap text-rust-ink"
-                            : "num px-2 py-2.5 text-right text-[12px] whitespace-nowrap text-moss-ink"
-                        }
-                      >
-                        {formatMovementQty(movement)}
-                      </TableCell>
-                      <TableCell className="hidden max-w-[220px] px-2 py-2.5 pr-3 text-[11.5px] text-ink-soft lg:table-cell">
-                        <span className="block truncate">
-                          {movement.notes || movement.event_label || "—"}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-ink-soft">
-              {formatInt(total)}{" "}
-              {total === 1 ? "movimentação" : "movimentações"} · página {page}{" "}
-              de {totalPages}
-            </p>
-
-            <div className="flex items-center gap-2">
-              {page > 1 ? (
-                <Button asChild variant="outline" size="sm" className="h-8">
-                  <Link href={pageHref(page - 1)}>Anterior</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="h-8" disabled>
-                  Anterior
-                </Button>
-              )}
-              {page < totalPages ? (
-                <Button asChild variant="outline" size="sm" className="h-8">
-                  <Link href={pageHref(page + 1)}>Próxima</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="h-8" disabled>
-                  Próxima
-                </Button>
-              )}
-            </div>
-          </div>
+          <MovimentacoesPagination
+            total={total}
+            page={page}
+            totalPages={totalPages}
+            q={q}
+            typeFilter={typeFilter}
+          />
         </>
       )}
     </div>

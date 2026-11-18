@@ -170,23 +170,23 @@
 }
 
 /* Marca-texto do mês (direção Balcão): apenas a faixa inferior da palavra. */
-@utility month-mark {
+.month-mark {
   position: relative;
   display: inline-block;
   isolation: isolate;
   padding: 0 8px 0 2px;
   background: transparent;
   color: inherit;
+}
 
-  &::after {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    bottom: 12%;
-    height: 30%;
-    background: var(--marker);
-    z-index: -1;
-  }
+.month-mark::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 12%;
+  height: 30%;
+  background: var(--marker);
+  z-index: -1;
 }
 
 @media (prefers-reduced-motion: reduce) {

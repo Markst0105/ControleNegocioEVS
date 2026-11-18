@@ -26,13 +26,18 @@ export const metadata: Metadata = {
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ ok?: string }>;
 
+function diffColorClass(diff: number): string {
+  if (diff === 0) return "text-ink-soft";
+  return diff > 0 ? "text-moss-ink" : "text-rust-ink";
+}
+
 export default async function ContagemPage({
   params,
   searchParams,
-}: {
+}: Readonly<{
   params: Params;
   searchParams: SearchParams;
-}) {
+}>) {
   const { id } = await params;
   const query = await searchParams;
 
@@ -182,11 +187,7 @@ export default async function ContagemPage({
                       <TableCell
                         className={cn(
                           "num px-2 py-2.5 pr-3 text-right text-[12px]",
-                          diff === 0
-                            ? "text-ink-soft"
-                            : diff > 0
-                              ? "text-moss-ink"
-                              : "text-rust-ink",
+                          diffColorClass(diff),
                         )}
                       >
                         {diff > 0 ? "+" : ""}

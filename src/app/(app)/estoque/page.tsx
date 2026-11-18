@@ -54,11 +54,173 @@ type SearchParams = Promise<{
 
 type StockStatusFilter = "all" | "low" | "out";
 
+function pageHref(q: string, status: StockStatusFilter, target: number) {
+  const sp = new URLSearchParams();
+  if (q) sp.set("q", q);
+  if (status !== "all") sp.set("status", status);
+  if (target > 1) sp.set("pagina", String(target));
+  const queryString = sp.toString();
+  return queryString ? `/estoque?${queryString}` : "/estoque";
+}
+
+function EstoqueEmptyState({ filtered }: Readonly<{ filtered: boolean }>) {
+  return (
+    <Empty className="rounded-none border-y border-line bg-paper py-12">
+      <EmptyHeader>
+        <EmptyTitle className="font-serif text-[24px] font-normal">
+          {filtered
+            ? "Nenhum produto encontrado"
+            : "Nenhum produto no estoque"}
+        </EmptyTitle>
+        <EmptyDescription>
+          {filtered
+            ? "Ajuste a busca ou a situação para ver outros produtos."
+            : "Registre uma compra para começar o controle de estoque."}
+        </EmptyDescription>
+      </EmptyHeader>
+      <Button asChild size="sm" className="font-bold">
+        <Link href="/compras/nova">Nova compra</Link>
+      </Button>
+    </Empty>
+  );
+}
+
+function EstoquePagination({
+  total,
+  page,
+  totalPages,
+  q,
+  status,
+}: Readonly<{
+  total: number;
+  page: number;
+  totalPages: number;
+  q: string;
+  status: StockStatusFilter;
+}>) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-ink-soft">
+        {formatInt(total)} {total === 1 ? "produto" : "produtos"} · página{" "}
+        {page} de {totalPages}
+      </p>
+
+      <div className="flex items-center gap-2">
+        {page > 1 ? (
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <Link href={pageHref(q, status, page - 1)}>Anterior</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="h-8" disabled>
+            Anterior
+          </Button>
+        )}
+        {page < totalPages ? (
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <Link href={pageHref(q, status, page + 1)}>Próxima</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="h-8" disabled>
+            Próxima
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EstoqueTable({
+  products,
+  stockByProduct,
+}: Readonly<{
+  products: {
+    product_id: string;
+    sku: string;
+    name: string;
+    kind: string;
+    is_active: boolean | null;
+    qty_on_hand: number | null;
+    price_ouro: number | null;
+    stock_value: number | null;
+  }[];
+  stockByProduct: Awaited<ReturnType<typeof getStockLocations>>;
+}>) {
+  return (
+    <div className="border-t border-ink/70">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-b-ink/70 hover:bg-transparent">
+            <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium text-ink-soft">
+              Produto
+            </TableHead>
+            <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft md:table-cell">
+              Locais
+            </TableHead>
+            <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
+              Saldo
+            </TableHead>
+            <TableHead className="hidden h-9 text-right text-[10.5px] font-medium text-ink-soft sm:table-cell">
+              Ouro
+            </TableHead>
+            <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium text-ink-soft">
+              Valor
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {products.map((product) => (
+            <TableRow
+              key={product.product_id}
+              className="border-line/80 hover:bg-moss-soft/25"
+            >
+              <TableCell className="max-w-[300px] border-l-[3px] border-l-transparent py-2.5 pl-3 text-[13px]">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Link
+                    href={`/estoque/${product.product_id}`}
+                    className="truncate font-medium underline-offset-2 hover:underline"
+                  >
+                    {product.name}
+                  </Link>
+                  {product.is_active === false ? (
+                    <span className="shrink-0 rounded-sm border border-line bg-surface px-1 py-px text-[9px] text-ink-soft">
+                      Inativo
+                    </span>
+                  ) : null}
+                </div>
+                <span className="num block truncate text-[11px] text-ink-soft">
+                  {product.sku}
+                </span>
+              </TableCell>
+              <TableCell className="hidden px-2 py-2.5 md:table-cell">
+                <LocationStockChips
+                  rows={stockByProduct.get(product.product_id)}
+                />
+              </TableCell>
+              <TableCell className="num px-2 py-2.5 text-right whitespace-nowrap">
+                <span className="mr-1.5 text-[13px] font-medium">
+                  {formatDecimal(product.qty_on_hand)}
+                </span>
+                <StockStatusBadge qty={Number(product.qty_on_hand)} />
+              </TableCell>
+              <TableCell className="num hidden px-2 py-2.5 text-right text-[12px] whitespace-nowrap text-ink-soft sm:table-cell">
+                <StockValue value={product.price_ouro} />
+              </TableCell>
+              <TableCell className="num px-2 py-2.5 pr-3 text-right text-[12px] whitespace-nowrap">
+                {formatMoney(product.stock_value)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export default async function EstoquePage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const q = (params.q ?? "").trim().slice(0, 80);
   const status: StockStatusFilter =
@@ -107,15 +269,6 @@ export default async function EstoquePage({
     products.map((product) => product.product_id),
   );
   const filtered = Boolean(q) || status !== "all";
-
-  function pageHref(target: number) {
-    const sp = new URLSearchParams();
-    if (q) sp.set("q", q);
-    if (status !== "all") sp.set("status", status);
-    if (target > 1) sp.set("pagina", String(target));
-    const queryString = sp.toString();
-    return queryString ? `/estoque?${queryString}` : "/estoque";
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -250,118 +403,18 @@ export default async function EstoquePage({
       </form>
 
       {total === 0 ? (
-        <Empty className="rounded-none border-y border-line bg-paper py-12">
-          <EmptyHeader>
-            <EmptyTitle className="font-serif text-[24px] font-normal">
-              {filtered ? "Nenhum produto encontrado" : "Nenhum produto no estoque"}
-            </EmptyTitle>
-            <EmptyDescription>
-              {filtered
-                ? "Ajuste a busca ou a situação para ver outros produtos."
-                : "Registre uma compra para começar o controle de estoque."}
-            </EmptyDescription>
-          </EmptyHeader>
-          <Button asChild size="sm" className="font-bold">
-            <Link href="/compras/nova">Nova compra</Link>
-          </Button>
-        </Empty>
+        <EstoqueEmptyState filtered={filtered} />
       ) : (
         <>
-          <div className="border-t border-ink/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-ink/70 hover:bg-transparent">
-                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium text-ink-soft">
-                    Produto
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft md:table-cell">
-                    Locais
-                  </TableHead>
-                  <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
-                    Saldo
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-right text-[10.5px] font-medium text-ink-soft sm:table-cell">
-                    Ouro
-                  </TableHead>
-                  <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium text-ink-soft">
-                    Valor
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => (
-                  <TableRow
-                    key={product.product_id}
-                    className="border-line/80 hover:bg-moss-soft/25"
-                  >
-                    <TableCell className="max-w-[300px] border-l-[3px] border-l-transparent py-2.5 pl-3 text-[13px]">
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <Link
-                          href={`/estoque/${product.product_id}`}
-                          className="truncate font-medium underline-offset-2 hover:underline"
-                        >
-                          {product.name}
-                        </Link>
-                        {product.is_active === false ? (
-                          <span className="shrink-0 rounded-sm border border-line bg-surface px-1 py-px text-[9px] text-ink-soft">
-                            Inativo
-                          </span>
-                        ) : null}
-                      </div>
-                      <span className="num block truncate text-[11px] text-ink-soft">
-                        {product.sku}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden px-2 py-2.5 md:table-cell">
-                      <LocationStockChips
-                        rows={stockByProduct.get(product.product_id)}
-                      />
-                    </TableCell>
-                    <TableCell className="num px-2 py-2.5 text-right whitespace-nowrap">
-                      <span className="mr-1.5 text-[13px] font-medium">
-                        {formatDecimal(product.qty_on_hand)}
-                      </span>
-                      <StockStatusBadge qty={Number(product.qty_on_hand)} />
-                    </TableCell>
-                    <TableCell className="num hidden px-2 py-2.5 text-right text-[12px] whitespace-nowrap text-ink-soft sm:table-cell">
-                      <StockValue value={product.price_ouro} />
-                    </TableCell>
-                    <TableCell className="num px-2 py-2.5 pr-3 text-right text-[12px] whitespace-nowrap">
-                      {formatMoney(product.stock_value)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <EstoqueTable products={products} stockByProduct={stockByProduct} />
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-ink-soft">
-              {formatInt(total)} {total === 1 ? "produto" : "produtos"} · página{" "}
-              {page} de {totalPages}
-            </p>
-
-            <div className="flex items-center gap-2">
-              {page > 1 ? (
-                <Button asChild variant="outline" size="sm" className="h-8">
-                  <Link href={pageHref(page - 1)}>Anterior</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="h-8" disabled>
-                  Anterior
-                </Button>
-              )}
-              {page < totalPages ? (
-                <Button asChild variant="outline" size="sm" className="h-8">
-                  <Link href={pageHref(page + 1)}>Próxima</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="h-8" disabled>
-                  Próxima
-                </Button>
-              )}
-            </div>
-          </div>
+          <EstoquePagination
+            total={total}
+            page={page}
+            totalPages={totalPages}
+            q={q}
+            status={status}
+          />
         </>
       )}
     </div>

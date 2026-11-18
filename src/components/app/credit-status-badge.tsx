@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 export function CreditStatusBadge({
   status,
   className,
-}: {
+}: Readonly<{
   status: string | null | undefined;
   className?: string;
-}) {
+}>) {
   const label = isCreditStatus(status) ? CREDIT_STATUS_LABELS[status] : "—";
   const tone = isCreditStatus(status)
     ? CREDIT_STATUS_CLASS[status]

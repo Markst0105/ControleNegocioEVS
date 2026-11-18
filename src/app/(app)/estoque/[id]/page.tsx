@@ -37,9 +37,9 @@ type Params = Promise<{ id: string }>;
 
 export default async function ProdutoEstoquePage({
   params,
-}: {
+}: Readonly<{
   params: Params;
-}) {
+}>) {
   const { id } = await params;
 
   if (!isUuid(id)) notFound();

@@ -24,9 +24,9 @@ const LOCATION_ORDER: Record<string, number> = {
 
 export default async function NovaMovimentacaoPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const supabase = await createClient();
 

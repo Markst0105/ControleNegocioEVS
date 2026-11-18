@@ -23,7 +23,8 @@ function check(label: string, condition: boolean, detail?: string | null) {
     return;
   }
   failures += 1;
-  console.error(`FAIL  ${label}${detail ? ` — ${detail}` : ""}`);
+  const suffix = detail ? ` — ${detail}` : "";
+  console.error(`FAIL  ${label}${suffix}`);
 }
 
 function equal(label: string, actual: unknown, expected: unknown) {
@@ -46,11 +47,11 @@ async function main() {
   const variant = variants.rows[0];
   check("variantes: SKU", variant?.sku === "#001", variant?.sku);
   check("variantes: nome", variant?.name === "Produto Teste", variant?.name);
-  check("variantes: PV com 4 casas", variant?.pv === 12.3456, String(variant?.pv));
-  check("variantes: venda", variant?.prices.retail === 100, String(variant?.prices.retail));
-  check("variantes: 0,25 (pt-BR)", variant?.prices["t0.25"] === 75.5, String(variant?.prices["t0.25"]));
-  check("variantes: 0.5", variant?.prices["t0.5"] === 40, String(variant?.prices["t0.5"]));
-  check("variantes: bronze", variant?.prices.bronze === 70, String(variant?.prices.bronze));
+  equal("variantes: PV com 4 casas", variant?.pv, 12.3456);
+  equal("variantes: venda", variant?.prices.retail, 100);
+  equal("variantes: 0,25 (pt-BR)", variant?.prices["t0.25"], 75.5);
+  equal("variantes: 0.5", variant?.prices["t0.5"], 40);
+  equal("variantes: bronze", variant?.prices.bronze, 70);
   check(
     "variantes: coluna desconhecida ignorada",
     variants.unknownHeaders.includes("Obs"),

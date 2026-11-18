@@ -5,7 +5,7 @@ export default function AppLoading() {
         <span
           aria-hidden
           className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-        />
+        />{" "}
         Carregando…
       </span>
     </div>

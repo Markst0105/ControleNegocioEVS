@@ -61,9 +61,11 @@ pnpm-debug.log*
 coverage/
 
 # ---------------------------------------------------------------------------
-# Local scanner / session logs
+# Local scanner / session logs / Python bytecode
 # ---------------------------------------------------------------------------
 .scannerwork/
 sonarqube_scan.txt
 sonarquebe_scan.txt
 docs/session-*.md
+__pycache__/
+*.pyc

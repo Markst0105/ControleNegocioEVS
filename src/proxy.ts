@@ -14,6 +14,6 @@ export const config = {
      * - favicon.ico e imagens estáticas
      * - api/health (checagem pública de prontidão)
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)", // NOSONAR
   ],
 };

@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 export function BrandMark({
   className,
   tone = "solid",
-}: {
+}: Readonly<{
   className?: string;
   tone?: "solid" | "paper";
-}) {
+}>) {
   return (
     <span
       aria-hidden
@@ -30,12 +30,12 @@ export function Brand({
   tone = "light",
   showMark = true,
   className,
-}: {
+}: Readonly<{
   subtitle?: boolean;
   tone?: "light" | "dark";
   showMark?: boolean;
   className?: string;
-}) {
+}>) {
   return (
     <div className={cn("flex min-w-0 items-center gap-2.5", className)}>
       {showMark ? <BrandMark tone={tone === "dark" ? "paper" : "solid"} /> : null}

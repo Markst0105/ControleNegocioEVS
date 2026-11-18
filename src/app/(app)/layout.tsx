@@ -6,7 +6,9 @@ import ProfileNotice from "@/components/app/profile-notice";
 import { Toaster } from "@/components/ui/sonner";
 import { getSession } from "@/lib/auth";
 
-export default async function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const session = await getSession();
   if (!session) redirect("/login");
 

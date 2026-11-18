@@ -23,7 +23,9 @@ export const metadata: Metadata = {
 
 type Params = Promise<{ date: string }>;
 
-export default async function MdoDayPage({ params }: { params: Params }) {
+export default async function MdoDayPage({
+  params,
+}: Readonly<{ params: Params }>) {
   const { date: rawDate } = await params;
   const date = parseDateInput(rawDate);
   if (!date) notFound();

@@ -155,13 +155,28 @@ export function formatPercent(fraction: number | null | undefined): string {
   return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(fraction * 100)}%`;
 }
 
+/** Extrai texto de um FormDataEntryValue sem converter File em "[object Object]". */
+export function entryString(
+  raw: FormDataEntryValue | string | number | null | undefined,
+): string {
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "number") return String(raw);
+  return "";
+}
+
+/** Lê um campo de texto do FormData (retorna "" quando ausente ou File). */
+export function formString(formData: FormData, key: string): string {
+  return entryString(formData.get(key));
+}
+
 /**
  * Interpreta valores em pt-BR: "1.234,56", "1234,56", "1234.56", "R$ 1.234,56".
  * Retorna null para vazio ou inválido (o chamador decide o que fazer).
  */
-export function parseMoneyInput(raw: FormDataEntryValue | null | undefined): number | null {
-  if (raw === null || raw === undefined) return null;
-  let s = String(raw).trim();
+export function parseMoneyInput(
+  raw: FormDataEntryValue | string | number | null | undefined,
+): number | null {
+  let s = entryString(raw).trim();
   if (!s) return null;
   s = s.replace(/R\$\s*/i, "").replace(/\s/g, "");
   if (s.includes(",")) {
@@ -175,9 +190,10 @@ export function parseMoneyInput(raw: FormDataEntryValue | null | undefined): num
 }
 
 /** Valida e normaliza uma data YYYY-MM-DD. Retorna null se inválida. */
-export function parseDateInput(raw: FormDataEntryValue | null | undefined): string | null {
-  if (raw === null || raw === undefined) return null;
-  const s = String(raw).trim();
+export function parseDateInput(
+  raw: FormDataEntryValue | string | null | undefined,
+): string | null {
+  const s = entryString(raw).trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
   const [y, m, d] = s.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));

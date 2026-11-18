@@ -9,11 +9,11 @@ export function PurchasePaymentBadge({
   paidOn,
   isCreditCard,
   className,
-}: {
+}: Readonly<{
   paidOn: string | null;
   isCreditCard: boolean;
   className?: string;
-}) {
+}>) {
   if (!isCreditCard) {
     return (
       <span

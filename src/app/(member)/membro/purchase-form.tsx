@@ -34,10 +34,10 @@ export type MemberPaymentMethod = {
 export function PurchaseCreditsDialog({
   methods,
   today,
-}: {
+}: Readonly<{
   methods: MemberPaymentMethod[];
   today: string;
-}) {
+}>) {
   const [state, formAction, pending] = useActionState(
     requestMemberCredit,
     initialState,

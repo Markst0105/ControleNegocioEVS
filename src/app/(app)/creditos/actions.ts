@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth";
 import { isUuid } from "@/lib/clients";
-import { parseDateInput, parseMoneyInput, todayISO } from "@/lib/format";
+import {
+  formString,
+  parseDateInput,
+  parseMoneyInput,
+  todayISO,
+} from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export type CreditFormState = {
@@ -40,7 +45,7 @@ export async function createCredit(
     return { error: "Sua conta não tem permissão para lançar créditos." };
   }
 
-  const profileId = String(formData.get("profile_id") ?? "").trim();
+  const profileId = formString(formData, "profile_id").trim();
   if (!isUuid(profileId)) {
     return { error: "Selecione um usuário cadastrado." };
   }
@@ -53,9 +58,7 @@ export async function createCredit(
     return { error: "O valor informado é alto demais." };
   }
 
-  const paymentMethod = String(
-    formData.get("payment_method_code") ?? "",
-  ).trim();
+  const paymentMethod = formString(formData, "payment_method_code").trim();
   if (!paymentMethod) {
     return { error: "Selecione a forma de pagamento." };
   }
@@ -68,7 +71,7 @@ export async function createCredit(
     return { error: "A data da compra não pode estar no futuro." };
   }
 
-  const notes = String(formData.get("notes") ?? "").trim();
+  const notes = formString(formData, "notes").trim();
   if (notes.length > 500) {
     return { error: "A observação deve ter no máximo 500 caracteres." };
   }
@@ -104,8 +107,8 @@ export async function reviewCredit(formData: FormData): Promise<void> {
     redirect("/creditos?erro=permissao");
   }
 
-  const creditId = String(formData.get("credit_id") ?? "").trim();
-  const decision = String(formData.get("decision") ?? "").trim();
+  const creditId = formString(formData, "credit_id").trim();
+  const decision = formString(formData, "decision").trim();
 
   if (!isUuid(creditId) || (decision !== "approve" && decision !== "reject")) {
     redirect("/creditos?erro=invalido");

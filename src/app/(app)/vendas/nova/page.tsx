@@ -38,9 +38,9 @@ type SearchParams = Promise<{ cliente?: string }>;
 
 export default async function NovaVendaPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const supabase = await createClient();
 

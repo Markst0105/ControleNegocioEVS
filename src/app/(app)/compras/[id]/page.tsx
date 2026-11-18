@@ -36,13 +36,110 @@ export const metadata: Metadata = {
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ ok?: string }>;
 
+type PurchaseItemRow = {
+  id: string;
+  product_id: string;
+  qty: number;
+  unit_cost: number;
+  price_tier: string | null;
+};
+
+type ProductInfo = {
+  id: string;
+  name: string;
+  sku: string;
+};
+
+function getOkMessage(ok: string | undefined): string | null {
+  if (ok === "pagamento") return "Pagamento confirmado.";
+  if (ok === "pagamento_removido") {
+    return "Pagamento desmarcado. A compra voltou a ficar pendente.";
+  }
+  if (ok) return "Compra registrada.";
+  return null;
+}
+
+function PurchaseItemsSection({
+  items,
+  products,
+}: Readonly<{
+  items: PurchaseItemRow[];
+  products: Map<string, ProductInfo>;
+}>) {
+  if (items.length === 0) {
+    return (
+      <p className="mt-3 border-y border-line py-8 text-center text-sm text-ink-soft">
+        Nenhum item registrado.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 border-t border-ink/70">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-b-ink/70 hover:bg-transparent">
+            <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium text-ink-soft">
+              Produto
+            </TableHead>
+            <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
+              Qtd.
+            </TableHead>
+            <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
+              Custo unit.
+            </TableHead>
+            <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium text-ink-soft">
+              Total
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => {
+            const product = products.get(item.product_id);
+            return (
+              <TableRow
+                key={item.id}
+                className="border-line/80 hover:bg-moss-soft/25"
+              >
+                <TableCell className="max-w-[360px] border-l-[3px] border-l-transparent py-2.5 pl-3 text-[13px]">
+                  <Link
+                    href={`/estoque/${item.product_id}`}
+                    className="block truncate font-medium underline-offset-2 hover:underline"
+                  >
+                    {product?.name ?? "Produto"}
+                  </Link>
+                  <span className="num block truncate text-[11px] text-ink-soft">
+                    {product?.sku ?? "—"}
+                  </span>
+                </TableCell>
+                <TableCell className="num px-2 py-2.5 text-right text-[12px]">
+                  {formatDecimal(item.qty)}
+                </TableCell>
+                <TableCell className="num px-2 py-2.5 text-right text-[12px] text-ink-soft">
+                  <span className="flex flex-col items-end gap-1">
+                    <span>{formatMoney(item.unit_cost)}</span>
+                    <PriceTierBadge code={item.price_tier} />
+                  </span>
+                </TableCell>
+                <TableCell className="num px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap">
+                  {formatMoney(Number(item.qty) * Number(item.unit_cost))}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export default async function CompraPage({
   params,
   searchParams,
-}: {
+}: Readonly<{
   params: Params;
   searchParams: SearchParams;
-}) {
+}>) {
   const { id } = await params;
   const query = await searchParams;
 
@@ -86,14 +183,7 @@ export default async function CompraPage({
     (productsResult.data ?? []).map((product) => [product.id, product]),
   );
 
-  const okMessage =
-    query.ok === "pagamento"
-      ? "Pagamento confirmado."
-      : query.ok === "pagamento_removido"
-        ? "Pagamento desmarcado. A compra voltou a ficar pendente."
-        : query.ok
-          ? "Compra registrada."
-          : null;
+  const okMessage = getOkMessage(query.ok);
 
   const title = purchase.invoice_no
     ? `Compra ${purchase.invoice_no}`
@@ -202,68 +292,7 @@ export default async function CompraPage({
         <h2 className="font-serif text-[24px] leading-none font-normal">
           Itens da compra
         </h2>
-
-        {items.length === 0 ? (
-          <p className="mt-3 border-y border-line py-8 text-center text-sm text-ink-soft">
-            Nenhum item registrado.
-          </p>
-        ) : (
-          <div className="mt-3 border-t border-ink/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-ink/70 hover:bg-transparent">
-                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium text-ink-soft">
-                    Produto
-                  </TableHead>
-                  <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
-                    Qtd.
-                  </TableHead>
-                  <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
-                    Custo unit.
-                  </TableHead>
-                  <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium text-ink-soft">
-                    Total
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => {
-                  const product = products.get(item.product_id);
-                  return (
-                    <TableRow
-                      key={item.id}
-                      className="border-line/80 hover:bg-moss-soft/25"
-                    >
-                      <TableCell className="max-w-[360px] border-l-[3px] border-l-transparent py-2.5 pl-3 text-[13px]">
-                        <Link
-                          href={`/estoque/${item.product_id}`}
-                          className="block truncate font-medium underline-offset-2 hover:underline"
-                        >
-                          {product?.name ?? "Produto"}
-                        </Link>
-                        <span className="num block truncate text-[11px] text-ink-soft">
-                          {product?.sku ?? "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="num px-2 py-2.5 text-right text-[12px]">
-                        {formatDecimal(item.qty)}
-                      </TableCell>
-                      <TableCell className="num px-2 py-2.5 text-right text-[12px] text-ink-soft">
-                        <span className="flex flex-col items-end gap-1">
-                          <span>{formatMoney(item.unit_cost)}</span>
-                          <PriceTierBadge code={item.price_tier} />
-                        </span>
-                      </TableCell>
-                      <TableCell className="num px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap">
-                        {formatMoney(Number(item.qty) * Number(item.unit_cost))}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <PurchaseItemsSection items={items} products={products} />
       </section>
 
       {purchase.notes ? (

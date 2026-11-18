@@ -39,11 +39,93 @@ type SearchParams = Promise<{ pagina?: string; status?: string }>;
 
 type PaymentFilter = "all" | "pending" | "paid";
 
+function pageHref(status: PaymentFilter, target: number) {
+  const sp = new URLSearchParams();
+  if (status !== "all") sp.set("status", status);
+  if (target > 1) sp.set("pagina", String(target));
+  const queryString = sp.toString();
+  return queryString ? `/compras?${queryString}` : "/compras";
+}
+
+function statusHref(nextStatus: PaymentFilter) {
+  return nextStatus === "all" ? "/compras" : `/compras?status=${nextStatus}`;
+}
+
+function ComprasEmptyState({ filtered }: Readonly<{ filtered: boolean }>) {
+  return (
+    <Empty className="rounded-none border-y border-line bg-paper py-12">
+      <EmptyHeader>
+        <EmptyTitle className="font-serif text-[24px] font-normal">
+          {filtered
+            ? "Nenhuma compra neste filtro"
+            : "Nenhuma compra registrada"}
+        </EmptyTitle>
+        <EmptyDescription>
+          {filtered
+            ? "Troque o filtro de pagamento para ver as outras compras."
+            : "Registre a entrada de produtos para começar o controle de custo."}
+        </EmptyDescription>
+      </EmptyHeader>
+      {filtered ? (
+        <Button asChild variant="outline" size="sm">
+          <Link href="/compras">Ver todas</Link>
+        </Button>
+      ) : (
+        <Button asChild size="sm" className="font-bold">
+          <Link href="/compras/nova">Nova compra</Link>
+        </Button>
+      )}
+    </Empty>
+  );
+}
+
+function ComprasPagination({
+  total,
+  page,
+  totalPages,
+  status,
+}: Readonly<{
+  total: number;
+  page: number;
+  totalPages: number;
+  status: PaymentFilter;
+}>) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-ink-soft">
+        {formatInt(total)} {total === 1 ? "compra" : "compras"} · página {page}{" "}
+        de {totalPages}
+      </p>
+
+      <div className="flex items-center gap-2">
+        {page > 1 ? (
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <Link href={pageHref(status, page - 1)}>Anterior</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="h-8" disabled>
+            Anterior
+          </Button>
+        )}
+        {page < totalPages ? (
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <Link href={pageHref(status, page + 1)}>Próxima</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="h-8" disabled>
+            Próxima
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default async function ComprasPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.pagina ?? "1", 10) || 1);
   const status: PaymentFilter =
@@ -112,18 +194,6 @@ export default async function ComprasPage({
   );
   const historyCount = historyResult.count ?? 0;
   const filtered = status !== "all";
-
-  function pageHref(target: number) {
-    const sp = new URLSearchParams();
-    if (status !== "all") sp.set("status", status);
-    if (target > 1) sp.set("pagina", String(target));
-    const queryString = sp.toString();
-    return queryString ? `/compras?${queryString}` : "/compras";
-  }
-
-  function statusHref(nextStatus: PaymentFilter) {
-    return nextStatus === "all" ? "/compras" : `/compras?status=${nextStatus}`;
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -200,27 +270,7 @@ export default async function ComprasPage({
       </div>
 
       {total === 0 ? (
-        <Empty className="rounded-none border-y border-line bg-paper py-12">
-          <EmptyHeader>
-            <EmptyTitle className="font-serif text-[24px] font-normal">
-              {filtered ? "Nenhuma compra neste filtro" : "Nenhuma compra registrada"}
-            </EmptyTitle>
-            <EmptyDescription>
-              {filtered
-                ? "Troque o filtro de pagamento para ver as outras compras."
-                : "Registre a entrada de produtos para começar o controle de custo."}
-            </EmptyDescription>
-          </EmptyHeader>
-          {filtered ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href="/compras">Ver todas</Link>
-            </Button>
-          ) : (
-            <Button asChild size="sm" className="font-bold">
-              <Link href="/compras/nova">Nova compra</Link>
-            </Button>
-          )}
-        </Empty>
+        <ComprasEmptyState filtered={filtered} />
       ) : (
         <>
           <div className="border-t border-ink/70">
@@ -293,33 +343,12 @@ export default async function ComprasPage({
             </Table>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-ink-soft">
-              {formatInt(total)} {total === 1 ? "compra" : "compras"} · página{" "}
-              {page} de {totalPages}
-            </p>
-
-            <div className="flex items-center gap-2">
-              {page > 1 ? (
-                <Button asChild variant="outline" size="sm" className="h-8">
-                  <Link href={pageHref(page - 1)}>Anterior</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="h-8" disabled>
-                  Anterior
-                </Button>
-              )}
-              {page < totalPages ? (
-                <Button asChild variant="outline" size="sm" className="h-8">
-                  <Link href={pageHref(page + 1)}>Próxima</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="h-8" disabled>
-                  Próxima
-                </Button>
-              )}
-            </div>
-          </div>
+          <ComprasPagination
+            total={total}
+            page={page}
+            totalPages={totalPages}
+            status={status}
+          />
         </>
       )}
     </div>

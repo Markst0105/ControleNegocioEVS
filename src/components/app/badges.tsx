@@ -1,6 +1,6 @@
 import { formatPercent } from "@/lib/format";
 
-export function OriginBadge({ origin }: { origin: string | null }) {
+export function OriginBadge({ origin }: Readonly<{ origin: string | null }>) {
   if (!origin) return <span className="text-ink-soft">—</span>;
 
   const isEvs = origin === "EVS";
@@ -21,10 +21,10 @@ export function OriginBadge({ origin }: { origin: string | null }) {
 export function DealBadge({
   label,
   discountPct,
-}: {
+}: Readonly<{
   label: string | null | undefined;
   discountPct?: number | null;
-}) {
+}>) {
   return (
     <span className="inline-flex items-center gap-1">
       <span className="inline-flex items-center rounded-sm border border-line bg-surface px-1.5 py-px text-[11px] font-medium whitespace-nowrap text-ink-soft">

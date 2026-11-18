@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 
@@ -47,9 +47,9 @@ export type SaleFormData = {
   today: string;
 };
 
-type Installment = { due: string; amount: string };
+type Installment = { id: string; due: string; amount: string };
 
-const INSTALLMENT_KINDS = ["credit", "ticket", "exception"];
+const INSTALLMENT_KINDS = new Set(["credit", "ticket", "exception"]);
 
 /**
  * Acesso pago com cartela (TK) ou "não trouxe ticket" (NTT): o cliente não
@@ -60,10 +60,167 @@ function isTicketAccess(method?: { code: string; kind: string }): boolean {
   return !!method && (method.kind === "ticket" || method.code === "NTT");
 }
 
+function computeInstallmentAmount(
+  cents: number | null,
+  base: number | null,
+  index: number,
+  count: number,
+): string {
+  if (cents === null || base === null) return "";
+  const installmentCents =
+    index === count - 1 ? cents - base * (count - 1) : base;
+  return (installmentCents / 100).toFixed(2).replace(".", ",");
+}
+
+function amountFieldHint(
+  ticketAccess: boolean,
+  referencePrice: number | null,
+): string {
+  if (!ticketAccess) {
+    return "Preenchido pela tabela de preços; ajuste se precisar.";
+  }
+  if (referencePrice != null) {
+    return `Acesso pago com cartela: sem receita. Preço de tabela ${formatMoney(referencePrice)} (referência).`;
+  }
+  return "Acesso pago com cartela: sem receita; entra só o custo do produto.";
+}
+
+function buildSeededInstallments(
+  code: string,
+  method: { kind: string; settlement_days: number | null },
+  soldOn: string,
+  amountText: string,
+  createId: () => string,
+): Installment[] {
+  if (!INSTALLMENT_KINDS.has(method.kind)) return [];
+
+  const count = /^[123]$/.test(code) ? Number(code) : 1;
+  const parsed = parseMoneyInput(amountText);
+  const cents = parsed !== null ? Math.round(parsed * 100) : null;
+  const base = cents !== null ? Math.floor(cents / count) : null;
+  const isCredit = method.kind === "credit";
+
+  return Array.from({ length: count }, (_, index) => ({
+    id: createId(),
+    due: addDays(
+      soldOn,
+      isCredit ? 30 * (index + 1) : (method.settlement_days ?? 0),
+    ),
+    amount: computeInstallmentAmount(cents, base, index, count),
+  }));
+}
+
+function InstallmentsSection({
+  installments,
+  installmentsMismatch,
+  installmentsTotal,
+  amountValue,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: Readonly<{
+  installments: Installment[];
+  installmentsMismatch: boolean;
+  installmentsTotal: number;
+  amountValue: number | null;
+  onAdd: () => void;
+  onUpdate: (index: number, patch: Partial<Installment>) => void;
+  onRemove: (index: number) => void;
+}>) {
+  return (
+    <section className="rounded-lg border border-line bg-surface">
+      <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+        <div>
+          <h2 className="font-serif text-[20px] leading-none font-normal">
+            Parcelas a receber
+          </h2>
+          <p className="mt-0.5 text-[11px] text-ink-soft">
+            Vencimento e valor de cada parcela (até 3).
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8"
+          onClick={onAdd}
+          disabled={installments.length >= 3}
+        >
+          <Plus />
+          Adicionar
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-2 p-4">
+        {installments.length === 0 ? (
+          <p className="text-sm text-ink-soft">
+            Nenhuma parcela — a venda entra como recebida.
+          </p>
+        ) : (
+          installments.map((row, index) => (
+            <div
+              key={row.id}
+              className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2"
+            >
+              <span className="num w-5 text-xs text-ink-soft">
+                {index + 1}ª
+              </span>
+              <Input
+                type="date"
+                name={`installment_due_${index + 1}`}
+                value={row.due}
+                onChange={(event) =>
+                  onUpdate(index, { due: event.target.value })
+                }
+                className="num h-9 min-w-0"
+                aria-label={`Vencimento da parcela ${index + 1}`}
+              />
+              <Input
+                name={`installment_amount_${index + 1}`}
+                inputMode="decimal"
+                value={row.amount}
+                onChange={(event) =>
+                  onUpdate(index, { amount: event.target.value })
+                }
+                placeholder="0,00"
+                className="num h-9 min-w-0 text-right"
+                aria-label={`Valor da parcela ${index + 1}`}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 text-ink-soft hover:text-rust"
+                onClick={() => onRemove(index)}
+                aria-label={`Remover parcela ${index + 1}`}
+              >
+                <Trash2 />
+              </Button>
+            </div>
+          ))
+        )}
+
+        {installmentsMismatch ? (
+          <p className="text-[11px] text-rust-ink">
+            Soma das parcelas: {formatMoney(installmentsTotal)} — difere do
+            valor recebido ({formatMoney(amountValue)}).
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 const initialState: SaleFormState = { error: null };
 
-export function VendaForm({ data }: { data: SaleFormData }) {
+export function VendaForm({ data }: Readonly<{ data: SaleFormData }>) {
   const [state, formAction, pending] = useActionState(createSale, initialState);
+  const installmentIdCounter = useRef(0);
+
+  function nextInstallmentId(): string {
+    installmentIdCounter.current += 1;
+    return `inst-${installmentIdCounter.current}`;
+  }
 
   const [clientId, setClientId] = useState(data.initialClientId ?? "");
   const [productId, setProductId] = useState("");
@@ -81,7 +238,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
   const payment = data.paymentMethods.find((method) => method.code === paymentCode);
   const ticketAccess = isTicketAccess(payment);
   const needsInstallments = payment
-    ? INSTALLMENT_KINDS.includes(payment.kind) && !ticketAccess
+    ? INSTALLMENT_KINDS.has(payment.kind) && !ticketAccess
     : false;
   const isDiscount = dealCode === "DESC";
 
@@ -120,38 +277,14 @@ export function VendaForm({ data }: { data: SaleFormData }) {
   function seedInstallments(code: string, amountText: string = amount) {
     const method = data.paymentMethods.find((item) => item.code === code);
     if (!method) return;
-
-    if (!INSTALLMENT_KINDS.includes(method.kind)) {
-      setInstallments([]);
-      return;
-    }
-
-    const count = /^[123]$/.test(code) ? Number(code) : 1;
-    const parsed = parseMoneyInput(amountText);
-    const cents = parsed !== null ? Math.round(parsed * 100) : null;
-    const base = cents !== null ? Math.floor(cents / count) : null;
-    const isCredit = method.kind === "credit";
-
     setInstallments(
-      Array.from({ length: count }, (_, index) => {
-        const installmentCents =
-          cents === null || base === null
-            ? null
-            : index === count - 1
-              ? cents - base * (count - 1)
-              : base;
-
-        return {
-          due: addDays(
-            soldOn,
-            isCredit ? 30 * (index + 1) : (method.settlement_days ?? 0),
-          ),
-          amount:
-            installmentCents === null
-              ? ""
-              : (installmentCents / 100).toFixed(2).replace(".", ","),
-        };
-      }),
+      buildSeededInstallments(
+        code,
+        method,
+        soldOn,
+        amountText,
+        nextInstallmentId,
+      ),
     );
   }
 
@@ -196,14 +329,23 @@ export function VendaForm({ data }: { data: SaleFormData }) {
     );
   }
 
+  function removeInstallment(index: number) {
+    setInstallments((previous) =>
+      previous.filter((_, rowIndex) => rowIndex !== index),
+    );
+  }
+
   function addInstallment() {
-    setInstallments((previous) => {
-      if (previous.length >= 3) return previous;
-      return [
-        ...previous,
-        { due: addDays(soldOn, 30 * (previous.length + 1)), amount: "" },
-      ];
-    });
+    if (installments.length >= 3) return;
+    const nextId = nextInstallmentId();
+    setInstallments((previous) => [
+      ...previous,
+      {
+        id: nextId,
+        due: addDays(soldOn, 30 * (previous.length + 1)),
+        amount: "",
+      },
+    ]);
   }
 
   const clientOptions = data.clients.map((client) => ({
@@ -361,13 +503,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
         <Field
           label="Valor recebido (R$)"
           htmlFor="amount"
-          hint={
-            ticketAccess
-              ? referencePrice != null
-                ? `Acesso pago com cartela: sem receita. Preço de tabela ${formatMoney(referencePrice)} (referência).`
-                : "Acesso pago com cartela: sem receita; entra só o custo do produto."
-              : "Preenchido pela tabela de preços; ajuste se precisar."
-          }
+          hint={amountFieldHint(ticketAccess, referencePrice)}
         >
           <Input
             id="amount"
@@ -406,90 +542,15 @@ export function VendaForm({ data }: { data: SaleFormData }) {
       </div>
 
       {needsInstallments ? (
-        <section className="rounded-lg border border-line bg-surface">
-          <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-            <div>
-              <h2 className="font-serif text-[20px] leading-none font-normal">
-                Parcelas a receber
-              </h2>
-              <p className="mt-0.5 text-[11px] text-ink-soft">
-                Vencimento e valor de cada parcela (até 3).
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={addInstallment}
-              disabled={installments.length >= 3}
-            >
-              <Plus />
-              Adicionar
-            </Button>
-          </div>
-
-          <div className="flex flex-col gap-2 p-4">
-            {installments.length === 0 ? (
-              <p className="text-sm text-ink-soft">
-                Nenhuma parcela — a venda entra como recebida.
-              </p>
-            ) : (
-              installments.map((row, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2"
-                >
-                  <span className="num w-5 text-xs text-ink-soft">
-                    {index + 1}ª
-                  </span>
-                  <Input
-                    type="date"
-                    name={`installment_due_${index + 1}`}
-                    value={row.due}
-                    onChange={(event) =>
-                      updateInstallment(index, { due: event.target.value })
-                    }
-                    className="num h-9 min-w-0"
-                    aria-label={`Vencimento da parcela ${index + 1}`}
-                  />
-                  <Input
-                    name={`installment_amount_${index + 1}`}
-                    inputMode="decimal"
-                    value={row.amount}
-                    onChange={(event) =>
-                      updateInstallment(index, { amount: event.target.value })
-                    }
-                    placeholder="0,00"
-                    className="num h-9 min-w-0 text-right"
-                    aria-label={`Valor da parcela ${index + 1}`}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-ink-soft hover:text-rust"
-                    onClick={() =>
-                      setInstallments((previous) =>
-                        previous.filter((_, rowIndex) => rowIndex !== index),
-                      )
-                    }
-                    aria-label={`Remover parcela ${index + 1}`}
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              ))
-            )}
-
-            {installmentsMismatch ? (
-              <p className="text-[11px] text-rust-ink">
-                Soma das parcelas: {formatMoney(installmentsTotal)} — difere do
-                valor recebido ({formatMoney(amountValue)}).
-              </p>
-            ) : null}
-          </div>
-        </section>
+        <InstallmentsSection
+          installments={installments}
+          installmentsMismatch={installmentsMismatch}
+          installmentsTotal={installmentsTotal}
+          amountValue={amountValue}
+          onAdd={addInstallment}
+          onUpdate={updateInstallment}
+          onRemove={removeInstallment}
+        />
       ) : null}
 
       <details
@@ -561,7 +622,7 @@ export function VendaForm({ data }: { data: SaleFormData }) {
               <span
                 aria-hidden
                 className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+              />{" "}
               Registrando…
             </span>
           ) : (
@@ -579,13 +640,13 @@ function Field({
   hint,
   className,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor: string;
   hint?: string;
   className?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className={cn("grid content-start gap-1.5", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>

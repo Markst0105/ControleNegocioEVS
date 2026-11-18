@@ -17,11 +17,11 @@ export function MdoForm({
   day,
   date,
   returnTo,
-}: {
+}: Readonly<{
   day: MdoDay | null;
   date: string;
   returnTo: string;
-}) {
+}>) {
   const [state, formAction, pending] = useActionState(
     saveDailyKpis,
     initialState,
@@ -95,7 +95,7 @@ export function MdoForm({
               <span
                 aria-hidden
                 className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+              />{" "}
               Salvando…
             </span>
           ) : (

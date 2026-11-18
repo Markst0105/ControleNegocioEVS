@@ -14,6 +14,22 @@ import {
   type ReconciliationPreview,
 } from "./actions";
 
+function formatReconciliationPreview(
+  isPending: boolean,
+  preview: ReconciliationPreview | null,
+): string {
+  if (isPending) return "Calculando…";
+  if (!preview) return "Informe a data de corte para ver o impacto.";
+  if (preview.count === 0) return "Nenhuma parcela em aberto até essa data.";
+
+  const label = preview.count === 1 ? "parcela" : "parcelas";
+  const range =
+    preview.oldest && preview.newest
+      ? ` (vencimentos de ${formatDate(preview.oldest)} a ${formatDate(preview.newest)})`
+      : "";
+  return `${formatInt(preview.count)} ${label} · ${formatMoney(preview.total)} serão liquidadas${range}.`;
+}
+
 /**
  * Bulk reconciliation of the historical backlog. The preview tells the admin
  * exactly how many installments and how much money the chosen cutoff touches
@@ -22,10 +38,10 @@ import {
 export function ReconciliationForm({
   defaultCutoff,
   today,
-}: {
+}: Readonly<{
   defaultCutoff: string;
   today: string;
-}) {
+}>) {
   const [cutoff, setCutoff] = useState(defaultCutoff);
   const [preview, setPreview] = useState<ReconciliationPreview | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -74,19 +90,7 @@ export function ReconciliationForm({
         className="num text-[11.5px] leading-relaxed text-ink-soft"
         aria-live="polite"
       >
-        {isPending
-          ? "Calculando…"
-          : preview
-            ? preview.count === 0
-              ? "Nenhuma parcela em aberto até essa data."
-              : `${formatInt(preview.count)} ${
-                  preview.count === 1 ? "parcela" : "parcelas"
-                } · ${formatMoney(preview.total)} serão liquidadas${
-                  preview.oldest && preview.newest
-                    ? ` (vencimentos de ${formatDate(preview.oldest)} a ${formatDate(preview.newest)})`
-                    : ""
-                }.`
-            : "Informe a data de corte para ver o impacto."}
+        {formatReconciliationPreview(isPending, preview)}
       </p>
 
       <label className="flex max-w-3xl items-start gap-2 text-[11.5px] leading-relaxed text-ink-soft">
@@ -95,7 +99,7 @@ export function ReconciliationForm({
           name="confirmo"
           required
           className="mt-0.5 size-3.5 accent-rust"
-        />
+        />{" "}
         Confirmo que os lançamentos até essa data já foram conferidos e podem
         ser liquidados em lote.
       </label>

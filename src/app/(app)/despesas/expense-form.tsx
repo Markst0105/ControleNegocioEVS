@@ -61,7 +61,7 @@ export function ExpenseForm({
   categories,
   accounts,
   canUsePersonal,
-}: {
+}: Readonly<{
   mode: "create" | "edit";
   initial?: ExpenseFormInitial;
   defaultDate: string;
@@ -69,7 +69,7 @@ export function ExpenseForm({
   categories: ExpenseCategoryOption[];
   accounts: ExpenseAccountOption[];
   canUsePersonal: boolean;
-}) {
+}>) {
   const action = mode === "edit" ? updateExpense : createExpense;
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -240,9 +240,12 @@ export function ExpenseForm({
         >
           {scopeOptions.map((option) => {
             const checked = scope === option.value;
+            const inputId = `scope-${option.value}`;
             return (
               <label
                 key={option.value}
+                htmlFor={inputId}
+                aria-label={option.label}
                 className={cn(
                   "flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 transition-colors",
                   checked
@@ -251,6 +254,7 @@ export function ExpenseForm({
                 )}
               >
                 <input
+                  id={inputId}
                   type="radio"
                   name="scope"
                   value={option.value}
@@ -287,7 +291,7 @@ export function ExpenseForm({
               <span
                 aria-hidden
                 className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+              />{" "}
               Salvando…
             </span>
           ) : (
@@ -308,13 +312,13 @@ function Field({
   hint,
   className,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor: string;
   hint?: string;
   className?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className={cn("grid content-start gap-1.5", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>

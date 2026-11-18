@@ -154,14 +154,15 @@ def sale_aggs(month):
         allv[0] += nn; allv[1] += cc; allv[2] += pp
     return zero, allv
 
-lines = []
-lines.append("## Validation vs workbook cached values")
-lines.append("")
-lines.append("Recomputed from imported `sales` vs cached in `Consumo e Investimento` "
-             "(rows 2-26) and `Consolidado` (rows 2-14).")
-lines.append("")
-lines.append("| month | source | cost recomputed | cost cached | pv recomputed | pv cached | match |")
-lines.append("|-------|--------|-----------------|-------------|---------------|-----------|-------|")
+lines = [
+    "## Validation vs workbook cached values",
+    "",
+    "Recomputed from imported `sales` vs cached in `Consumo e Investimento` "
+    "(rows 2-26) and `Consolidado` (rows 2-14).",
+    "",
+    "| month | source | cost recomputed | cost cached | pv recomputed | pv cached | match |",
+    "|-------|--------|-----------------|-------------|---------------|-----------|-------|",
+]
 
 ok = True
 checked = 0
@@ -192,9 +193,11 @@ for month in sorted(cons_rows):
             f"| {month} | {label} | {cost:,.2f} | {ccost:,.2f} | "
             f"{pv:,.2f} | {cpv:,.2f} | {mark} |")
 
-lines.append("")
-lines.append(f"Strict comparisons checked: {checked} — all passed: {ok}")
-lines.append("")
+lines.extend([
+    "",
+    f"Strict comparisons checked: {checked} — all passed: {ok}",
+    "",
+])
 
 # Consolidado inspection (D and J are NOT revenue — documented source quirks)
 cons_rows2 = {}
@@ -206,15 +209,17 @@ for r, cells in sheet("Consolidado"):
         continue
     cons_rows2[d[:7]] = cells
 
-lines.append("### Consolidado spot check (informational)")
-lines.append("")
-lines.append("`D` carries an activity **count** pulled from `MDO-Mês` despite its \"Total Vendas\" "
-             "header; `J` sums CONS+BRINDE+NEG PV plus a manual MDO PV column and deliberately "
-             "excludes the ledger's plain-sale PV. Neither column is comparable to revenue — "
-             "listed here for the record only.")
-lines.append("")
-lines.append("| month | revenue recomputed | D cached (count, not revenue) | PV recomputed (ledger total) | J cached (PV excl. vendas) |")
-lines.append("|-------|--------------------|-------------------------------|------------------------------|----------------------------|")
+lines.extend([
+    "### Consolidado spot check (informational)",
+    "",
+    "`D` carries an activity **count** pulled from `MDO-Mês` despite its \"Total Vendas\" "
+    "header; `J` sums CONS+BRINDE+NEG PV plus a manual MDO PV column and deliberately "
+    "excludes the ledger's plain-sale PV. Neither column is comparable to revenue — "
+    "listed here for the record only.",
+    "",
+    "| month | revenue recomputed | D cached (count, not revenue) | PV recomputed (ledger total) | J cached (PV excl. vendas) |",
+    "|-------|--------------------|-------------------------------|------------------------------|----------------------------|",
+])
 
 for month in sorted(cons_rows2):
     if month < "2025-01" or month > "2026-01":
@@ -228,20 +233,24 @@ for month in sorted(cons_rows2):
         f"| {month} | {rev:,.2f} | {c_d if c_d is not None else '—'} | "
         f"{pv_tot:,.2f} | {c_j if c_j is not None else '—'} |")
 
-lines.append("")
-lines.append("### Conclusion")
-lines.append("")
+lines.extend([
+    "",
+    "### Conclusion",
+    "",
+])
 if ok:
-    lines.append(f"✅ **ETL is faithful.** All {checked} strict comparisons against the workbook's own "
-                 "cached aggregates match exactly (25 months × CONS / BRINDE / NEG / SALE-by-workbook-criterion).")
-    lines.append("")
-    lines.append("Explained differences — source-workbook quirks, **not** data loss:")
-    lines.append("- **SALE**: the workbook's `SUMIFS(D:D,\"<=0\")` counts only rows whose deal cell is "
-                 "numeric 0; discount-coded sales (0.14/0.23/0.25/0.32/0.35/0.42/0.5) fall out of every "
-                 "bucket. BioAvalia includes them in the sales top line (more complete); the ℹ delta "
-                 "above is exactly those rows.")
-    lines.append("- **Consolidado D/J**: see the informational table — header/values mismatch in the "
-                 "source sheet, verified row by row against the imported data.")
+    lines.extend([
+        f"✅ **ETL is faithful.** All {checked} strict comparisons against the workbook's own "
+        "cached aggregates match exactly (25 months × CONS / BRINDE / NEG / SALE-by-workbook-criterion).",
+        "",
+        "Explained differences — source-workbook quirks, **not** data loss:",
+        "- **SALE**: the workbook's `SUMIFS(D:D,\"<=0\")` counts only rows whose deal cell is "
+        "numeric 0; discount-coded sales (0.14/0.23/0.25/0.32/0.35/0.42/0.5) fall out of every "
+        "bucket. BioAvalia includes them in the sales top line (more complete); the ℹ delta "
+        "above is exactly those rows.",
+        "- **Consolidado D/J**: see the informational table — header/values mismatch in the "
+        "source sheet, verified row by row against the imported data.",
+    ])
 else:
     lines.append("⚠️ Some strict comparisons failed — review the table above before loading seeds.")
 lines.append("")

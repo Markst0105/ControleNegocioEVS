@@ -51,11 +51,307 @@ const OK_MESSAGES: Record<string, string> = {
   recusado: "Compra recusada.",
 };
 
+const ERROR_MESSAGES: Record<string, string> = {
+  permissao: "Sua conta não tem permissão para revisar créditos.",
+  invalido: "Compra inválida.",
+  revisao: "Não foi possível revisar a compra. Tente novamente.",
+};
+
+type PendingCreditRow = {
+  id: string;
+  profile_name: string;
+  profile_email: string | null;
+  amount: number;
+  payment_method_label: string;
+  purchased_on: string;
+  requested_at: string;
+};
+
+type CreditBalanceRow = {
+  profile_id: string;
+  name: string;
+  email: string | null;
+  balance: number;
+  pending_amount: number | null;
+  approved_count: number;
+  last_purchase_on: string | null;
+};
+
+type RecentCreditRow = {
+  id: string;
+  profile_name: string;
+  profile_email: string | null;
+  amount: number;
+  payment_method_label: string;
+  purchased_on: string;
+  status: string;
+  source: string;
+  reviewed_at: string | null;
+};
+
+function PendingPurchasesSection({
+  pending,
+}: Readonly<{ pending: PendingCreditRow[] }>) {
+  return (
+    <section className="rounded-lg border border-line bg-surface">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line/70 px-4 py-3">
+        <div>
+          <h2 className="font-serif text-[20px] leading-none font-normal">
+            Compras para aprovar
+          </h2>
+          <p className="mt-1.5 text-[11px] text-ink-soft">
+            Compras feitas pelo site ficam pendentes até a confirmação.
+          </p>
+        </div>
+        {pending.length > 0 ? <CreditStatusBadge status="pending" /> : null}
+      </header>
+
+      {pending.length === 0 ? (
+        <p className="px-4 py-6 text-[12px] text-ink-soft">
+          Nenhuma compra aguardando aprovação.
+        </p>
+      ) : (
+        <div className="border-t border-line/70">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-9 pl-4 text-[10.5px] font-medium text-ink-soft">
+                  Usuário
+                </TableHead>
+                <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
+                  Valor
+                </TableHead>
+                <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft sm:table-cell">
+                  Pagamento
+                </TableHead>
+                <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft md:table-cell">
+                  Compra
+                </TableHead>
+                <TableHead className="h-9 pr-4 text-right text-[10.5px] font-medium text-ink-soft">
+                  Ação
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pending.map((row) => (
+                <TableRow key={row.id} className="border-line/80">
+                  <TableCell className="py-3 pl-4">
+                    <span className="block text-[13px] font-medium">
+                      {row.profile_name}
+                    </span>
+                    {row.profile_email ? (
+                      <span className="block truncate text-[10.5px] text-ink-soft">
+                        {row.profile_email}
+                      </span>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="num px-2 py-3 text-right text-[13px] font-medium whitespace-nowrap">
+                    {formatMoney(row.amount)}
+                  </TableCell>
+                  <TableCell className="hidden px-2 py-3 text-[12px] text-ink-soft sm:table-cell">
+                    {row.payment_method_label}
+                  </TableCell>
+                  <TableCell className="num hidden px-2 py-3 text-[12px] text-ink-soft md:table-cell">
+                    {formatDate(row.purchased_on)}
+                  </TableCell>
+                  <TableCell className="py-3 pr-4 text-right">
+                    <div className="flex justify-end gap-1.5">
+                      <form action={reviewCredit}>
+                        <input
+                          type="hidden"
+                          name="credit_id"
+                          value={row.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="decision"
+                          value="approve"
+                        />
+                        <SubmitButton
+                          size="sm"
+                          className="h-7 px-2 text-[11px] font-bold"
+                          pendingLabel="Aprovando…"
+                        >
+                          <Check />
+                          Aprovar
+                        </SubmitButton>
+                      </form>
+                      <form action={reviewCredit}>
+                        <input
+                          type="hidden"
+                          name="credit_id"
+                          value={row.id}
+                        />
+                        <input type="hidden" name="decision" value="reject" />
+                        <SubmitButton
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-[11px]"
+                          pendingLabel="Recusando…"
+                        >
+                          <X />
+                          Recusar
+                        </SubmitButton>
+                      </form>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function BalancesSection({
+  balances,
+}: Readonly<{ balances: CreditBalanceRow[] }>) {
+  return (
+    <section className="rounded-lg border border-line bg-surface">
+      <header className="border-b border-line/70 px-4 py-3">
+        <h2 className="font-serif text-[20px] leading-none font-normal">
+          Saldos
+        </h2>
+        <p className="mt-1.5 text-[11px] text-ink-soft">
+          Créditos aprovados e ainda não usados.
+        </p>
+      </header>
+      {balances.length === 0 ? (
+        <p className="px-4 py-6 text-[12px] text-ink-soft">
+          Nenhum cliente cadastrado ainda. As contas criadas na tela de login
+          aparecem aqui.
+        </p>
+      ) : (
+        <ul className="divide-y divide-line/70">
+          {balances.slice(0, 12).map((row) => (
+            <li
+              key={row.profile_id}
+              className="flex items-center justify-between gap-3 px-4 py-2.5"
+            >
+              <div className="min-w-0">
+                <span className="block truncate text-[12.5px] font-medium">
+                  {row.name}
+                </span>
+                <span className="block truncate text-[10.5px] text-ink-soft">
+                  {row.email ?? "sem e-mail"}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="num block text-[12.5px] font-medium whitespace-nowrap">
+                  {formatMoney(row.balance)}
+                </span>
+                {Number(row.pending_amount ?? 0) > 0 ? (
+                  <span className="num block text-[10px] text-citrus-ink">
+                    {formatMoney(row.pending_amount)} pendente
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {balances.length > 12 ? (
+        <p className="border-t border-line/70 px-4 py-2 text-[10.5px] text-ink-soft">
+          Mostrando os 12 maiores saldos de {formatInt(balances.length)}.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function CreditHistorySection({
+  recent,
+}: Readonly<{ recent: RecentCreditRow[] }>) {
+  return (
+    <section>
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="font-serif text-[25px] leading-none font-normal tracking-[-0.01em] sm:text-[28px]">
+          Histórico de créditos
+        </h2>
+        <span className="text-xs text-ink-soft">
+          últimos {formatInt(recent.length)}
+        </span>
+      </div>
+
+      {recent.length === 0 ? (
+        <Empty className="mt-3 rounded-none border-y border-line bg-paper py-12">
+          <EmptyHeader>
+            <EmptyTitle className="font-serif text-[24px] font-normal">
+              Nenhum crédito ainda
+            </EmptyTitle>
+            <EmptyDescription>
+              Compras aprovadas e créditos lançados aparecem aqui.
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button asChild size="sm" className="font-bold">
+            <Link href="/creditos">Atualizar</Link>
+          </Button>
+        </Empty>
+      ) : (
+        <div className="mt-3 border-t border-ink/70">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b-ink/70 hover:bg-transparent">
+                <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium text-ink-soft">
+                  Usuário
+                </TableHead>
+                <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
+                  Valor
+                </TableHead>
+                <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft sm:table-cell">
+                  Pagamento
+                </TableHead>
+                <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft md:table-cell">
+                  Compra
+                </TableHead>
+                <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium text-ink-soft">
+                  Status
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recent.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className="border-line/80 hover:bg-moss-soft/25"
+                >
+                  <TableCell className="border-l-[3px] border-l-transparent py-2.5 pl-3">
+                    <span className="block truncate text-[12.5px] font-medium">
+                      {row.profile_name}
+                    </span>
+                    <span className="block truncate text-[10.5px] text-ink-soft">
+                      {row.source === "staff" ? "Lançado pela equipe" : "Site"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="num px-2 py-2.5 text-right text-[12.5px] font-medium whitespace-nowrap">
+                    {formatMoney(row.amount)}
+                  </TableCell>
+                  <TableCell className="hidden px-2 py-2.5 text-[12px] text-ink-soft sm:table-cell">
+                    {row.payment_method_label}
+                  </TableCell>
+                  <TableCell className="num hidden px-2 py-2.5 text-[12px] text-ink-soft md:table-cell">
+                    {formatDate(row.purchased_on)}
+                  </TableCell>
+                  <TableCell className="px-2 py-2.5 pr-3 text-right">
+                    <CreditStatusBadge status={row.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default async function CreditosPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const session = await getSession();
   const today = todayISO();
@@ -166,13 +462,7 @@ export default async function CreditosPage({
 
   const okMessage = params.ok ? OK_MESSAGES[params.ok] : null;
   const errorMessage = params.erro
-    ? params.erro === "permissao"
-      ? "Sua conta não tem permissão para revisar créditos."
-      : params.erro === "invalido"
-        ? "Compra inválida."
-        : params.erro === "revisao"
-          ? "Não foi possível revisar a compra. Tente novamente."
-          : params.erro
+    ? (ERROR_MESSAGES[params.erro] ?? params.erro)
     : null;
 
   return (
@@ -246,251 +536,14 @@ export default async function CreditosPage({
         </div>
       </dl>
 
-      <section className="rounded-lg border border-line bg-surface">
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line/70 px-4 py-3">
-          <div>
-            <h2 className="font-serif text-[20px] leading-none font-normal">
-              Compras para aprovar
-            </h2>
-            <p className="mt-1.5 text-[11px] text-ink-soft">
-              Compras feitas pelo site ficam pendentes até a confirmação.
-            </p>
-          </div>
-          {pending.length > 0 ? (
-            <CreditStatusBadge status="pending" />
-          ) : null}
-        </header>
-
-        {pending.length === 0 ? (
-          <p className="px-4 py-6 text-[12px] text-ink-soft">
-            Nenhuma compra aguardando aprovação.
-          </p>
-        ) : (
-          <div className="border-t border-line/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-9 pl-4 text-[10.5px] font-medium text-ink-soft">
-                    Usuário
-                  </TableHead>
-                  <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
-                    Valor
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft sm:table-cell">
-                    Pagamento
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft md:table-cell">
-                    Compra
-                  </TableHead>
-                  <TableHead className="h-9 pr-4 text-right text-[10.5px] font-medium text-ink-soft">
-                    Ação
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pending.map((row) => (
-                  <TableRow key={row.id} className="border-line/80">
-                    <TableCell className="py-3 pl-4">
-                      <span className="block text-[13px] font-medium">
-                        {row.profile_name}
-                      </span>
-                      {row.profile_email ? (
-                        <span className="block truncate text-[10.5px] text-ink-soft">
-                          {row.profile_email}
-                        </span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="num px-2 py-3 text-right text-[13px] font-medium whitespace-nowrap">
-                      {formatMoney(row.amount)}
-                    </TableCell>
-                    <TableCell className="hidden px-2 py-3 text-[12px] text-ink-soft sm:table-cell">
-                      {row.payment_method_label}
-                    </TableCell>
-                    <TableCell className="num hidden px-2 py-3 text-[12px] text-ink-soft md:table-cell">
-                      {formatDate(row.purchased_on)}
-                    </TableCell>
-                    <TableCell className="py-3 pr-4 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <form action={reviewCredit}>
-                          <input
-                            type="hidden"
-                            name="credit_id"
-                            value={row.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="decision"
-                            value="approve"
-                          />
-                          <SubmitButton
-                            size="sm"
-                            className="h-7 px-2 text-[11px] font-bold"
-                            pendingLabel="Aprovando…"
-                          >
-                            <Check />
-                            Aprovar
-                          </SubmitButton>
-                        </form>
-                        <form action={reviewCredit}>
-                          <input
-                            type="hidden"
-                            name="credit_id"
-                            value={row.id}
-                          />
-                          <input type="hidden" name="decision" value="reject" />
-                          <SubmitButton
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-[11px]"
-                            pendingLabel="Recusando…"
-                          >
-                            <X />
-                            Recusar
-                          </SubmitButton>
-                        </form>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </section>
+      <PendingPurchasesSection pending={pending} />
 
       <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
         <CreditForm members={members} methods={methods} today={today} />
-
-        <section className="rounded-lg border border-line bg-surface">
-          <header className="border-b border-line/70 px-4 py-3">
-            <h2 className="font-serif text-[20px] leading-none font-normal">
-              Saldos
-            </h2>
-            <p className="mt-1.5 text-[11px] text-ink-soft">
-              Créditos aprovados e ainda não usados.
-            </p>
-          </header>
-          {balances.length === 0 ? (
-            <p className="px-4 py-6 text-[12px] text-ink-soft">
-              Nenhum cliente cadastrado ainda. As contas criadas na tela de
-              login aparecem aqui.
-            </p>
-          ) : (
-            <ul className="divide-y divide-line/70">
-              {balances.slice(0, 12).map((row) => (
-                <li
-                  key={row.profile_id}
-                  className="flex items-center justify-between gap-3 px-4 py-2.5"
-                >
-                  <div className="min-w-0">
-                    <span className="block truncate text-[12.5px] font-medium">
-                      {row.name}
-                    </span>
-                    <span className="block truncate text-[10.5px] text-ink-soft">
-                      {row.email ?? "sem e-mail"}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="num block text-[12.5px] font-medium whitespace-nowrap">
-                      {formatMoney(row.balance)}
-                    </span>
-                    {Number(row.pending_amount ?? 0) > 0 ? (
-                      <span className="num block text-[10px] text-citrus-ink">
-                        {formatMoney(row.pending_amount)} pendente
-                      </span>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {balances.length > 12 ? (
-            <p className="border-t border-line/70 px-4 py-2 text-[10.5px] text-ink-soft">
-              Mostrando os 12 maiores saldos de {formatInt(balances.length)}.
-            </p>
-          ) : null}
-        </section>
+        <BalancesSection balances={balances} />
       </div>
 
-      <section>
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 className="font-serif text-[25px] leading-none font-normal tracking-[-0.01em] sm:text-[28px]">
-            Histórico de créditos
-          </h2>
-          <span className="text-xs text-ink-soft">
-            últimos {formatInt(recent.length)}
-          </span>
-        </div>
-
-        {recent.length === 0 ? (
-          <Empty className="mt-3 rounded-none border-y border-line bg-paper py-12">
-            <EmptyHeader>
-              <EmptyTitle className="font-serif text-[24px] font-normal">
-                Nenhum crédito ainda
-              </EmptyTitle>
-              <EmptyDescription>
-                Compras aprovadas e créditos lançados aparecem aqui.
-              </EmptyDescription>
-            </EmptyHeader>
-            <Button asChild size="sm" className="font-bold">
-              <Link href="/creditos">Atualizar</Link>
-            </Button>
-          </Empty>
-        ) : (
-          <div className="mt-3 border-t border-ink/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-ink/70 hover:bg-transparent">
-                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium text-ink-soft">
-                    Usuário
-                  </TableHead>
-                  <TableHead className="h-9 text-right text-[10.5px] font-medium text-ink-soft">
-                    Valor
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft sm:table-cell">
-                    Pagamento
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium text-ink-soft md:table-cell">
-                    Compra
-                  </TableHead>
-                  <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium text-ink-soft">
-                    Status
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recent.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="border-line/80 hover:bg-moss-soft/25"
-                  >
-                    <TableCell className="border-l-[3px] border-l-transparent py-2.5 pl-3">
-                      <span className="block truncate text-[12.5px] font-medium">
-                        {row.profile_name}
-                      </span>
-                      <span className="block truncate text-[10.5px] text-ink-soft">
-                        {row.source === "staff" ? "Lançado pela equipe" : "Site"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="num px-2 py-2.5 text-right text-[12.5px] font-medium whitespace-nowrap">
-                      {formatMoney(row.amount)}
-                    </TableCell>
-                    <TableCell className="hidden px-2 py-2.5 text-[12px] text-ink-soft sm:table-cell">
-                      {row.payment_method_label}
-                    </TableCell>
-                    <TableCell className="num hidden px-2 py-2.5 text-[12px] text-ink-soft md:table-cell">
-                      {formatDate(row.purchased_on)}
-                    </TableCell>
-                    <TableCell className="px-2 py-2.5 pr-3 text-right">
-                      <CreditStatusBadge status={row.status} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </section>
+      <CreditHistorySection recent={recent} />
     </div>
   );
 }

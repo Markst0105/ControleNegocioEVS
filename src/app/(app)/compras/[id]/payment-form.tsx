@@ -16,11 +16,11 @@ export function PurchasePaymentForm({
   purchaseId,
   today,
   paidOn,
-}: {
+}: Readonly<{
   purchaseId: string;
   today: string;
   paidOn: string | null;
-}) {
+}>) {
   const [state, formAction, pending] = useActionState(
     setPurchasePaidOn,
     initialState,
@@ -41,8 +41,10 @@ export function PurchasePaymentForm({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[12px] text-ink-soft">
             Pagamento confirmado em{" "}
-            <strong className="font-medium text-ink">{formatDate(paidOn)}</strong>
-            .
+            <strong className="font-medium text-ink">
+              {formatDate(paidOn)}
+            </strong>
+            {"."}
           </p>
           <form action={formAction}>
             <input type="hidden" name="purchase_id" value={purchaseId} />

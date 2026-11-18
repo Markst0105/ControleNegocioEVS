@@ -44,13 +44,213 @@ const ERROR_MESSAGES: Record<string, string> = {
   estornar: "Não foi possível estornar o lançamento. Tente novamente.",
 };
 
+function openAmountTextClass(
+  openAmount: number,
+  status: string | null,
+): string {
+  if (openAmount > 0 && status === "vencido") return "text-rust-ink";
+  if (openAmount <= 0) return "text-ink-soft";
+  return "text-ink";
+}
+
+type PaymentEventRow = {
+  id: string;
+  kind: string;
+  occurred_on: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+};
+
+function RecebivelHistorySection({
+  events,
+  paymentId,
+  isAdmin,
+}: Readonly<{
+  events: PaymentEventRow[];
+  paymentId: string;
+  isAdmin: boolean;
+}>) {
+  return (
+    <section>
+      <h2 className="font-serif text-[24px] leading-none font-normal">
+        Histórico
+      </h2>
+      <p className="mt-1 text-[11.5px] text-ink-soft">
+        Recebimentos e baixas desta parcela.
+      </p>
+
+      {events.length === 0 ? (
+        <p className="mt-3 border-y border-line py-8 text-center text-sm text-ink-soft">
+          Nenhum recebimento registrado.
+        </p>
+      ) : (
+        <ul className="mt-3 divide-y divide-line border-y border-line">
+          {events.map((event) => {
+            const isReceipt = event.kind === "receipt";
+            return (
+              <li
+                key={event.id}
+                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-sm border px-1.5 py-px text-[10px] font-medium tracking-wide",
+                        isReceipt
+                          ? "border-moss/25 bg-moss-soft text-moss-ink"
+                          : "border-line bg-surface text-ink-soft",
+                      )}
+                    >
+                      {isReceipt ? "Recebimento" : "Baixa"}
+                    </span>
+                    <span className="num text-[12px] text-ink-soft">
+                      {formatDate(event.occurred_on)}
+                    </span>
+                  </div>
+                  {event.note ? (
+                    <p className="mt-1 text-[12px] text-ink-soft">
+                      {event.note}
+                    </p>
+                  ) : null}
+
+                  {isAdmin ? (
+                    <details className="mt-1.5">
+                      <summary className="w-fit cursor-pointer text-[10.5px] text-rust-ink/80">
+                        Estornar
+                      </summary>
+                      <form
+                        action={deleteReceiptEvent}
+                        className="mt-2 flex flex-wrap items-center gap-2"
+                      >
+                        <input
+                          type="hidden"
+                          name="payment_id"
+                          value={paymentId}
+                        />
+                        <input
+                          type="hidden"
+                          name="event_id"
+                          value={event.id}
+                        />
+                        <span className="text-[10.5px] text-ink-soft">
+                          Reabre {formatMoney(event.amount)} do saldo.
+                        </span>
+                        <Button
+                          type="submit"
+                          variant="destructive"
+                          size="xs"
+                        >
+                          <RotateCcw />
+                          Confirmar estorno
+                        </Button>
+                      </form>
+                    </details>
+                  ) : null}
+                </div>
+
+                <span
+                  className={
+                    isReceipt
+                      ? "num shrink-0 text-right text-[13px] font-medium text-moss-ink"
+                      : "num shrink-0 text-right text-[13px] font-medium text-ink-soft"
+                  }
+                >
+                  {isReceipt ? "+" : ""}
+                  {formatMoney(event.amount)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function RecebivelSummaryGrid({
+  openAmount,
+  receivedAmount,
+  writtenOffAmount,
+  amount,
+  status,
+  soldOn,
+  lastReceivedOn,
+  writtenOffOn,
+}: Readonly<{
+  openAmount: number;
+  receivedAmount: number;
+  writtenOffAmount: number;
+  amount: number;
+  status: string | null;
+  soldOn: string;
+  lastReceivedOn: string | null;
+  writtenOffOn: string | null;
+}>) {
+  return (
+    <dl className="grid grid-cols-2 gap-px border-y border-line bg-line lg:grid-cols-[1.35fr_1fr_1fr_1fr]">
+      <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1 lg:pl-0">
+        <dt className="text-[11.5px] font-medium text-ink-soft">Em aberto</dt>
+        <dd
+          className={cn(
+            "num mt-2 text-[26px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[30px]",
+            openAmountTextClass(openAmount, status),
+          )}
+        >
+          {openAmount > 0 ? formatMoney(openAmount) : "—"}
+        </dd>
+        <p className="mt-2 text-[10.5px] text-ink-soft">
+          {openAmount > 0
+            ? "saldo restante desta parcela"
+            : "parcela liquidada"}
+        </p>
+      </div>
+
+      <div className="bg-paper px-4 py-5 sm:px-5">
+        <dt className="text-[11.5px] font-medium text-ink-soft">
+          Valor da parcela
+        </dt>
+        <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
+          {formatMoney(amount)}
+        </dd>
+        <p className="mt-2 text-[10.5px] text-ink-soft">
+          venda de {formatDate(soldOn)}
+        </p>
+      </div>
+
+      <div className="bg-paper px-4 py-5 sm:px-5">
+        <dt className="text-[11.5px] font-medium text-ink-soft">Recebido</dt>
+        <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap text-moss-ink sm:text-[21px]">
+          {receivedAmount > 0 ? formatMoney(receivedAmount) : "—"}
+        </dd>
+        <p className="mt-2 text-[10.5px] text-ink-soft">
+          {lastReceivedOn
+            ? `último em ${formatDate(lastReceivedOn)}`
+            : "nenhum recebimento"}
+        </p>
+      </div>
+
+      <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1">
+        <dt className="text-[11.5px] font-medium text-ink-soft">Baixado</dt>
+        <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
+          {writtenOffAmount > 0 ? formatMoney(writtenOffAmount) : "—"}
+        </dd>
+        <p className="mt-2 text-[10.5px] text-ink-soft">
+          {writtenOffOn ? `baixa em ${formatDate(writtenOffOn)}` : "sem baixa"}
+        </p>
+      </div>
+    </dl>
+  );
+}
+
 export default async function RecebivelPage({
   params,
   searchParams,
-}: {
+}: Readonly<{
   params: Params;
   searchParams: SearchParams;
-}) {
+}>) {
   const { id } = await params;
   const query = await searchParams;
   if (!isUuid(id)) notFound();
@@ -133,66 +333,16 @@ export default async function RecebivelPage({
         </p>
       ) : null}
 
-      <dl className="grid grid-cols-2 gap-px border-y border-line bg-line lg:grid-cols-[1.35fr_1fr_1fr_1fr]">
-        <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1 lg:pl-0">
-          <dt className="text-[11.5px] font-medium text-ink-soft">
-            Em aberto
-          </dt>
-          <dd
-            className={cn(
-              "num mt-2 text-[26px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[30px]",
-              openAmount > 0 && payment.status === "vencido"
-                ? "text-rust-ink"
-                : openAmount <= 0
-                  ? "text-ink-soft"
-                  : "text-ink",
-            )}
-          >
-            {openAmount > 0 ? formatMoney(openAmount) : "—"}
-          </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">
-            {openAmount > 0
-              ? "saldo restante desta parcela"
-              : "parcela liquidada"}
-          </p>
-        </div>
-
-        <div className="bg-paper px-4 py-5 sm:px-5">
-          <dt className="text-[11.5px] font-medium text-ink-soft">
-            Valor da parcela
-          </dt>
-          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
-            {formatMoney(payment.amount)}
-          </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">
-            venda de {formatDate(payment.sold_on)}
-          </p>
-        </div>
-
-        <div className="bg-paper px-4 py-5 sm:px-5">
-          <dt className="text-[11.5px] font-medium text-ink-soft">Recebido</dt>
-          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap text-moss-ink sm:text-[21px]">
-            {receivedAmount > 0 ? formatMoney(receivedAmount) : "—"}
-          </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">
-            {payment.last_received_on
-              ? `último em ${formatDate(payment.last_received_on)}`
-              : "nenhum recebimento"}
-          </p>
-        </div>
-
-        <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1">
-          <dt className="text-[11.5px] font-medium text-ink-soft">Baixado</dt>
-          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
-            {writtenOffAmount > 0 ? formatMoney(writtenOffAmount) : "—"}
-          </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">
-            {payment.written_off_on
-              ? `baixa em ${formatDate(payment.written_off_on)}`
-              : "sem baixa"}
-          </p>
-        </div>
-      </dl>
+      <RecebivelSummaryGrid
+        openAmount={openAmount}
+        receivedAmount={receivedAmount}
+        writtenOffAmount={writtenOffAmount}
+        amount={payment.amount}
+        status={payment.status}
+        soldOn={payment.sold_on}
+        lastReceivedOn={payment.last_received_on}
+        writtenOffOn={payment.written_off_on}
+      />
 
       {openAmount > 0 ? (
         <ReceiptForm
@@ -225,100 +375,11 @@ export default async function RecebivelPage({
       ) : null}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10">
-        <section>
-          <h2 className="font-serif text-[24px] leading-none font-normal">
-            Histórico
-          </h2>
-          <p className="mt-1 text-[11.5px] text-ink-soft">
-            Recebimentos e baixas desta parcela.
-          </p>
-
-          {events.length === 0 ? (
-            <p className="mt-3 border-y border-line py-8 text-center text-sm text-ink-soft">
-              Nenhum recebimento registrado.
-            </p>
-          ) : (
-            <ul className="mt-3 divide-y divide-line border-y border-line">
-              {events.map((event) => {
-                const isReceipt = event.kind === "receipt";
-                return (
-                  <li
-                    key={event.id}
-                    className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-sm border px-1.5 py-px text-[10px] font-medium tracking-wide",
-                            isReceipt
-                              ? "border-moss/25 bg-moss-soft text-moss-ink"
-                              : "border-line bg-surface text-ink-soft",
-                          )}
-                        >
-                          {isReceipt ? "Recebimento" : "Baixa"}
-                        </span>
-                        <span className="num text-[12px] text-ink-soft">
-                          {formatDate(event.occurred_on)}
-                        </span>
-                      </div>
-                      {event.note ? (
-                        <p className="mt-1 text-[12px] text-ink-soft">
-                          {event.note}
-                        </p>
-                      ) : null}
-
-                      {isAdmin ? (
-                        <details className="mt-1.5">
-                          <summary className="w-fit cursor-pointer text-[10.5px] text-rust-ink/80">
-                            Estornar
-                          </summary>
-                          <form
-                            action={deleteReceiptEvent}
-                            className="mt-2 flex flex-wrap items-center gap-2"
-                          >
-                            <input
-                              type="hidden"
-                              name="payment_id"
-                              value={payment.id}
-                            />
-                            <input
-                              type="hidden"
-                              name="event_id"
-                              value={event.id}
-                            />
-                            <span className="text-[10.5px] text-ink-soft">
-                              Reabre {formatMoney(event.amount)} do saldo.
-                            </span>
-                            <Button
-                              type="submit"
-                              variant="destructive"
-                              size="xs"
-                            >
-                              <RotateCcw />
-                              Confirmar estorno
-                            </Button>
-                          </form>
-                        </details>
-                      ) : null}
-                    </div>
-
-                    <span
-                      className={
-                        isReceipt
-                          ? "num shrink-0 text-right text-[13px] font-medium text-moss-ink"
-                          : "num shrink-0 text-right text-[13px] font-medium text-ink-soft"
-                      }
-                    >
-                      {isReceipt ? "+" : ""}
-                      {formatMoney(event.amount)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+        <RecebivelHistorySection
+          events={events}
+          paymentId={payment.id}
+          isAdmin={isAdmin}
+        />
 
         <section>
           <h2 className="font-serif text-[24px] leading-none font-normal">

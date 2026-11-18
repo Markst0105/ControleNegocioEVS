@@ -12,10 +12,10 @@ import { NEW_SALE_PATH } from "@/lib/nav";
 export function AppSidebar({
   user,
   profile,
-}: {
+}: Readonly<{
   user: SessionUser;
   profile: Profile;
-}) {
+}>) {
   return (
     <aside
       data-print-hide

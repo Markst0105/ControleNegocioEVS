@@ -16,10 +16,10 @@ export function SignOutButton() {
 export default function ProfileNotice({
   title,
   description,
-}: {
+}: Readonly<{
   title: string;
   description: string;
-}) {
+}>) {
   return (
     <main className="grid flex-1 place-items-center px-4 py-16">
       <div className="w-full max-w-md text-center">

@@ -12,11 +12,11 @@ export function MemberShell({
   user,
   profile,
   children,
-}: {
+}: Readonly<{
   user: SessionUser;
   profile: Profile;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="min-h-dvh bg-paper">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-moss-ink text-paper">

@@ -41,12 +41,181 @@ export const metadata: Metadata = {
 };
 
 type SearchParams = Promise<{ mes?: string }>;
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+type RecentSale = {
+  id: string;
+  sold_on: string;
+  client_name_raw: string | null;
+  product_name_raw: string | null;
+  deal_type_code: string | null;
+  discount_pct: number | null;
+  origin: string | null;
+  amount_received: number | null;
+};
+
+function monthHref(ym: string, currentMonth: string): string {
+  return ym === currentMonth ? "/painel" : `/painel?mes=${ym}`;
+}
+
+function originBorderClass(origin: string | null): string {
+  if (origin === "CASA") return "border-l-steel";
+  if (origin === "EVS") return "border-l-moss";
+  return "border-l-line-strong";
+}
+
+async function resolveOpenReceivables(
+  supabase: Supabase,
+  receivablesResult: {
+    data: { open_total: number | null } | null;
+    error: { message: string } | null;
+  },
+  isCurrentMonth: boolean,
+): Promise<number | null> {
+  if (!receivablesResult.error) {
+    return Number(receivablesResult.data?.open_total ?? 0);
+  }
+
+  console.error(
+    "painel: falha ao calcular valores a receber",
+    receivablesResult.error,
+  );
+  if (!isCurrentMonth) return null;
+
+  const fallback = await supabase.rpc("open_receivables_total");
+  if (fallback.error) return null;
+  return Number(fallback.data ?? 0);
+}
+
+function RecentSalesSection({
+  month,
+  isCurrentMonth,
+  recent,
+  dealLabels,
+}: Readonly<{
+  month: string;
+  isCurrentMonth: boolean;
+  recent: RecentSale[];
+  dealLabels: Map<string, string>;
+}>) {
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="font-serif text-[25px] leading-none font-normal tracking-[-0.01em] sm:text-[28px]">
+          {isCurrentMonth ? "Últimos lançamentos" : "Lançamentos do mês"}
+        </h2>
+        <Link
+          href={`/vendas?mes=${month}`}
+          className="text-xs font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
+        >
+          Ver todas
+        </Link>
+      </div>
+
+      {recent.length === 0 ? (
+        <Empty className="rounded-none border-y border-line bg-paper py-12">
+          <EmptyHeader>
+            <EmptyTitle className="font-serif text-[24px] font-normal">
+              {isCurrentMonth
+                ? "Nenhum lançamento ainda"
+                : "Nenhum lançamento neste mês"}
+            </EmptyTitle>
+            <EmptyDescription>
+              {isCurrentMonth
+                ? "Registre a primeira venda para começar o controle."
+                : "Navegue para outro mês ou registre uma venda."}
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button asChild size="sm" className="font-bold">
+            <Link href="/vendas/nova">Lançar venda</Link>
+          </Button>
+        </Empty>
+      ) : (
+        <div className="border-t border-ink/70">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b-ink/70 hover:bg-transparent">
+                <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
+                  Data
+                </TableHead>
+                <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
+                  Cliente
+                </TableHead>
+                <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft md:table-cell">
+                  Produto
+                </TableHead>
+                <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft sm:table-cell">
+                  Negócio
+                </TableHead>
+                <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
+                  Origem
+                </TableHead>
+                <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
+                  Valor
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recent.map((sale) => (
+                <TableRow
+                  key={sale.id}
+                  className="border-line/80 hover:bg-moss-soft/25"
+                >
+                  <TableCell
+                    className={cn(
+                      "num border-l-[3px] py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft",
+                      originBorderClass(sale.origin),
+                    )}
+                  >
+                    {formatDate(sale.sold_on)}
+                  </TableCell>
+                  <TableCell className="max-w-[190px] px-2 py-2.5 text-[13px]">
+                    <span
+                      className={
+                        sale.client_name_raw
+                          ? "block truncate font-medium"
+                          : "block truncate text-ink-soft"
+                      }
+                    >
+                      {sale.client_name_raw ?? "Balcão"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="hidden max-w-[240px] px-2 py-2.5 text-[13px] text-ink-soft md:table-cell">
+                    <span className="block truncate">
+                      {sale.product_name_raw ?? "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="hidden px-2 py-2.5 sm:table-cell">
+                    <DealBadge
+                      label={
+                        sale.deal_type_code
+                          ? dealLabels.get(sale.deal_type_code)
+                          : null
+                      }
+                      discountPct={sale.discount_pct}
+                    />
+                  </TableCell>
+                  <TableCell className="px-2 py-2.5">
+                    <OriginBadge origin={sale.origin} />
+                  </TableCell>
+                  <TableCell className="num px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap">
+                    {formatMoney(sale.amount_received)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default async function PainelPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const supabase = await createClient();
 
@@ -106,21 +275,11 @@ export default async function PainelPage({
   }
 
   // Não derruba o Painel se a migração da função ainda não foi aplicada.
-  let openReceivables: number | null = null;
-  if (receivablesResult.error) {
-    console.error(
-      "painel: falha ao calcular valores a receber",
-      receivablesResult.error,
-    );
-    if (isCurrentMonth) {
-      const fallback = await supabase.rpc("open_receivables_total");
-      if (!fallback.error) {
-        openReceivables = Number(fallback.data ?? 0);
-      }
-    }
-  } else {
-    openReceivables = Number(receivablesResult.data?.open_total ?? 0);
-  }
+  const openReceivables = await resolveOpenReceivables(
+    supabase,
+    receivablesResult,
+    isCurrentMonth,
+  );
 
   const pnl = pnlResult.data;
   const salesCount = countResult.count ?? 0;
@@ -146,10 +305,6 @@ export default async function PainelPage({
   const monthName =
     monthNameRaw.charAt(0).toUpperCase() + monthNameRaw.slice(1);
 
-  function monthHref(ym: string) {
-    return ym === currentMonth ? "/painel" : `/painel?mes=${ym}`;
-  }
-
   return (
     <div className="flex flex-col gap-8 lg:gap-10">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -168,7 +323,7 @@ export default async function PainelPage({
         <div className="flex shrink-0 flex-row items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
           {isCurrentMonth ? (
             <span className="inline-flex items-center gap-1.5 rounded-sm border border-moss/35 px-2 py-1 text-[10px] font-medium tracking-[0.08em] text-moss-ink uppercase">
-              <span aria-hidden className="size-1.5 rounded-full bg-citrus" />
+              <span aria-hidden className="size-1.5 rounded-full bg-citrus" />{" "}
               Em aberto
             </span>
           ) : (
@@ -186,7 +341,7 @@ export default async function PainelPage({
         <div className="flex items-center gap-1">
           <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8">
             <Link
-              href={monthHref(shiftMonth(month, -1))}
+              href={monthHref(shiftMonth(month, -1), currentMonth)}
               aria-label="Mês anterior"
             >
               <ChevronLeft />
@@ -208,7 +363,7 @@ export default async function PainelPage({
           ) : (
             <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8">
               <Link
-                href={monthHref(shiftMonth(month, 1))}
+                href={monthHref(shiftMonth(month, 1), currentMonth)}
                 aria-label="Próximo mês"
               >
                 <ChevronRight />
@@ -303,119 +458,12 @@ export default async function PainelPage({
         </p>
       ) : null}
 
-      <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 className="font-serif text-[25px] leading-none font-normal tracking-[-0.01em] sm:text-[28px]">
-            {isCurrentMonth ? "Últimos lançamentos" : "Lançamentos do mês"}
-          </h2>
-          <Link
-            href={`/vendas?mes=${month}`}
-            className="text-xs font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
-          >
-            Ver todas
-          </Link>
-        </div>
-
-        {recent.length === 0 ? (
-          <Empty className="rounded-none border-y border-line bg-paper py-12">
-            <EmptyHeader>
-              <EmptyTitle className="font-serif text-[24px] font-normal">
-                {isCurrentMonth
-                  ? "Nenhum lançamento ainda"
-                  : "Nenhum lançamento neste mês"}
-              </EmptyTitle>
-              <EmptyDescription>
-                {isCurrentMonth
-                  ? "Registre a primeira venda para começar o controle."
-                  : "Navegue para outro mês ou registre uma venda."}
-              </EmptyDescription>
-            </EmptyHeader>
-            <Button asChild size="sm" className="font-bold">
-              <Link href="/vendas/nova">Lançar venda</Link>
-            </Button>
-          </Empty>
-        ) : (
-          <div className="border-t border-ink/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-ink/70 hover:bg-transparent">
-                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Data
-                  </TableHead>
-                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Cliente
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft md:table-cell">
-                    Produto
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft sm:table-cell">
-                    Negócio
-                  </TableHead>
-                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Origem
-                  </TableHead>
-                  <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Valor
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recent.map((sale) => (
-                  <TableRow
-                    key={sale.id}
-                    className="border-line/80 hover:bg-moss-soft/25"
-                  >
-                    <TableCell
-                      className={cn(
-                        "num border-l-[3px] py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft",
-                        sale.origin === "CASA"
-                          ? "border-l-steel"
-                          : sale.origin === "EVS"
-                            ? "border-l-moss"
-                            : "border-l-line-strong",
-                      )}
-                    >
-                      {formatDate(sale.sold_on)}
-                    </TableCell>
-                    <TableCell className="max-w-[190px] px-2 py-2.5 text-[13px]">
-                      <span
-                        className={
-                          sale.client_name_raw
-                            ? "block truncate font-medium"
-                            : "block truncate text-ink-soft"
-                        }
-                      >
-                        {sale.client_name_raw ?? "Balcão"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden max-w-[240px] px-2 py-2.5 text-[13px] text-ink-soft md:table-cell">
-                      <span className="block truncate">
-                        {sale.product_name_raw ?? "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden px-2 py-2.5 sm:table-cell">
-                      <DealBadge
-                        label={
-                          sale.deal_type_code
-                            ? dealLabels.get(sale.deal_type_code)
-                            : null
-                        }
-                        discountPct={sale.discount_pct}
-                      />
-                    </TableCell>
-                    <TableCell className="px-2 py-2.5">
-                      <OriginBadge origin={sale.origin} />
-                    </TableCell>
-                    <TableCell className="num px-2 py-2.5 pr-3 text-right text-[13px] whitespace-nowrap">
-                      {formatMoney(sale.amount_received)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </section>
+      <RecentSalesSection
+        month={month}
+        isCurrentMonth={isCurrentMonth}
+        recent={recent}
+        dealLabels={dealLabels}
+      />
     </div>
   );
 }

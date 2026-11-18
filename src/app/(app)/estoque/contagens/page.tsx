@@ -29,11 +29,17 @@ const PAGE_SIZE = 25;
 
 type SearchParams = Promise<{ pagina?: string }>;
 
+function pageHref(target: number) {
+  return target > 1
+    ? `/estoque/contagens?pagina=${target}`
+    : "/estoque/contagens";
+}
+
 export default async function ContagensPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.pagina ?? "1", 10) || 1);
 
@@ -53,10 +59,6 @@ export default async function ContagensPage({
   const counts = data ?? [];
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  function pageHref(target: number) {
-    return target > 1 ? `/estoque/contagens?pagina=${target}` : "/estoque/contagens";
-  }
 
   return (
     <div className="flex flex-col gap-5">

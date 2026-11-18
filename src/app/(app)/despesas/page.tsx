@@ -82,16 +82,531 @@ type SearchParams = Promise<{
   erro?: string;
 }>;
 
-export default async function DespesasPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const params = await searchParams;
-  const session = await getSession();
-  const role = session?.profile?.role ?? "operator";
-  const canUsePersonal = role === "admin";
+type ExpenseRow = {
+  id: string;
+  incurred_on: string;
+  description: string;
+  category_id: string | null;
+  account_id: string | null;
+  amount: number;
+  scope: string | null;
+};
 
+type ExpenseCategoryRow = {
+  id: string;
+  name: string;
+  scope: string;
+  active: boolean | null;
+};
+
+type ExpenseSummaryTotals = {
+  fixedTotal: number;
+  variableTotal: number;
+  personalTotal: number;
+  businessTotal: number;
+  businessExpenseCount: number;
+  personalCount: number;
+};
+
+function computeExpenseTotals(
+  rows: Array<{ scope: string | null; amount: number }>,
+): ExpenseSummaryTotals {
+  let fixedTotal = 0;
+  let variableTotal = 0;
+  let personalTotal = 0;
+  let businessExpenseCount = 0;
+  let personalCount = 0;
+
+  for (const row of rows) {
+    const amount = Number(row.amount);
+    if (isBusinessScope(row.scope)) businessExpenseCount += 1;
+    if (row.scope === "negocio_fixo") fixedTotal += amount;
+    if (row.scope === "negocio_variavel") variableTotal += amount;
+    if (row.scope === "pessoal") {
+      personalTotal += amount;
+      personalCount += 1;
+    }
+  }
+
+  return {
+    fixedTotal,
+    variableTotal,
+    personalTotal,
+    businessTotal: fixedTotal + variableTotal,
+    businessExpenseCount,
+    personalCount,
+  };
+}
+
+function buildDespesasHref(options: {
+  mes: string;
+  scopeFilter: ExpenseScope | null;
+  categoryFilter: string | null;
+  q: string;
+  page?: number;
+}) {
+  const sp = new URLSearchParams();
+  sp.set("mes", options.mes);
+  if (options.scopeFilter) sp.set("tipo", options.scopeFilter);
+  if (options.categoryFilter) sp.set("categoria", options.categoryFilter);
+  if (options.q) sp.set("q", options.q);
+  if (options.page && options.page > 1) sp.set("pagina", String(options.page));
+  return `/despesas?${sp.toString()}`;
+}
+
+function formatPersonalCountSuffix(
+  canUsePersonal: boolean,
+  personalCount: number,
+): string {
+  if (!canUsePersonal || personalCount <= 0) return "";
+  const label = personalCount === 1 ? "pessoal" : "pessoais";
+  return ` · ${formatInt(personalCount)} ${label}`;
+}
+
+function formatExpenseLaunchSubtitle(
+  total: number,
+  page: number,
+  totalPages: number,
+): string {
+  if (total === 0) return "Nenhum lançamento para os filtros atuais.";
+  const label = total === 1 ? "lançamento" : "lançamentos";
+  return `${formatInt(total)} ${label} · página ${page} de ${totalPages}`;
+}
+
+function DespesasSummaryGrid({
+  totals,
+  canUsePersonal,
+}: Readonly<{
+  totals: ExpenseSummaryTotals;
+  canUsePersonal: boolean;
+}>) {
+  const {
+    businessTotal,
+    businessExpenseCount,
+    personalCount,
+    fixedTotal,
+    variableTotal,
+    personalTotal,
+  } = totals;
+
+  return (
+    <dl
+      className={cn(
+        "grid grid-cols-2 gap-px border-y border-line bg-line",
+        canUsePersonal
+          ? "lg:grid-cols-[2.05fr_1fr_1fr_1fr]"
+          : "lg:grid-cols-[2.05fr_1fr_1fr]",
+      )}
+    >
+      <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1 lg:pl-0">
+        <dt className="text-[11.5px] font-medium text-ink-soft">
+          Despesas do negócio
+        </dt>
+        <dd
+          className={cn(
+            "num mt-2 text-[24px] leading-none font-medium tracking-tight whitespace-nowrap",
+            businessTotal < 0 ? "text-rust-ink" : "text-ink",
+          )}
+        >
+          {formatMoney(businessTotal)}
+        </dd>
+        <p className="mt-2 text-[10.5px] text-ink-soft">
+          {formatInt(businessExpenseCount)}{" "}
+          {businessExpenseCount === 1
+            ? "lançamento do negócio"
+            : "lançamentos do negócio"}
+          {formatPersonalCountSuffix(canUsePersonal, personalCount)}
+        </p>
+      </div>
+
+      <div className="bg-paper px-4 py-5 sm:px-5">
+        <dt className="text-[11.5px] font-medium text-ink-soft">
+          Negócio fixo
+        </dt>
+        <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
+          {formatMoney(fixedTotal)}
+        </dd>
+        <p className="mt-2 text-[10.5px] text-ink-soft">custos recorrentes</p>
+      </div>
+
+      <div className="bg-paper px-4 py-5 sm:px-5">
+        <dt className="text-[11.5px] font-medium text-ink-soft">
+          Negócio variável
+        </dt>
+        <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
+          {formatMoney(variableTotal)}
+        </dd>
+        <p className="mt-2 text-[10.5px] text-ink-soft">
+          acompanha o movimento
+        </p>
+      </div>
+
+      {canUsePersonal ? (
+        <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1">
+          <dt className="text-[11.5px] font-medium text-ink-soft">Pessoal</dt>
+          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
+            {formatMoney(personalTotal)}
+          </dd>
+          <p className="mt-2 text-[10.5px] text-ink-soft">
+            fora do resultado do negócio
+          </p>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
+function DespesasFilterForm({
+  mes,
+  currentMonth,
+  scopeFilter,
+  categoryFilter,
+  q,
+  canUsePersonal,
+  categories,
+  filtered,
+}: Readonly<{
+  mes: string;
+  currentMonth: string;
+  scopeFilter: ExpenseScope | null;
+  categoryFilter: string | null;
+  q: string;
+  canUsePersonal: boolean;
+  categories: ExpenseCategoryRow[];
+  filtered: boolean;
+}>) {
+  return (
+    <form
+      method="get"
+      action="/despesas"
+      className="flex flex-wrap items-end gap-2"
+    >
+      <div className="grid gap-1.5">
+        <Label
+          htmlFor="mes"
+          className="text-[11px] font-medium text-ink-soft"
+        >
+          Mês
+        </Label>
+        <Input
+          id="mes"
+          type="month"
+          name="mes"
+          defaultValue={mes}
+          className="num h-9 w-40"
+        />
+      </div>
+
+      <div className="grid gap-1.5">
+        <Label
+          htmlFor="tipo"
+          className="text-[11px] font-medium text-ink-soft"
+        >
+          Tipo
+        </Label>
+        <Select name="tipo" defaultValue={scopeFilter ?? "todos"}>
+          <SelectTrigger id="tipo" className="h-9 w-44 bg-surface">
+            <SelectValue placeholder="Todos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            {EXPENSE_SCOPE_OPTIONS.filter(
+              (option) => canUsePersonal || option.value !== "pessoal",
+            ).map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-1.5">
+        <Label
+          htmlFor="categoria"
+          className="text-[11px] font-medium text-ink-soft"
+        >
+          Categoria
+        </Label>
+        <Select name="categoria" defaultValue={categoryFilter ?? "todas"}>
+          <SelectTrigger id="categoria" className="h-9 w-52 bg-surface">
+            <SelectValue placeholder="Todas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.name}
+                {category.active === false ? " (inativa)" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid min-w-48 flex-1 gap-1.5">
+        <Label htmlFor="q" className="text-[11px] font-medium text-ink-soft">
+          Buscar
+        </Label>
+        <Input
+          id="q"
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Descrição da despesa…"
+          className="h-9"
+        />
+      </div>
+
+      <Button type="submit" variant="secondary" className="h-9">
+        <Search />
+        Filtrar
+      </Button>
+
+      {filtered || mes !== currentMonth ? (
+        <Button asChild variant="ghost" className="h-9">
+          <Link href="/despesas">Limpar</Link>
+        </Button>
+      ) : null}
+    </form>
+  );
+}
+
+function lookupMapName(
+  id: string | null,
+  map: Map<string, string>,
+  fallback: string,
+): string {
+  if (!id) return fallback;
+  return map.get(id) ?? fallback;
+}
+
+function DespesasPagination({
+  page,
+  totalPages,
+  prevHref,
+  nextHref,
+}: Readonly<{
+  page: number;
+  totalPages: number;
+  prevHref: string;
+  nextHref: string;
+}>) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-end gap-2">
+      {page > 1 ? (
+        <Button asChild variant="outline" size="sm" className="h-8">
+          <Link href={prevHref}>Anterior</Link>
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" className="h-8" disabled>
+          Anterior
+        </Button>
+      )}
+      {page < totalPages ? (
+        <Button asChild variant="outline" size="sm" className="h-8">
+          <Link href={nextHref}>Próxima</Link>
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" className="h-8" disabled>
+          Próxima
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function DespesasListSection({
+  expenses,
+  total,
+  page,
+  totalPages,
+  filtered,
+  mes,
+  scopeFilter,
+  categoryFilter,
+  q,
+  categoryNames,
+  accountNames,
+}: Readonly<{
+  expenses: ExpenseRow[];
+  total: number;
+  page: number;
+  totalPages: number;
+  filtered: boolean;
+  mes: string;
+  scopeFilter: ExpenseScope | null;
+  categoryFilter: string | null;
+  q: string;
+  categoryNames: Map<string, string>;
+  accountNames: Map<string, string>;
+}>) {
+  const prevHref = buildDespesasHref({
+    mes,
+    scopeFilter,
+    categoryFilter,
+    q,
+    page: page - 1,
+  });
+  const nextHref = buildDespesasHref({
+    mes,
+    scopeFilter,
+    categoryFilter,
+    q,
+    page: page + 1,
+  });
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="font-serif text-[24px] leading-none font-normal">
+            Lançamentos
+          </h2>
+          <p className="mt-1 text-[11.5px] text-ink-soft">
+            {formatExpenseLaunchSubtitle(total, page, totalPages)}
+          </p>
+        </div>
+      </div>
+
+      {total === 0 ? (
+        <Empty className="rounded-none border-y border-line bg-paper py-12">
+          <EmptyHeader>
+            <EmptyTitle className="font-serif text-[24px] font-normal">
+              {filtered ? "Nenhum resultado" : "Nenhuma despesa neste mês"}
+            </EmptyTitle>
+            <EmptyDescription>
+              {filtered
+                ? "Ajuste o mês, o tipo, a categoria ou a busca."
+                : "Lance a primeira despesa para acompanhar o resultado."}
+            </EmptyDescription>
+          </EmptyHeader>
+          {filtered ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/despesas?mes=${mes}`}>Limpar filtros</Link>
+            </Button>
+          ) : (
+            <Button asChild size="sm">
+              <Link href={`/despesas/nova?mes=${mes}`}>
+                <Plus />
+                Nova despesa
+              </Link>
+            </Button>
+          )}
+        </Empty>
+      ) : (
+        <div className="border-t border-ink/70">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b-ink/70 hover:bg-transparent">
+                <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
+                  Data
+                </TableHead>
+                <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
+                  Descrição
+                </TableHead>
+                <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft md:table-cell">
+                  Categoria
+                </TableHead>
+                <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft lg:table-cell">
+                  Conta
+                </TableHead>
+                <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
+                  Tipo
+                </TableHead>
+                <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
+                  Valor
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {expenses.map((expense) => {
+                const amount = Number(expense.amount);
+                return (
+                  <TableRow
+                    key={expense.id}
+                    className="border-line/80 hover:bg-moss-soft/25"
+                  >
+                    <TableCell
+                      className={cn(
+                        "num border-l-[3px] py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft",
+                        expenseScopeAccent(expense.scope),
+                      )}
+                    >
+                      <Link
+                        href={`/despesas/${expense.id}`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {formatDate(expense.incurred_on)}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="max-w-[320px] px-2 py-2.5 text-[13px]">
+                      <Link
+                        href={`/despesas/${expense.id}`}
+                        className="block truncate font-medium underline-offset-2 hover:underline"
+                      >
+                        {expense.description}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="hidden max-w-[220px] px-2 py-2.5 text-[12px] text-ink-soft md:table-cell">
+                      <span className="block truncate">
+                        {lookupMapName(
+                          expense.category_id,
+                          categoryNames,
+                          "Sem categoria",
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden max-w-[200px] px-2 py-2.5 text-[12px] text-ink-soft lg:table-cell">
+                      <span className="block truncate">
+                        {lookupMapName(
+                          expense.account_id,
+                          accountNames,
+                          "Sem conta",
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-2 py-2.5">
+                      <ExpenseScopeBadge scope={expense.scope} />
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        "num px-2 py-2.5 pr-3 text-right text-[13px] font-medium whitespace-nowrap",
+                        amount < 0 ? "text-rust-ink" : "text-ink",
+                      )}
+                    >
+                      {formatMoney(amount)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <DespesasPagination
+        page={page}
+        totalPages={totalPages}
+        prevHref={prevHref}
+        nextHref={nextHref}
+      />
+    </section>
+  );
+}
+
+function parseDespesasFilters(
+  params: {
+    mes?: string;
+    tipo?: string;
+    categoria?: string;
+    q?: string;
+    pagina?: string;
+  },
+  canUsePersonal: boolean,
+) {
   const currentMonth = currentMonthISO();
   const mes = isMonthISO(params.mes) ? params.mes : currentMonth;
   const page = Math.max(1, Number.parseInt(params.pagina ?? "1", 10) || 1);
@@ -105,6 +620,40 @@ export default async function DespesasPage({
       : null;
   const categoryFilter =
     params.categoria && isUuid(params.categoria) ? params.categoria : null;
+  const filtered = Boolean(q || scopeFilter || categoryFilter);
+
+  return {
+    currentMonth,
+    mes,
+    page,
+    q,
+    search,
+    scopeFilter,
+    categoryFilter,
+    filtered,
+  };
+}
+
+export default async function DespesasPage({
+  searchParams,
+}: Readonly<{
+  searchParams: SearchParams;
+}>) {
+  const params = await searchParams;
+  const session = await getSession();
+  const role = session?.profile?.role ?? "operator";
+  const canUsePersonal = role === "admin";
+
+  const {
+    currentMonth,
+    mes,
+    page,
+    q,
+    search,
+    scopeFilter,
+    categoryFilter,
+    filtered,
+  } = parseDespesasFilters(params, canUsePersonal);
 
   const supabase = await createClient();
   const from = monthFirstDay(mes);
@@ -149,7 +698,7 @@ export default async function DespesasPage({
   ].find(Boolean);
   if (firstError) throw new Error(firstError.message);
 
-  const summaryRows = summaryResult.data ?? [];
+  const totals = computeExpenseTotals(summaryResult.data ?? []);
   const expenses = listResult.data ?? [];
   const total = listResult.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -161,49 +710,22 @@ export default async function DespesasPage({
   const accountNames = new Map(
     accounts.map((account) => [account.id, account.name]),
   );
-
-  let fixedTotal = 0;
-  let variableTotal = 0;
-  let personalTotal = 0;
-  let businessExpenseCount = 0;
-  let personalCount = 0;
-
-  for (const row of summaryRows) {
-    const amount = Number(row.amount);
-    if (isBusinessScope(row.scope)) businessExpenseCount += 1;
-    if (row.scope === "negocio_fixo") fixedTotal += amount;
-    if (row.scope === "negocio_variavel") variableTotal += amount;
-    if (row.scope === "pessoal") {
-      personalTotal += amount;
-      personalCount += 1;
-    }
-  }
-
-  const businessTotal = fixedTotal + variableTotal;
-
-  const filtered = Boolean(q || scopeFilter || categoryFilter);
   const returnedToCurrentMonth = mes === currentMonth;
   const okMessage = params.ok ? OK_MESSAGES[params.ok] : null;
   const errorMessage = params.erro ? ERROR_MESSAGES[params.erro] : null;
 
-  function pageHref(target: number) {
-    const sp = new URLSearchParams();
-    sp.set("mes", mes);
-    if (scopeFilter) sp.set("tipo", scopeFilter);
-    if (categoryFilter) sp.set("categoria", categoryFilter);
-    if (q) sp.set("q", q);
-    if (target > 1) sp.set("pagina", String(target));
-    return `/despesas?${sp.toString()}`;
-  }
-
-  function monthHref(target: string) {
-    const sp = new URLSearchParams();
-    sp.set("mes", target);
-    if (scopeFilter) sp.set("tipo", scopeFilter);
-    if (categoryFilter) sp.set("categoria", categoryFilter);
-    if (q) sp.set("q", q);
-    return `/despesas?${sp.toString()}`;
-  }
+  const prevMonthHref = buildDespesasHref({
+    mes: shiftMonth(mes, -1),
+    scopeFilter,
+    categoryFilter,
+    q,
+  });
+  const nextMonthHref = buildDespesasHref({
+    mes: shiftMonth(mes, 1),
+    scopeFilter,
+    categoryFilter,
+    q,
+  });
 
   return (
     <div className="flex flex-col gap-5">
@@ -240,10 +762,7 @@ export default async function DespesasPage({
       <div className="flex flex-wrap items-center justify-between gap-2 border-y border-line py-3">
         <div className="flex items-center gap-1">
           <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8">
-            <Link
-              href={monthHref(shiftMonth(mes, -1))}
-              aria-label="Mês anterior"
-            >
+            <Link href={prevMonthHref} aria-label="Mês anterior">
               <ChevronLeft />
             </Link>
           </Button>
@@ -251,7 +770,7 @@ export default async function DespesasPage({
             {formatMonth(mes)}
           </span>
           <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8">
-            <Link href={monthHref(shiftMonth(mes, 1))} aria-label="Próximo mês">
+            <Link href={nextMonthHref} aria-label="Próximo mês">
               <ChevronRight />
             </Link>
           </Button>
@@ -263,171 +782,20 @@ export default async function DespesasPage({
         </div>
       </div>
 
-      <form
-        method="get"
-        action="/despesas"
-        className="flex flex-wrap items-end gap-2"
-      >
-        <div className="grid gap-1.5">
-          <Label
-            htmlFor="mes"
-            className="text-[11px] font-medium text-ink-soft"
-          >
-            Mês
-          </Label>
-          <Input
-            id="mes"
-            type="month"
-            name="mes"
-            defaultValue={mes}
-            className="num h-9 w-40"
-          />
-        </div>
+      <DespesasFilterForm
+        mes={mes}
+        currentMonth={currentMonth}
+        scopeFilter={scopeFilter}
+        categoryFilter={categoryFilter}
+        q={q}
+        canUsePersonal={canUsePersonal}
+        categories={categories}
+        filtered={filtered}
+      />
 
-        <div className="grid gap-1.5">
-          <Label
-            htmlFor="tipo"
-            className="text-[11px] font-medium text-ink-soft"
-          >
-            Tipo
-          </Label>
-          <Select name="tipo" defaultValue={scopeFilter ?? "todos"}>
-            <SelectTrigger id="tipo" className="h-9 w-44 bg-surface">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              {EXPENSE_SCOPE_OPTIONS.filter(
-                (option) => canUsePersonal || option.value !== "pessoal",
-              ).map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <DespesasSummaryGrid totals={totals} canUsePersonal={canUsePersonal} />
 
-        <div className="grid gap-1.5">
-          <Label
-            htmlFor="categoria"
-            className="text-[11px] font-medium text-ink-soft"
-          >
-            Categoria
-          </Label>
-          <Select name="categoria" defaultValue={categoryFilter ?? "todas"}>
-            <SelectTrigger id="categoria" className="h-9 w-52 bg-surface">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                  {category.active === false ? " (inativa)" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid min-w-48 flex-1 gap-1.5">
-          <Label htmlFor="q" className="text-[11px] font-medium text-ink-soft">
-            Buscar
-          </Label>
-          <Input
-            id="q"
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder="Descrição da despesa…"
-            className="h-9"
-          />
-        </div>
-
-        <Button type="submit" variant="secondary" className="h-9">
-          <Search />
-          Filtrar
-        </Button>
-
-        {filtered || mes !== currentMonth ? (
-          <Button asChild variant="ghost" className="h-9">
-            <Link href="/despesas">Limpar</Link>
-          </Button>
-        ) : null}
-      </form>
-
-      <dl
-        className={cn(
-          "grid grid-cols-2 gap-px border-y border-line bg-line",
-          canUsePersonal
-            ? "lg:grid-cols-[2.05fr_1fr_1fr_1fr]"
-            : "lg:grid-cols-[2.05fr_1fr_1fr]",
-        )}
-      >
-        <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1 lg:pl-0">
-          <dt className="text-[11.5px] font-medium text-ink-soft">
-            Despesas do negócio
-          </dt>
-          <dd
-            className={cn(
-              "num mt-2 text-[24px] leading-none font-medium tracking-tight whitespace-nowrap",
-              businessTotal < 0 ? "text-rust-ink" : "text-ink",
-            )}
-          >
-            {formatMoney(businessTotal)}
-          </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">
-            {formatInt(businessExpenseCount)}{" "}
-            {businessExpenseCount === 1
-              ? "lançamento do negócio"
-              : "lançamentos do negócio"}
-            {canUsePersonal && personalCount > 0
-              ? ` · ${formatInt(personalCount)} ${
-                  personalCount === 1 ? "pessoal" : "pessoais"
-                }`
-              : ""}
-          </p>
-        </div>
-
-        <div className="bg-paper px-4 py-5 sm:px-5">
-          <dt className="text-[11.5px] font-medium text-ink-soft">
-            Negócio fixo
-          </dt>
-          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
-            {formatMoney(fixedTotal)}
-          </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">custos recorrentes</p>
-        </div>
-
-        <div className="bg-paper px-4 py-5 sm:px-5">
-          <dt className="text-[11.5px] font-medium text-ink-soft">
-            Negócio variável
-          </dt>
-          <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
-            {formatMoney(variableTotal)}
-          </dd>
-          <p className="mt-2 text-[10.5px] text-ink-soft">
-            acompanha o movimento
-          </p>
-        </div>
-
-        {canUsePersonal ? (
-          <div className="col-span-2 bg-paper px-4 py-5 sm:px-5 lg:col-span-1">
-            <dt className="text-[11.5px] font-medium text-ink-soft">
-              Pessoal
-            </dt>
-            <dd className="num mt-2 text-[19px] leading-none font-medium tracking-tight whitespace-nowrap sm:text-[21px]">
-              {formatMoney(personalTotal)}
-            </dd>
-            <p className="mt-2 text-[10.5px] text-ink-soft">
-              fora do resultado do negócio
-            </p>
-          </div>
-        ) : null}
-      </dl>
-
-      {businessExpenseCount === 0 ? (
+      {totals.businessExpenseCount === 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-citrus/30 bg-citrus-soft px-4 py-3">
           <div>
             <p className="text-[12.5px] font-medium text-citrus-ink">
@@ -444,158 +812,19 @@ export default async function DespesasPage({
         </div>
       ) : null}
 
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="font-serif text-[24px] leading-none font-normal">
-              Lançamentos
-            </h2>
-            <p className="mt-1 text-[11.5px] text-ink-soft">
-              {total === 0
-                ? "Nenhum lançamento para os filtros atuais."
-                : `${formatInt(total)} ${
-                    total === 1 ? "lançamento" : "lançamentos"
-                  } · página ${page} de ${totalPages}`}
-            </p>
-          </div>
-        </div>
-
-        {total === 0 ? (
-          <Empty className="rounded-none border-y border-line bg-paper py-12">
-            <EmptyHeader>
-              <EmptyTitle className="font-serif text-[24px] font-normal">
-                {filtered ? "Nenhum resultado" : "Nenhuma despesa neste mês"}
-              </EmptyTitle>
-              <EmptyDescription>
-                {filtered
-                  ? "Ajuste o mês, o tipo, a categoria ou a busca."
-                  : "Lance a primeira despesa para acompanhar o resultado."}
-              </EmptyDescription>
-            </EmptyHeader>
-            {filtered ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/despesas?mes=${mes}`}>Limpar filtros</Link>
-              </Button>
-            ) : (
-              <Button asChild size="sm">
-                <Link href={`/despesas/nova?mes=${mes}`}>
-                  <Plus />
-                  Nova despesa
-                </Link>
-              </Button>
-            )}
-          </Empty>
-        ) : (
-          <div className="border-t border-ink/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-ink/70 hover:bg-transparent">
-                  <TableHead className="h-9 border-l-[3px] border-l-transparent pl-3 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Data
-                  </TableHead>
-                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Descrição
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft md:table-cell">
-                    Categoria
-                  </TableHead>
-                  <TableHead className="hidden h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft lg:table-cell">
-                    Conta
-                  </TableHead>
-                  <TableHead className="h-9 text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Tipo
-                  </TableHead>
-                  <TableHead className="h-9 pr-3 text-right text-[10.5px] font-medium tracking-[0.01em] text-ink-soft">
-                    Valor
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenses.map((expense) => {
-                  const amount = Number(expense.amount);
-                  return (
-                    <TableRow
-                      key={expense.id}
-                      className="border-line/80 hover:bg-moss-soft/25"
-                    >
-                      <TableCell
-                        className={cn(
-                          "num border-l-[3px] py-2.5 pl-3 text-[12px] whitespace-nowrap text-ink-soft",
-                          expenseScopeAccent(expense.scope),
-                        )}
-                      >
-                        <Link
-                          href={`/despesas/${expense.id}`}
-                          className="underline-offset-2 hover:underline"
-                        >
-                          {formatDate(expense.incurred_on)}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="max-w-[320px] px-2 py-2.5 text-[13px]">
-                        <Link
-                          href={`/despesas/${expense.id}`}
-                          className="block truncate font-medium underline-offset-2 hover:underline"
-                        >
-                          {expense.description}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="hidden max-w-[220px] px-2 py-2.5 text-[12px] text-ink-soft md:table-cell">
-                        <span className="block truncate">
-                          {expense.category_id
-                            ? categoryNames.get(expense.category_id) ??
-                              "Sem categoria"
-                            : "Sem categoria"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="hidden max-w-[200px] px-2 py-2.5 text-[12px] text-ink-soft lg:table-cell">
-                        <span className="block truncate">
-                          {expense.account_id
-                            ? accountNames.get(expense.account_id) ?? "Sem conta"
-                            : "Sem conta"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-2 py-2.5">
-                        <ExpenseScopeBadge scope={expense.scope} />
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "num px-2 py-2.5 pr-3 text-right text-[13px] font-medium whitespace-nowrap",
-                          amount < 0 ? "text-rust-ink" : "text-ink",
-                        )}
-                      >
-                        {formatMoney(amount)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        {totalPages > 1 ? (
-          <div className="flex items-center justify-end gap-2">
-            {page > 1 ? (
-              <Button asChild variant="outline" size="sm" className="h-8">
-                <Link href={pageHref(page - 1)}>Anterior</Link>
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" className="h-8" disabled>
-                Anterior
-              </Button>
-            )}
-            {page < totalPages ? (
-              <Button asChild variant="outline" size="sm" className="h-8">
-                <Link href={pageHref(page + 1)}>Próxima</Link>
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" className="h-8" disabled>
-                Próxima
-              </Button>
-            )}
-          </div>
-        ) : null}
-      </section>
+      <DespesasListSection
+        expenses={expenses}
+        total={total}
+        page={page}
+        totalPages={totalPages}
+        filtered={filtered}
+        mes={mes}
+        scopeFilter={scopeFilter}
+        categoryFilter={categoryFilter}
+        q={q}
+        categoryNames={categoryNames}
+        accountNames={accountNames}
+      />
     </div>
   );
 }

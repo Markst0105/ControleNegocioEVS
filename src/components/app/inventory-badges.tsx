@@ -18,7 +18,7 @@ const MOVEMENT_TONE: Record<string, string> = {
   count: "border-citrus/35 bg-citrus-soft text-citrus-ink",
 };
 
-export function MovementTypeBadge({ type }: { type: string }) {
+export function MovementTypeBadge({ type }: Readonly<{ type: string }>) {
   return (
     <span
       className={cn(
@@ -31,7 +31,7 @@ export function MovementTypeBadge({ type }: { type: string }) {
   );
 }
 
-export function StockStatusBadge({ qty }: { qty: number }) {
+export function StockStatusBadge({ qty }: Readonly<{ qty: number }>) {
   const status = stockStatus(qty);
 
   if (status === "out") {
@@ -57,11 +57,18 @@ export function StockStatusBadge({ qty }: { qty: number }) {
   );
 }
 
+function locationChipTone(qty: number): string {
+  if (qty <= 0) return "border-rust/15 bg-rust-soft/60 text-rust-ink";
+  if (qty <= LOW_STOCK_THRESHOLD)
+    return "border-citrus/30 bg-citrus-soft text-citrus-ink";
+  return "border-line bg-surface text-ink-soft";
+}
+
 export function LocationStockChips({
   rows,
-}: {
+}: Readonly<{
   rows: StockLocationRow[] | undefined;
-}) {
+}>) {
   if (!rows || rows.length === 0) {
     return <span className="text-[12px] text-ink-soft">—</span>;
   }
@@ -75,11 +82,7 @@ export function LocationStockChips({
             key={row.location}
             className={cn(
               "num inline-flex items-center gap-1 rounded-sm border px-1.5 py-px text-[10.5px]",
-              qty <= 0
-                ? "border-rust/15 bg-rust-soft/60 text-rust-ink"
-                : qty <= LOW_STOCK_THRESHOLD
-                  ? "border-citrus/30 bg-citrus-soft text-citrus-ink"
-                  : "border-line bg-surface text-ink-soft",
+              locationChipTone(qty),
             )}
           >
             <span className="font-medium">{row.location}</span>
@@ -91,7 +94,7 @@ export function LocationStockChips({
   );
 }
 
-export function StockValue({ value }: { value: number | null }) {
+export function StockValue({ value }: Readonly<{ value: number | null }>) {
   if (value === null || value === undefined) {
     return <span className="text-ink-soft">—</span>;
   }

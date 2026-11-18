@@ -8,7 +8,7 @@ import { NEW_SALE_PATH, navForRole, type NavItem } from "@/lib/nav";
 import type { Role } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
-export function MobileNav({ role }: { role: Role }) {
+export function MobileNav({ role }: Readonly<{ role: Role }>) {
   const pathname = usePathname();
   const items = navForRole(role).filter((item) => item.mobile !== false);
   const newSaleActive = pathname === NEW_SALE_PATH;
@@ -65,7 +65,10 @@ export function MobileNav({ role }: { role: Role }) {
   );
 }
 
-function TabLink({ item, pathname }: { item: NavItem; pathname: string }) {
+function TabLink({
+  item,
+  pathname,
+}: Readonly<{ item: NavItem; pathname: string }>) {
   const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
 

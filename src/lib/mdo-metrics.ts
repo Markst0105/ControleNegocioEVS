@@ -241,6 +241,43 @@ function itemFamily(
  * - sales revenue/profit: nutrition lines (N.I*, N.E);
  * - PV: every client sale line, including the financial access line.
  */
+function applySaleToMetrics(
+  metrics: MdoMetrics,
+  sale: MdoSaleRow,
+  context: MdoSaleContext,
+) {
+  const kind = sale.deal_type_code
+    ? context.dealKind.get(sale.deal_type_code)
+    : undefined;
+
+  if (kind === "loan_out" || kind === "return") {
+    metrics.trocas += 1;
+    return;
+  }
+
+  if (!isClientSale(kind)) return;
+
+  const itemClass = sale.product_id
+    ? (context.productItemClass.get(sale.product_id) ?? null)
+    : null;
+  const family = itemFamily(itemClass);
+  const amount = numeric(sale.amount_received);
+  const profit = numeric(sale.profit);
+
+  metrics.pv += numeric(sale.pv);
+
+  if (itemClass === "E.X") metrics.extras += 1;
+
+  if (family === "evs") {
+    metrics.faturamento_evs += amount;
+    metrics.lucro_evs += profit;
+  } else if (family === "vendas") {
+    metrics.faturamento_vendas += amount;
+    metrics.lucro_vendas += profit;
+    metrics.un_fechadas += 1;
+  }
+}
+
 export function metricsForDay(
   kpi: MdoKpiRow | undefined,
   sales: MdoSaleRow[],
@@ -255,36 +292,7 @@ export function metricsForDay(
   }
 
   for (const sale of sales) {
-    const kind = sale.deal_type_code
-      ? context.dealKind.get(sale.deal_type_code)
-      : undefined;
-
-    if (kind === "loan_out" || kind === "return") {
-      metrics.trocas += 1;
-      continue;
-    }
-
-    if (!isClientSale(kind)) continue;
-
-    const itemClass = sale.product_id
-      ? (context.productItemClass.get(sale.product_id) ?? null)
-      : null;
-    const family = itemFamily(itemClass);
-    const amount = numeric(sale.amount_received);
-    const profit = numeric(sale.profit);
-
-    metrics.pv += numeric(sale.pv);
-
-    if (itemClass === "E.X") metrics.extras += 1;
-
-    if (family === "evs") {
-      metrics.faturamento_evs += amount;
-      metrics.lucro_evs += profit;
-    } else if (family === "vendas") {
-      metrics.faturamento_vendas += amount;
-      metrics.lucro_vendas += profit;
-      metrics.un_fechadas += 1;
-    }
+    applySaleToMetrics(metrics, sale, context);
   }
 
   return metrics;

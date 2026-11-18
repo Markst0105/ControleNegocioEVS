@@ -17,11 +17,11 @@ export function ReceiptForm({
   paymentId,
   openAmount,
   today,
-}: {
+}: Readonly<{
   paymentId: string;
   openAmount: number;
   today: string;
-}) {
+}>) {
   const [state, formAction, pending] = useActionState(
     receiveReceivable,
     initialState,
@@ -99,7 +99,7 @@ export function ReceiptForm({
               <span
                 aria-hidden
                 className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+              />{" "}
               Registrando…
             </span>
           ) : (

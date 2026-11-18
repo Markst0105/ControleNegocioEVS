@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth";
-import { parseDateInput, parseMoneyInput, todayISO } from "@/lib/format";
+import {
+  formString,
+  parseDateInput,
+  parseMoneyInput,
+  todayISO,
+} from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export type MemberCreditState = {
@@ -29,7 +34,7 @@ export async function requestMemberCredit(
   formData: FormData,
 ): Promise<MemberCreditState> {
   const session = await getSession();
-  if (!session?.profile || session.profile.role !== "member") {
+  if (session?.profile?.role !== "member") {
     return { error: "Apenas clientes podem comprar créditos por aqui." };
   }
 
@@ -41,9 +46,7 @@ export async function requestMemberCredit(
     return { error: "O valor informado é alto demais." };
   }
 
-  const paymentMethod = String(
-    formData.get("payment_method_code") ?? "",
-  ).trim();
+  const paymentMethod = formString(formData, "payment_method_code").trim();
   if (!paymentMethod) {
     return { error: "Selecione a forma de pagamento." };
   }
@@ -56,7 +59,7 @@ export async function requestMemberCredit(
     return { error: "A data da compra não pode estar no futuro." };
   }
 
-  const notes = String(formData.get("notes") ?? "").trim();
+  const notes = formString(formData, "notes").trim();
   if (notes.length > 500) {
     return { error: "A observação deve ter no máximo 500 caracteres." };
   }

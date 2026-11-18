@@ -15,10 +15,10 @@ const TIER_TONE: Record<string, string> = {
 export function PriceTierBadge({
   code,
   className,
-}: {
+}: Readonly<{
   code: string | null | undefined;
   className?: string;
-}) {
+}>) {
   const tier = priceTier(code);
   if (!tier) return null;
 

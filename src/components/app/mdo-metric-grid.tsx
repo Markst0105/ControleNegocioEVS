@@ -9,11 +9,11 @@ export function MdoMetricGrid({
   metrics,
   kpiDays,
   days,
-}: {
+}: Readonly<{
   metrics: MdoMetrics;
   kpiDays: number;
   days: number;
-}) {
+}>) {
   return (
     <dl className="grid grid-cols-2 gap-px border-y border-line bg-line sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
       {MDO_METRICS.map((metric) => {

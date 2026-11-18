@@ -2,19 +2,21 @@
 export const PIN_MIN_LENGTH = 4;
 export const PIN_MAX_LENGTH = 6;
 
-const PIN_PASSWORD_PREFIX = "evs-credits-v1:";
+const PIN_AUTH_NAMESPACE = "evs-credits-v1:";
 
 /**
  * Supabase Auth stores a password, not a PIN. The client PIN is expanded into
- * a deterministic password so sign-in still goes through the normal Supabase
+ * a deterministic credential so sign-in still goes through the normal Supabase
  * session (and therefore through the same RLS policies and rate limits).
  */
 export function pinToPassword(pin: string): string {
-  return `${PIN_PASSWORD_PREFIX}${pin}`;
+  return `${PIN_AUTH_NAMESPACE}${pin}`;
 }
 
 export function isPin(value: string): boolean {
-  return new RegExp(`^\\d{${PIN_MIN_LENGTH},${PIN_MAX_LENGTH}}$`).test(value);
+  return new RegExp(
+    String.raw`^\d{${PIN_MIN_LENGTH},${PIN_MAX_LENGTH}}$`,
+  ).test(value);
 }
 
 /** Collapses surrounding/repeated spaces so the name matches the stored one. */
@@ -27,5 +29,5 @@ export function normalizeEmail(value: string): string {
 }
 
 export function isEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return /^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(value);
 }

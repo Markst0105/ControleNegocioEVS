@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth";
 import { isUuid } from "@/lib/clients";
-import { parseDateInput, parseMoneyInput } from "@/lib/format";
+import {
+  entryString,
+  formString,
+  parseDateInput,
+  parseMoneyInput,
+} from "@/lib/format";
 import { isPriceTierCode, type PriceTierCode } from "@/lib/prices";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
@@ -25,12 +30,47 @@ type PurchaseLine = {
   price_tier: PriceTierCode | null;
 };
 
+function recordNumericValue(value: unknown): string | number | null {
+  if (typeof value === "string" || typeof value === "number") return value;
+  return null;
+}
+
+function parseLineTier(rawTier: unknown): PriceTierCode | null | undefined {
+  if (rawTier === null || rawTier === undefined || rawTier === "") return null;
+  if (typeof rawTier === "string" && isPriceTierCode(rawTier)) return rawTier;
+  return undefined;
+}
+
+function parseSingleLine(item: unknown): PurchaseLine | null {
+  if (!item || typeof item !== "object") return null;
+
+  const record = item as Record<string, unknown>;
+  const productId =
+    typeof record.product_id === "string" ? record.product_id.trim() : "";
+  const qty = parseMoneyInput(recordNumericValue(record.qty));
+  const unitCost = parseMoneyInput(recordNumericValue(record.unit_cost));
+  const priceTier = parseLineTier(record.price_tier);
+
+  if (!isUuid(productId) || priceTier === undefined) return null;
+  if (qty === null || qty <= 0 || unitCost === null || unitCost < 0) {
+    return null;
+  }
+
+  return {
+    product_id: productId,
+    qty,
+    unit_cost: unitCost,
+    price_tier: priceTier,
+  };
+}
+
 function parseLines(raw: FormDataEntryValue | null): PurchaseLine[] | null {
-  if (!raw) return null;
+  const rawText = entryString(raw);
+  if (!rawText) return null;
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(String(raw));
+    parsed = JSON.parse(rawText);
   } catch {
     return null;
   }
@@ -38,35 +78,27 @@ function parseLines(raw: FormDataEntryValue | null): PurchaseLine[] | null {
   if (!Array.isArray(parsed) || parsed.length === 0) return null;
 
   const lines: PurchaseLine[] = [];
-
   for (const item of parsed) {
-    if (!item || typeof item !== "object") return null;
-
-    const record = item as Record<string, unknown>;
-    const productId = String(record.product_id ?? "").trim();
-    const qty = parseMoneyInput(String(record.qty ?? ""));
-    const unitCost = parseMoneyInput(String(record.unit_cost ?? ""));
-    const rawTier = record.price_tier;
-
-    if (!isUuid(productId)) return null;
-    if (qty === null || qty <= 0) return null;
-    if (unitCost === null || unitCost < 0) return null;
-
-    let priceTier: PriceTierCode | null = null;
-    if (rawTier !== null && rawTier !== undefined && rawTier !== "") {
-      if (typeof rawTier !== "string" || !isPriceTierCode(rawTier)) return null;
-      priceTier = rawTier;
-    }
-
-    lines.push({
-      product_id: productId,
-      qty,
-      unit_cost: unitCost,
-      price_tier: priceTier,
-    });
+    const line = parseSingleLine(item);
+    if (!line) return null;
+    lines.push(line);
   }
 
   return lines;
+}
+
+function canManagePurchases(role: string | undefined): boolean {
+  return role === "admin" || role === "operator";
+}
+
+function resolvePurchaseRpcError(
+  error: { code?: string; message: string } | null,
+  permissionMessage: string,
+  fallbackMessage: string,
+): string {
+  if (error?.code === "42501") return permissionMessage;
+  if (error?.code === "22023" || error?.code === "P0001") return error.message;
+  return fallbackMessage;
 }
 
 export async function createPurchase(
@@ -74,10 +106,7 @@ export async function createPurchase(
   formData: FormData,
 ): Promise<PurchaseFormState> {
   const session = await getSession();
-  if (
-    !session?.profile ||
-    (session.profile.role !== "admin" && session.profile.role !== "operator")
-  ) {
+  if (!canManagePurchases(session?.profile?.role)) {
     return { error: "Sua conta não tem permissão para registrar compras." };
   }
 
@@ -86,27 +115,27 @@ export async function createPurchase(
     return { error: "Informe uma data válida para a compra." };
   }
 
-  const locationCode = String(formData.get("location_code") ?? "").trim();
+  const locationCode = formString(formData, "location_code").trim();
   if (!locationCode) {
     return { error: "Selecione o local de destino da compra." };
   }
 
-  const supplierRaw = String(formData.get("supplier_id") ?? "").trim();
+  const supplierRaw = formString(formData, "supplier_id").trim();
   if (supplierRaw && !isUuid(supplierRaw)) {
     return { error: "Fornecedor inválido. Selecione novamente." };
   }
 
-  const accountRaw = String(formData.get("account_id") ?? "").trim();
+  const accountRaw = formString(formData, "account_id").trim();
   if (accountRaw && !isUuid(accountRaw)) {
     return { error: "Conta inválida. Selecione novamente." };
   }
 
-  const invoice = String(formData.get("invoice_no") ?? "").trim();
+  const invoice = formString(formData, "invoice_no").trim();
   if (invoice.length > 80) {
     return { error: "A nota/referência deve ter no máximo 80 caracteres." };
   }
 
-  const notes = String(formData.get("notes") ?? "").trim();
+  const notes = formString(formData, "notes").trim();
   if (notes.length > 1000) {
     return { error: "As observações devem ter no máximo 1000 caracteres." };
   }
@@ -132,13 +161,13 @@ export async function createPurchase(
 
   if (error || !data) {
     console.error("createPurchase: falha ao registrar compra", error);
-    if (error?.code === "42501") {
-      return { error: "Sua conta não tem permissão para registrar compras." };
-    }
-    if (error?.code === "22023" || error?.code === "P0001") {
-      return { error: error.message };
-    }
-    return { error: "Não foi possível registrar a compra. Tente novamente." };
+    return {
+      error: resolvePurchaseRpcError(
+        error,
+        "Sua conta não tem permissão para registrar compras.",
+        "Não foi possível registrar a compra. Tente novamente.",
+      ),
+    };
   }
 
   revalidatePath("/estoque");
@@ -161,19 +190,16 @@ export async function setPurchasePaidOn(
   formData: FormData,
 ): Promise<PaymentFormState> {
   const session = await getSession();
-  if (
-    !session?.profile ||
-    (session.profile.role !== "admin" && session.profile.role !== "operator")
-  ) {
+  if (!canManagePurchases(session?.profile?.role)) {
     return { error: "Sua conta não tem permissão para confirmar pagamentos." };
   }
 
-  const purchaseId = String(formData.get("purchase_id") ?? "").trim();
+  const purchaseId = formString(formData, "purchase_id").trim();
   if (!isUuid(purchaseId)) {
     return { error: "Compra inválida." };
   }
 
-  const paidRaw = String(formData.get("paid_on") ?? "").trim();
+  const paidRaw = formString(formData, "paid_on").trim();
   const paidOn = paidRaw ? parseDateInput(paidRaw) : null;
   if (paidRaw && !paidOn) {
     return { error: "Informe uma data de pagamento válida." };
@@ -187,14 +213,12 @@ export async function setPurchasePaidOn(
 
   if (error) {
     console.error("setPurchasePaidOn: falha ao atualizar pagamento", error);
-    if (error.code === "42501") {
-      return { error: "Sua conta não tem permissão para confirmar pagamentos." };
-    }
-    if (error.code === "22023" || error.code === "P0001") {
-      return { error: error.message };
-    }
     return {
-      error: "Não foi possível atualizar o pagamento. Tente novamente.",
+      error: resolvePurchaseRpcError(
+        error,
+        "Sua conta não tem permissão para confirmar pagamentos.",
+        "Não foi possível atualizar o pagamento. Tente novamente.",
+      ),
     };
   }
 

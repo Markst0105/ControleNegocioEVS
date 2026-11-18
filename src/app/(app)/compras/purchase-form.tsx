@@ -91,7 +91,9 @@ function initialCostFor(
   return "";
 }
 
-export function PurchaseForm({ data }: { data: PurchaseFormData }) {
+export function PurchaseForm({
+  data,
+}: Readonly<{ data: PurchaseFormData }>) {
   const [state, formAction, pending] = useActionState(
     createPurchase,
     initialState,
@@ -500,7 +502,7 @@ export function PurchaseForm({ data }: { data: PurchaseFormData }) {
               <span
                 aria-hidden
                 className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+              />{" "}
               Registrando…
             </span>
           ) : (
@@ -521,13 +523,13 @@ function Field({
   hint,
   className,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor: string;
   hint?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className={cn("grid content-start gap-1.5", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>

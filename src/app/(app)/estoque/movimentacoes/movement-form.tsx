@@ -35,7 +35,35 @@ export type MovementFormData = {
 
 const initialState: MovementFormState = { error: null };
 
-export function MovementForm({ data }: { data: MovementFormData }) {
+function resolveEffectiveFrom(
+  type: ManualMovementType,
+  locationFrom: string,
+  adjustmentDirection: "in" | "out",
+  adjustmentLocation: string,
+): string {
+  if (type === "transfer" || type === "loan_out") return locationFrom;
+  if (type === "adjustment" && adjustmentDirection === "out") {
+    return adjustmentLocation;
+  }
+  return "";
+}
+
+function resolveEffectiveTo(
+  type: ManualMovementType,
+  locationTo: string,
+  adjustmentDirection: "in" | "out",
+  adjustmentLocation: string,
+): string {
+  if (type === "transfer" || type === "loan_in" || type === "return") {
+    return locationTo;
+  }
+  if (type === "adjustment" && adjustmentDirection === "in") {
+    return adjustmentLocation;
+  }
+  return "";
+}
+
+export function MovementForm({ data }: Readonly<{ data: MovementFormData }>) {
   const [state, formAction, pending] = useActionState(
     recordMovement,
     initialState,
@@ -61,19 +89,19 @@ export function MovementForm({ data }: { data: MovementFormData }) {
   const [qty, setQty] = useState("1");
   const [notes, setNotes] = useState("");
 
-  const effectiveFrom =
-    type === "transfer" || type === "loan_out"
-      ? locationFrom
-      : type === "adjustment" && adjustmentDirection === "out"
-        ? adjustmentLocation
-        : "";
+  const effectiveFrom = resolveEffectiveFrom(
+    type,
+    locationFrom,
+    adjustmentDirection,
+    adjustmentLocation,
+  );
 
-  const effectiveTo =
-    type === "transfer" || type === "loan_in" || type === "return"
-      ? locationTo
-      : type === "adjustment" && adjustmentDirection === "in"
-        ? adjustmentLocation
-        : "";
+  const effectiveTo = resolveEffectiveTo(
+    type,
+    locationTo,
+    adjustmentDirection,
+    adjustmentLocation,
+  );
 
   const productOptions = data.products.map((product) => ({
     value: product.id,
@@ -293,7 +321,7 @@ export function MovementForm({ data }: { data: MovementFormData }) {
               <span
                 aria-hidden
                 className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+              />{" "}
               Registrando…
             </span>
           ) : (
@@ -314,13 +342,13 @@ function LocationSelect({
   locations,
   value,
   onValueChange,
-}: {
+}: Readonly<{
   id: string;
   name: string;
   locations: { code: string; label: string }[];
   value: string;
   onValueChange: (value: string) => void;
-}) {
+}>) {
   return (
     <Select name={name} value={value} onValueChange={onValueChange}>
       <SelectTrigger id={id} className="h-10 w-full bg-surface">
@@ -343,13 +371,13 @@ function Field({
   hint,
   className,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor: string;
   hint?: string;
   className?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className={cn("grid content-start gap-1.5", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>

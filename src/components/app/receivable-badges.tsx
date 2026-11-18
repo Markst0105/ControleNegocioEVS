@@ -14,10 +14,10 @@ const STATUS_CLASS: Record<string, string> = {
 export function ReceivableStatusBadge({
   status,
   partial = false,
-}: {
+}: Readonly<{
   status: string | null | undefined;
   partial?: boolean;
-}) {
+}>) {
   const settled = status === "recebido" || status === "baixado";
   const label =
     partial && !settled

@@ -10,7 +10,7 @@ import {
   isExpenseScope,
   type ExpenseScope,
 } from "@/lib/expenses";
-import { parseDateInput, parseMoneyInput } from "@/lib/format";
+import { formString, parseDateInput, parseMoneyInput } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export type ExpenseFormState = {
@@ -50,7 +50,7 @@ function parseExpenseForm(
     return { ok: false, error: "Informe uma data válida." };
   }
 
-  const description = String(formData.get("description") ?? "")
+  const description = formString(formData, "description")
     .trim()
     .replace(/\s+/g, " ");
 
@@ -75,7 +75,7 @@ function parseExpenseForm(
     return { ok: false, error: "O valor informado é alto demais." };
   }
 
-  const scopeRaw = String(formData.get("scope") ?? "");
+  const scopeRaw = formString(formData, "scope");
   if (!isExpenseScope(scopeRaw)) {
     return { ok: false, error: "Selecione o tipo da despesa." };
   }
@@ -86,8 +86,8 @@ function parseExpenseForm(
     };
   }
 
-  const categoryValue = String(formData.get("category_id") ?? "").trim();
-  const accountValue = String(formData.get("account_id") ?? "").trim();
+  const categoryValue = formString(formData, "category_id").trim();
+  const accountValue = formString(formData, "account_id").trim();
   const categoryRaw = categoryValue === "none" ? "" : categoryValue;
   const accountRaw = accountValue === "none" ? "" : accountValue;
 
@@ -207,7 +207,7 @@ export async function updateExpense(
     return { error: "Sua conta não tem permissão para editar despesas." };
   }
 
-  const expenseId = String(formData.get("expense_id") ?? "").trim();
+  const expenseId = formString(formData, "expense_id").trim();
   if (!isUuid(expenseId)) {
     return { error: "Despesa inválida." };
   }
@@ -265,7 +265,7 @@ export async function deleteExpense(formData: FormData): Promise<void> {
     redirect("/despesas?erro=permissao");
   }
 
-  const expenseId = String(formData.get("expense_id") ?? "").trim();
+  const expenseId = formString(formData, "expense_id").trim();
   if (!isUuid(expenseId)) {
     redirect("/despesas?erro=invalida");
   }

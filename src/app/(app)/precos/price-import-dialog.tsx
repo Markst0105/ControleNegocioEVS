@@ -36,6 +36,63 @@ type ImportResponse = {
   error?: string;
 };
 
+function formatFileHint(fileName: string | null, sheet?: string): string {
+  if (!fileName) {
+    return "Arquivo .xlsx de até 4 MB — exporte apenas a aba de preços.";
+  }
+  return `${fileName} · aba ${sheet ?? "será detectada automaticamente"}`;
+}
+
+function ImportSummaryBox({
+  summary,
+  skipped,
+}: Readonly<{
+  summary: ImportSummary;
+  skipped?: { row: number; reason: string }[];
+}>) {
+  const namesPart =
+    summary.names_changed > 0
+      ? ` · ${formatInt(summary.names_changed)} nomes ajustados`
+      : "";
+  const pvPart =
+    summary.pv_changed > 0
+      ? ` · ${formatInt(summary.pv_changed)} PVs ajustados`
+      : "";
+
+  return (
+    <div className="grid gap-2 rounded-md border border-line bg-surface px-3 py-3 text-[12px] leading-relaxed">
+      <p className="font-medium">
+        {formatInt(summary.products)}{" "}
+        {summary.products === 1 ? "produto encontrado" : "produtos encontrados"}{" "}
+        · válidos desde {formatDate(summary.valid_from)}
+      </p>
+      <p className="text-ink-soft">
+        {formatInt(summary.prices_changed)} preços atualizados ·{" "}
+        {formatInt(summary.prices_unchanged)} mantidos
+        {namesPart}
+        {pvPart}
+      </p>
+      {summary.unknown_skus.length > 0 ? (
+        <p className="text-ink-soft">
+          SKUs fora do catálogo ({summary.unknown_skus.length}):{" "}
+          {summary.unknown_skus.slice(0, 12).join(", ")}
+          {summary.unknown_skus.length > 12 ? "…" : ""}
+        </p>
+      ) : null}
+      {skipped && skipped.length > 0 ? (
+        <p className="text-ink-soft">
+          {formatInt(skipped.length)} linhas ignoradas:{" "}
+          {skipped
+            .slice(0, 5)
+            .map((item) => `linha ${item.row} (${item.reason})`)
+            .join(", ")}
+          {skipped.length > 5 ? "…" : ""}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Loads a price spreadsheet shaped like the workbook's "Novos Preços HLF" tab
  * and applies it to the catalog. Admin only.
@@ -48,7 +105,7 @@ export function PriceImportDialog() {
   const [result, setResult] = useState<ImportResponse | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = formRef.current;
     if (!form) return;
@@ -125,11 +182,7 @@ export function PriceImportDialog() {
               }
             />
             <p className="text-[11px] text-ink-soft">
-              {fileName
-                ? `${fileName} · aba ${
-                    result?.sheet ?? "será detectada automaticamente"
-                  }`
-                : "Arquivo .xlsx de até 4 MB — exporte apenas a aba de preços."}
+              {formatFileHint(fileName, result?.sheet)}
             </p>
           </div>
 
@@ -163,40 +216,7 @@ export function PriceImportDialog() {
           ) : null}
 
           {summary ? (
-            <div className="grid gap-2 rounded-md border border-line bg-surface px-3 py-3 text-[12px] leading-relaxed">
-              <p className="font-medium">
-                {formatInt(summary.products)}{" "}
-                {summary.products === 1 ? "produto encontrado" : "produtos encontrados"}{" "}
-                · válidos desde {formatDate(summary.valid_from)}
-              </p>
-              <p className="text-ink-soft">
-                {formatInt(summary.prices_changed)} preços atualizados ·{" "}
-                {formatInt(summary.prices_unchanged)} mantidos
-                {summary.names_changed > 0
-                  ? ` · ${formatInt(summary.names_changed)} nomes ajustados`
-                  : ""}
-                {summary.pv_changed > 0
-                  ? ` · ${formatInt(summary.pv_changed)} PVs ajustados`
-                  : ""}
-              </p>
-              {summary.unknown_skus.length > 0 ? (
-                <p className="text-ink-soft">
-                  SKUs fora do catálogo ({summary.unknown_skus.length}):{" "}
-                  {summary.unknown_skus.slice(0, 12).join(", ")}
-                  {summary.unknown_skus.length > 12 ? "…" : ""}
-                </p>
-              ) : null}
-              {result?.skipped && result.skipped.length > 0 ? (
-                <p className="text-ink-soft">
-                  {formatInt(result.skipped.length)} linhas ignoradas:{" "}
-                  {result.skipped
-                    .slice(0, 5)
-                    .map((item) => `linha ${item.row} (${item.reason})`)
-                    .join(", ")}
-                  {result.skipped.length > 5 ? "…" : ""}
-                </p>
-              ) : null}
-            </div>
+            <ImportSummaryBox summary={summary} skipped={result?.skipped} />
           ) : null}
         </form>
       </DialogContent>

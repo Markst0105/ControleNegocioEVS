@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth";
 import { isUuid } from "@/lib/clients";
-import { parseDateInput, parseMoneyInput } from "@/lib/format";
+import {
+  entryString,
+  formString,
+  parseDateInput,
+  parseMoneyInput,
+} from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -19,11 +24,12 @@ type CountLine = {
 };
 
 function parseLines(raw: FormDataEntryValue | null): CountLine[] | null {
-  if (!raw) return null;
+  const rawText = entryString(raw);
+  if (!rawText) return null;
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(String(raw));
+    parsed = JSON.parse(rawText);
   } catch {
     return null;
   }
@@ -36,8 +42,14 @@ function parseLines(raw: FormDataEntryValue | null): CountLine[] | null {
     if (!item || typeof item !== "object") return null;
 
     const record = item as Record<string, unknown>;
-    const productId = String(record.product_id ?? "").trim();
-    const counted = parseMoneyInput(String(record.counted_qty ?? ""));
+    const productId =
+      typeof record.product_id === "string" ? record.product_id.trim() : "";
+    const rawCounted =
+      typeof record.counted_qty === "string" ||
+      typeof record.counted_qty === "number"
+        ? record.counted_qty
+        : null;
+    const counted = parseMoneyInput(rawCounted);
 
     if (!isUuid(productId)) return null;
     if (counted === null || counted < 0) return null;
@@ -65,12 +77,12 @@ export async function createStockCount(
     return { error: "Informe uma data válida para a contagem." };
   }
 
-  const locationCode = String(formData.get("location_code") ?? "").trim();
+  const locationCode = formString(formData, "location_code").trim();
   if (!locationCode) {
     return { error: "Selecione o local da contagem." };
   }
 
-  const notes = String(formData.get("notes") ?? "").trim();
+  const notes = formString(formData, "notes").trim();
   if (notes.length > 1000) {
     return { error: "As observações devem ter no máximo 1000 caracteres." };
   }

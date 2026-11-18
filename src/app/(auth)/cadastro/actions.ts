@@ -9,6 +9,7 @@ import {
   normalizeFullName,
   pinToPassword,
 } from "@/lib/client-auth";
+import { formString } from "@/lib/format";
 import { resolveSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
@@ -21,10 +22,10 @@ export async function registerClient(
   _previous: SignupState,
   formData: FormData,
 ): Promise<SignupState> {
-  const name = normalizeFullName(String(formData.get("full_name") ?? ""));
-  const email = normalizeEmail(String(formData.get("email") ?? ""));
-  const pin = String(formData.get("pin") ?? "").trim();
-  const pinConfirm = String(formData.get("pin_confirm") ?? "").trim();
+  const name = normalizeFullName(formString(formData, "full_name"));
+  const email = normalizeEmail(formString(formData, "email"));
+  const pin = formString(formData, "pin").trim();
+  const pinConfirm = formString(formData, "pin_confirm").trim();
 
   if (name.length < 3) {
     return { error: "Informe seu nome completo.", message: null };

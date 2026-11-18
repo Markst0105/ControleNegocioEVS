@@ -16,10 +16,10 @@ import { NEW_SALE_PATH } from "@/lib/nav";
 export function SidePanel({
   user,
   profile,
-}: {
+}: Readonly<{
   user: SessionUser;
   profile: Profile;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
 
   return (

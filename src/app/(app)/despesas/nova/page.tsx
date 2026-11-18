@@ -22,9 +22,9 @@ type SearchParams = Promise<{ mes?: string }>;
 
 export default async function NovaDespesaPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const session = await getSession();
   const role = session?.profile?.role ?? "operator";

@@ -70,9 +70,9 @@ function matchesSearch(product: PriceRow, term: string): boolean {
 
 export default async function PricesPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const q = (params.q ?? "").trim().slice(0, 80);
   const search = q.toLocaleLowerCase("pt-BR");

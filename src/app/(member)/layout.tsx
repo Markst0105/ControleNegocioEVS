@@ -8,9 +8,9 @@ import { getSession } from "@/lib/auth";
 
 export default async function MemberLayout({
   children,
-}: {
+}: Readonly<{
   children: ReactNode;
-}) {
+}>) {
   const session = await getSession();
   if (!session) redirect("/login");
 

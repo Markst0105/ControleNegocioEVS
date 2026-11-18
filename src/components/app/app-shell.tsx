@@ -14,11 +14,11 @@ export function AppShell({
   user,
   profile,
   children,
-}: {
+}: Readonly<{
   user: SessionUser;
   profile: Profile;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="flex min-h-dvh flex-1 flex-col lg:flex-row">
       <AppSidebar user={user} profile={profile} />

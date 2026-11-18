@@ -10,10 +10,10 @@ const SCOPE_CLASS: Record<string, string> = {
 export function ExpenseScopeBadge({
   scope,
   full = false,
-}: {
+}: Readonly<{
   scope: string | null | undefined;
   full?: boolean;
-}) {
+}>) {
   return (
     <span
       className={cn(

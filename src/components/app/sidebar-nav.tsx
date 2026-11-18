@@ -7,15 +7,31 @@ import { navForRole } from "@/lib/nav";
 import type { Role } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
+function navLinkTone(dark: boolean, active: boolean): string {
+  if (dark) {
+    return active
+      ? "bg-white/10 text-paper"
+      : "text-paper/65 hover:bg-white/10 hover:text-paper";
+  }
+  return active
+    ? "bg-moss-soft text-moss-ink"
+    : "text-ink-soft hover:bg-accent hover:text-ink";
+}
+
+function navIconTone(dark: boolean, active: boolean): string | undefined {
+  if (!active) return undefined;
+  return dark ? "text-citrus" : "text-moss";
+}
+
 export function SidebarNav({
   role,
   tone = "light",
   onNavigate,
-}: {
+}: Readonly<{
   role: Role;
   tone?: "light" | "dark";
   onNavigate?: () => void;
-}) {
+}>) {
   const pathname = usePathname();
   const items = navForRole(role);
   const dark = tone === "dark";
@@ -34,21 +50,13 @@ export function SidebarNav({
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex h-10 items-center gap-2.5 rounded-md px-3 text-sm font-medium transition-colors",
-              dark
-                ? active
-                  ? "bg-white/10 text-paper"
-                  : "text-paper/65 hover:bg-white/10 hover:text-paper"
-                : active
-                  ? "bg-moss-soft text-moss-ink"
-                  : "text-ink-soft hover:bg-accent hover:text-ink",
+              navLinkTone(dark, active),
             )}
           >
             <Icon
               size={16}
               strokeWidth={1.75}
-              className={
-                active ? (dark ? "text-citrus" : "text-moss") : undefined
-              }
+              className={navIconTone(dark, active)}
             />
             {item.label}
           </Link>

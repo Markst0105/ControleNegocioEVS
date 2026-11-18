@@ -18,10 +18,10 @@ const initialState: MonthCloseFormState = { error: null };
 export function CloseMonthForm({
   month,
   warningCount,
-}: {
+}: Readonly<{
   month: string;
   warningCount: number;
-}) {
+}>) {
   const [state, formAction] = useActionState(closeMonth, initialState);
 
   return (
@@ -67,7 +67,7 @@ export function CloseMonthForm({
           name="confirmo"
           required
           className="mt-0.5 size-3.5 accent-citrus"
-        />
+        />{" "}
         Confirmo que conferi o mês e quero registrar o fechamento.
       </label>
 
@@ -82,10 +82,10 @@ export function CloseMonthForm({
 export function ReopenMonthForm({
   month,
   changed,
-}: {
+}: Readonly<{
   month: string;
   changed: boolean;
-}) {
+}>) {
   const [state, formAction] = useActionState(reopenMonth, initialState);
 
   return (
@@ -125,7 +125,7 @@ export function ReopenMonthForm({
           name="confirmo"
           required
           className="mt-0.5 size-3.5 accent-rust"
-        />
+        />{" "}
         Confirmo que quero reabrir este mês.
       </label>
 

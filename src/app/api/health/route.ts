@@ -64,6 +64,31 @@ function messageOf(result: Probe, fallback: string): string {
   return result.body.slice(0, 200);
 }
 
+function relationKnown(status: number): boolean {
+  return status === 200 || status === 401 || status === 403;
+}
+
+function authDetail(serviceStatus: number, settingsStatus: number): string {
+  if (serviceStatus !== 200) return "auth service unreachable";
+  if (settingsStatus !== 200) return "publishable key rejected";
+  return "ok";
+}
+
+function tableDetail(status: number): string {
+  if (relationKnown(status)) return "month_closings available";
+  if (status === 404) return "month_closings not found — apply the migrations";
+  return "postgrest unreachable";
+}
+
+function viewDetail(status: number, view: Probe): string {
+  if (relationKnown(status)) return "v_monthly_pnl available";
+  if (status === 400) {
+    return `v_monthly_pnl does not answer — ${messageOf(view, "query error")}`;
+  }
+  if (status === 404) return "v_monthly_pnl not found — apply the migrations";
+  return "postgrest unreachable";
+}
+
 export async function GET() {
   if (cached && Date.now() - cached.at < CACHE_MS) {
     return new NextResponse(cached.body, {
@@ -107,40 +132,19 @@ export async function GET() {
   const tableStatus = statusOf(table);
   const viewStatus = statusOf(view);
 
-  // PostgREST answers 401/403 when the role has no privilege on the relation,
-  // 404 (PGRST205) when the relation is unknown and 400 when the query itself
-  // cannot be planned.
-  const relationKnown = (status: number) =>
-    status === 200 || status === 401 || status === 403;
-
   const checks = {
     env: { ok: true },
     auth: {
       ok: authServiceStatus === 200 && authSettingsStatus === 200,
-      detail:
-        authServiceStatus === 200
-          ? authSettingsStatus === 200
-            ? "ok"
-            : "publishable key rejected"
-          : "auth service unreachable",
+      detail: authDetail(authServiceStatus, authSettingsStatus),
     },
     tables: {
       ok: relationKnown(tableStatus),
-      detail: relationKnown(tableStatus)
-        ? "month_closings available"
-        : tableStatus === 404
-          ? "month_closings not found — apply the migrations"
-          : "postgrest unreachable",
+      detail: tableDetail(tableStatus),
     },
     views: {
       ok: relationKnown(viewStatus),
-      detail: relationKnown(viewStatus)
-        ? "v_monthly_pnl available"
-        : viewStatus === 400
-          ? `v_monthly_pnl does not answer — ${messageOf(view, "query error")}`
-          : viewStatus === 404
-            ? "v_monthly_pnl not found — apply the migrations"
-            : "postgrest unreachable",
+      detail: viewDetail(viewStatus, view),
     },
   };
 

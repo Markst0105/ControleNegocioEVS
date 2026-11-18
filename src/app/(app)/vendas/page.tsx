@@ -45,6 +45,7 @@ type SearchParams = Promise<{
 }>;
 
 type PurchaseItem = {
+  key: string;
   name: string;
   qty: number;
   amount: number;
@@ -53,25 +54,59 @@ type PurchaseItem = {
 function parseItems(value: Json | null): PurchaseItem[] {
   if (!Array.isArray(value)) return [];
 
+  const counts = new Map<string, number>();
+
   return value.flatMap((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const name = typeof entry.name === "string" ? entry.name : "—";
+    const qty = typeof entry.qty === "number" ? entry.qty : 1;
+    const amount = typeof entry.amount === "number" ? entry.amount : 0;
+    const occurrence = (counts.get(name) ?? 0) + 1;
+    counts.set(name, occurrence);
+
     return [
       {
-        name: typeof entry.name === "string" ? entry.name : "—",
-        qty: typeof entry.qty === "number" ? entry.qty : 1,
-        amount: typeof entry.amount === "number" ? entry.amount : 0,
+        key: `${name}-${qty}-${amount}-${occurrence}`,
+        name,
+        qty,
+        amount,
       },
     ];
   });
 }
 
+type SalePurchaseRow = {
+  id: string;
+  sold_on: string;
+  client_id: string | null;
+  client_name: string;
+  payment_method_code: string | null;
+  payment_label: string | null;
+  item_count: number;
+  total_amount: number;
+  total_profit: number;
+  total_pv: number;
+  discount_pct: number;
+  origins: string[] | null;
+  deal_codes: string[] | null;
+  items: Json | null;
+};
+
+function buildPageHref(mes: string, q: string, target: number): string {
+  const sp = new URLSearchParams();
+  sp.set("mes", mes);
+  if (q) sp.set("q", q);
+  if (target > 1) sp.set("pagina", String(target));
+  return `/vendas?${sp.toString()}`;
+}
+
 function PaymentBadge({
   code,
   label,
-}: {
+}: Readonly<{
   code: string | null;
   label: string | null;
-}) {
+}>) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-paper px-2 py-1">
       <span className="num text-[11px] font-semibold tracking-wide">
@@ -86,23 +121,159 @@ function PaymentBadge({
   );
 }
 
-export default async function VendasPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const params = await searchParams;
+function PurchaseCard({
+  purchase,
+  dealLabels,
+}: Readonly<{
+  purchase: SalePurchaseRow;
+  dealLabels: Map<string, string>;
+}>) {
+  const items = parseItems(purchase.items);
+  const origins = purchase.origins ?? [];
+  const dealCodes = purchase.deal_codes ?? [];
+  const profit = Number(purchase.total_profit);
 
-  const currentMonth = currentMonthISO();
+  return (
+    <article className="flex flex-col rounded-lg border border-line bg-surface">
+      <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <time
+          dateTime={purchase.sold_on}
+          className="num text-[11px] tracking-[0.01em] text-ink-soft"
+        >
+          {formatDate(purchase.sold_on)}
+        </time>
+        <PaymentBadge
+          code={purchase.payment_method_code}
+          label={purchase.payment_label}
+        />
+      </header>
+
+      <div className="flex flex-1 flex-col gap-3 px-4 py-3">
+        <div className="min-w-0">
+          <h2
+            className="truncate text-[15px] leading-tight font-medium"
+            title={purchase.client_name}
+          >
+            {purchase.client_name}
+          </h2>
+          <p className="mt-0.5 text-[10.5px] text-ink-soft">
+            {formatInt(purchase.item_count)}{" "}
+            {purchase.item_count === 1 ? "item" : "itens"}
+          </p>
+        </div>
+
+        <ul className="grid gap-1">
+          {items.map((item) => (
+            <li
+              key={item.key}
+              className="flex items-baseline justify-between gap-3"
+            >
+              <span className="min-w-0 truncate text-[12px] text-ink-soft">
+                {item.name}
+                {item.qty > 1 ? (
+                  <span className="num text-ink-soft">
+                    {" "}
+                    ×{formatInt(item.qty)}
+                  </span>
+                ) : null}
+              </span>
+              <span className="num text-[12px] whitespace-nowrap">
+                {formatMoney(item.amount)}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line/70 pt-2.5">
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[10px] tracking-[0.01em] text-ink-soft">
+              Negócio
+            </span>
+            {dealCodes.length === 0 ? (
+              <DealBadge label={null} />
+            ) : (
+              dealCodes.map((code) => (
+                <DealBadge key={code} label={dealLabels.get(code) ?? code} />
+              ))
+            )}
+            {purchase.discount_pct > 0 ? (
+              <span className="num inline-flex items-center rounded-sm bg-citrus-soft px-1.5 py-px text-[10px] font-medium text-citrus-ink">
+                −{formatPercent(purchase.discount_pct)}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[10px] tracking-[0.01em] text-ink-soft">
+              Origem
+            </span>
+            {origins.length === 0 ? (
+              <OriginBadge origin={null} />
+            ) : (
+              origins.map((origin) => (
+                <OriginBadge key={origin} origin={origin} />
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-3 divide-x divide-line/70 border-t border-line">
+        <div className="px-3 py-2.5">
+          <dt className="text-[10px] text-ink-soft">PV</dt>
+          <dd className="num mt-0.5 text-[13px] font-medium whitespace-nowrap">
+            {formatDecimal(purchase.total_pv)}
+          </dd>
+        </div>
+        <div className="px-3 py-2.5">
+          <dt className="text-[10px] text-ink-soft">Total</dt>
+          <dd className="num mt-0.5 text-[13px] font-medium whitespace-nowrap">
+            {formatMoney(purchase.total_amount)}
+          </dd>
+        </div>
+        <div className="px-3 py-2.5">
+          <dt className="text-[10px] text-ink-soft">Lucro</dt>
+          <dd
+            className={cn(
+              "num mt-0.5 text-[13px] font-medium whitespace-nowrap",
+              profit < 0 ? "text-rust-ink" : "text-ink",
+            )}
+          >
+            {formatMoney(profit)}
+          </dd>
+        </div>
+      </dl>
+    </article>
+  );
+}
+
+function parseVendasSearchParams(
+  params: { mes?: string; q?: string; pagina?: string },
+  currentMonth: string,
+) {
   const mes = isMonthISO(params.mes) ? params.mes : currentMonth;
   const q = (params.q ?? "").trim().slice(0, 80);
+  const search = q.replace(/[",()%]/g, " ").replace(/\s+/g, " ").trim();
   const page = Math.max(1, Number.parseInt(params.pagina ?? "1", 10) || 1);
+  const filtered = Boolean(params.q?.trim()) || mes !== currentMonth;
+  return { mes, q, search, page, filtered };
+}
+
+export default async function VendasPage({
+  searchParams,
+}: Readonly<{
+  searchParams: SearchParams;
+}>) {
+  const params = await searchParams;
+  const currentMonth = currentMonthISO();
+  const { mes, q, search, page, filtered } = parseVendasSearchParams(
+    params,
+    currentMonth,
+  );
 
   const supabase = await createClient();
   const from = monthFirstDay(mes);
   const to = nextMonthFirstDay(mes);
-
-  const search = q.replace(/[",()%]/g, " ").replace(/\s+/g, " ").trim();
 
   let query = supabase
     .from("v_sale_purchases")
@@ -137,15 +308,6 @@ export default async function VendasPage({
   const dealLabels = new Map(
     (dealTypesResult.data ?? []).map((deal) => [deal.code, deal.label]),
   );
-  const filtered = Boolean(params.q?.trim()) || mes !== currentMonth;
-
-  function pageHref(target: number) {
-    const sp = new URLSearchParams();
-    sp.set("mes", mes);
-    if (q) sp.set("q", q);
-    if (target > 1) sp.set("pagina", String(target));
-    return `/vendas?${sp.toString()}`;
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -221,131 +383,13 @@ export default async function VendasPage({
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {purchases?.map((purchase) => {
-              const items = parseItems(purchase.items);
-              const origins = purchase.origins ?? [];
-              const dealCodes = purchase.deal_codes ?? [];
-              const profit = Number(purchase.total_profit);
-
-              return (
-                <article
-                  key={purchase.id}
-                  className="flex flex-col rounded-lg border border-line bg-surface"
-                >
-                  <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-                    <time
-                      dateTime={purchase.sold_on}
-                      className="num text-[11px] tracking-[0.01em] text-ink-soft"
-                    >
-                      {formatDate(purchase.sold_on)}
-                    </time>
-                    <PaymentBadge
-                      code={purchase.payment_method_code}
-                      label={purchase.payment_label}
-                    />
-                  </header>
-
-                  <div className="flex flex-1 flex-col gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <h2
-                        className="truncate text-[15px] leading-tight font-medium"
-                        title={purchase.client_name}
-                      >
-                        {purchase.client_name}
-                      </h2>
-                      <p className="mt-0.5 text-[10.5px] text-ink-soft">
-                        {formatInt(purchase.item_count)}{" "}
-                        {purchase.item_count === 1 ? "item" : "itens"}
-                      </p>
-                    </div>
-
-                    <ul className="grid gap-1">
-                      {items.map((item, index) => (
-                        <li
-                          key={`${item.name}-${index}`}
-                          className="flex items-baseline justify-between gap-3"
-                        >
-                          <span className="min-w-0 truncate text-[12px] text-ink-soft">
-                            {item.name}
-                            {item.qty > 1 ? (
-                              <span className="num text-ink-soft">
-                                {" "}
-                                ×{formatInt(item.qty)}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="num text-[12px] whitespace-nowrap">
-                            {formatMoney(item.amount)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line/70 pt-2.5">
-                      <div className="flex flex-wrap items-center gap-1">
-                        <span className="text-[10px] tracking-[0.01em] text-ink-soft">
-                          Negócio
-                        </span>
-                        {dealCodes.length === 0 ? (
-                          <DealBadge label={null} />
-                        ) : (
-                          dealCodes.map((code) => (
-                            <DealBadge
-                              key={code}
-                              label={dealLabels.get(code) ?? code}
-                            />
-                          ))
-                        )}
-                        {purchase.discount_pct > 0 ? (
-                          <span className="num inline-flex items-center rounded-sm bg-citrus-soft px-1.5 py-px text-[10px] font-medium text-citrus-ink">
-                            −{formatPercent(purchase.discount_pct)}
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1">
-                        <span className="text-[10px] tracking-[0.01em] text-ink-soft">
-                          Origem
-                        </span>
-                        {origins.length === 0 ? (
-                          <OriginBadge origin={null} />
-                        ) : (
-                          origins.map((origin) => (
-                            <OriginBadge key={origin} origin={origin} />
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <dl className="grid grid-cols-3 divide-x divide-line/70 border-t border-line">
-                    <div className="px-3 py-2.5">
-                      <dt className="text-[10px] text-ink-soft">PV</dt>
-                      <dd className="num mt-0.5 text-[13px] font-medium whitespace-nowrap">
-                        {formatDecimal(purchase.total_pv)}
-                      </dd>
-                    </div>
-                    <div className="px-3 py-2.5">
-                      <dt className="text-[10px] text-ink-soft">Total</dt>
-                      <dd className="num mt-0.5 text-[13px] font-medium whitespace-nowrap">
-                        {formatMoney(purchase.total_amount)}
-                      </dd>
-                    </div>
-                    <div className="px-3 py-2.5">
-                      <dt className="text-[10px] text-ink-soft">Lucro</dt>
-                      <dd
-                        className={cn(
-                          "num mt-0.5 text-[13px] font-medium whitespace-nowrap",
-                          profit < 0 ? "text-rust-ink" : "text-ink",
-                        )}
-                      >
-                        {formatMoney(profit)}
-                      </dd>
-                    </div>
-                  </dl>
-                </article>
-              );
-            })}
+            {purchases?.map((purchase) => (
+              <PurchaseCard
+                key={purchase.id}
+                purchase={purchase}
+                dealLabels={dealLabels}
+              />
+            ))}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -357,7 +401,7 @@ export default async function VendasPage({
             <div className="flex items-center gap-2">
               {page > 1 ? (
                 <Button asChild variant="outline" size="sm" className="h-8">
-                  <Link href={pageHref(page - 1)}>Anterior</Link>
+                  <Link href={buildPageHref(mes, q, page - 1)}>Anterior</Link>
                 </Button>
               ) : (
                 <Button variant="outline" size="sm" className="h-8" disabled>
@@ -366,7 +410,7 @@ export default async function VendasPage({
               )}
               {page < totalPages ? (
                 <Button asChild variant="outline" size="sm" className="h-8">
-                  <Link href={pageHref(page + 1)}>Próxima</Link>
+                  <Link href={buildPageHref(mes, q, page + 1)}>Próxima</Link>
                 </Button>
               ) : (
                 <Button variant="outline" size="sm" className="h-8" disabled>

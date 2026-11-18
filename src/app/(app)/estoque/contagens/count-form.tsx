@@ -36,7 +36,18 @@ type Line = {
 
 const initialState: CountFormState = { error: null };
 
-export function CountForm({ data }: { data: CountFormData }) {
+function diffColorClass(diff: number | null): string {
+  if (diff === null || diff === 0) return "text-ink-soft";
+  return diff > 0 ? "text-moss-ink" : "text-rust-ink";
+}
+
+function formatDiff(diff: number | null): string {
+  if (diff === null) return "—";
+  const prefix = diff > 0 ? "+" : "";
+  return `${prefix}${formatDecimal(diff)}`;
+}
+
+export function CountForm({ data }: Readonly<{ data: CountFormData }>) {
   const [state, formAction, pending] = useActionState(
     createStockCount,
     initialState,
@@ -225,18 +236,10 @@ export function CountForm({ data }: { data: CountFormData }) {
                   <span
                     className={cn(
                       "num min-w-16 text-right text-[12px]",
-                      diff === null
-                        ? "text-ink-soft"
-                        : diff === 0
-                          ? "text-ink-soft"
-                          : diff > 0
-                            ? "text-moss-ink"
-                            : "text-rust-ink",
+                      diffColorClass(diff),
                     )}
                   >
-                    {diff === null
-                      ? "—"
-                      : `${diff > 0 ? "+" : ""}${formatDecimal(diff)}`}
+                    {formatDiff(diff)}
                   </span>
                   <Button
                     type="button"
@@ -266,7 +269,7 @@ export function CountForm({ data }: { data: CountFormData }) {
               <span
                 aria-hidden
                 className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+              />{" "}
               Registrando…
             </span>
           ) : (
@@ -286,12 +289,12 @@ function Field({
   htmlFor,
   className,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor: string;
   className?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className={cn("grid content-start gap-1.5", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>

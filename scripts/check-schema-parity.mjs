@@ -147,20 +147,20 @@ function extractRelations() {
 
   for (const file of collectFiles(join(ROOT, "src"))) {
     const source = readFileSync(file, "utf8");
-    for (const match of source.matchAll(/\.from\(\s*["'`]([A-Za-z0-9_]+)["'`]/g)) {
+    for (const match of source.matchAll(/\.from\(\s*["'`](\w+)["'`]/g)) {
       tables.add(match[1]);
     }
-    for (const match of source.matchAll(/\.rpc\(\s*["'`]([A-Za-z0-9_]+)["'`]/g)) {
+    for (const match of source.matchAll(/\.rpc\(\s*["'`](\w+)["'`]/g)) {
       functions.add(match[1]);
     }
-    for (const match of source.matchAll(/\.from\(\s*([A-Za-z0-9_]+)\s*\)/g)) {
+    for (const match of source.matchAll(/\.from\(\s*(\w+)\s*\)/g)) {
       dynamic.push(`${file.replace(ROOT, "")}: .from(${match[1]})`);
     }
   }
 
   return {
-    tables: [...tables].sort(),
-    functions: [...functions].sort(),
+    tables: [...tables].sort((a, b) => a.localeCompare(b)),
+    functions: [...functions].sort((a, b) => a.localeCompare(b)),
     dynamic,
   };
 }
@@ -245,22 +245,21 @@ async function main() {
   }
 
   const { tables, functions, dynamic } = extractRelations();
-  const rows = [];
-
-  for (const table of tables) {
-    rows.push({
+  const tableRows = await Promise.all(
+    tables.map(async (table) => ({
       kind: "table",
       name: table,
       ...(await probeTable(url, key, table)),
-    });
-  }
-  for (const fn of functions) {
-    rows.push({
+    })),
+  );
+  const functionRows = await Promise.all(
+    functions.map(async (fn) => ({
       kind: "function",
       name: fn,
       ...(await probeFunction(url, key, fn)),
-    });
-  }
+    })),
+  );
+  const rows = [...tableRows, ...functionRows];
 
   const width = Math.max(...rows.map((r) => r.name.length), 10);
   for (const row of rows) {

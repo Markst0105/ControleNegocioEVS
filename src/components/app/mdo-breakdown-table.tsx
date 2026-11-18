@@ -29,11 +29,11 @@ export function MdoBreakdownTable({
   rows,
   totals,
   labelHeading,
-}: {
+}: Readonly<{
   rows: MdoBreakdownRow[];
   totals: MdoBreakdownRow;
   labelHeading: string;
-}) {
+}>) {
   return (
     <div className="border-t border-ink/70">
       <div className="overflow-x-auto">

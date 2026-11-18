@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth";
 import {
+  formString,
   isMonthISO,
   monthFirstDay,
   parseDateInput,
@@ -61,12 +62,12 @@ export async function closeMonth(
     return { error: "Apenas administradores podem fechar um mês." };
   }
 
-  const month = String(formData.get("month") ?? "");
+  const month = formString(formData, "month");
   if (!isMonthISO(month)) {
     return { error: "Informe um mês válido." };
   }
 
-  const note = String(formData.get("note") ?? "").trim();
+  const note = formString(formData, "note").trim();
   const error = noteError(note);
   if (error) return { error };
 
@@ -101,12 +102,12 @@ export async function reopenMonth(
     return { error: "Apenas administradores podem reabrir um mês." };
   }
 
-  const month = String(formData.get("month") ?? "");
+  const month = formString(formData, "month");
   if (!isMonthISO(month)) {
     return { error: "Informe um mês válido." };
   }
 
-  const note = String(formData.get("note") ?? "").trim();
+  const note = formString(formData, "note").trim();
   if (!note) {
     return { error: "Informe o motivo da reabertura." };
   }
@@ -135,18 +136,21 @@ export async function reopenMonth(
   redirect(`/financeiro/fechamento?mes=${month}&ok=reaberto`);
 }
 
-export async function saveHerbalifeStatement(
-  _previous: StatementFormState,
-  formData: FormData,
-): Promise<StatementFormState> {
-  const session = await getSession();
-  if (!session?.profile || session.profile.role !== "admin") {
-    return { error: "Apenas administradores podem editar o extrato." };
-  }
+type ParsedStatement = {
+  month: string;
+  royaltyUsd: number | null;
+  royaltyFx: number | null;
+  bonusUsd: number | null;
+  bonusFx: number | null;
+  clearingStatement: boolean;
+};
 
+function parseStatementForm(
+  formData: FormData,
+): { ok: true; value: ParsedStatement } | { ok: false; error: string } {
   const rawMonth = parseDateInput(formData.get("month"));
   if (!rawMonth) {
-    return { error: "Mês inválido." };
+    return { ok: false, error: "Mês inválido." };
   }
   const month = `${rawMonth.slice(0, 7)}-01`;
 
@@ -159,21 +163,52 @@ export async function saveHerbalifeStatement(
   const bonusFx = parseRate(formData.get("bonus_fx"));
 
   if (royaltyUsd !== null && royaltyFx === null) {
-    return { error: "Informe o câmbio dos royalties." };
+    return { ok: false, error: "Informe o câmbio dos royalties." };
   }
   if (bonusUsd !== null && bonusFx === null) {
-    return { error: "Informe o câmbio do bônus." };
+    return { ok: false, error: "Informe o câmbio do bônus." };
   }
   if (Math.abs(royaltyUsd ?? 0) > 1_000_000_000) {
-    return { error: "O valor de royalties é alto demais." };
+    return { ok: false, error: "O valor de royalties é alto demais." };
   }
   if (Math.abs(bonusUsd ?? 0) > 1_000_000_000) {
-    return { error: "O valor de bônus é alto demais." };
+    return { ok: false, error: "O valor de bônus é alto demais." };
   }
 
-  const supabase = await createClient();
+  return {
+    ok: true,
+    value: {
+      month,
+      royaltyUsd,
+      royaltyFx: royaltyUsd === null ? null : royaltyFx,
+      bonusUsd,
+      bonusFx: bonusUsd === null ? null : bonusFx,
+      clearingStatement: royaltyUsd === null && bonusUsd === null,
+    },
+  };
+}
 
-  const clearingStatement = royaltyUsd === null && bonusUsd === null;
+export async function saveHerbalifeStatement(
+  _previous: StatementFormState,
+  formData: FormData,
+): Promise<StatementFormState> {
+  const session = await getSession();
+  if (session?.profile?.role !== "admin") {
+    return { error: "Apenas administradores podem editar o extrato." };
+  }
+
+  const parsed = parseStatementForm(formData);
+  if (!parsed.ok) return { error: parsed.error };
+
+  const {
+    month,
+    royaltyUsd,
+    royaltyFx,
+    bonusUsd,
+    bonusFx,
+    clearingStatement,
+  } = parsed.value;
+  const supabase = await createClient();
 
   if (clearingStatement) {
     const { error } = await supabase
@@ -190,9 +225,9 @@ export async function saveHerbalifeStatement(
       {
         month,
         royalty_usd: royaltyUsd,
-        royalty_fx: royaltyUsd === null ? null : royaltyFx,
+        royalty_fx: royaltyFx,
         bonus_usd: bonusUsd,
-        bonus_fx: bonusUsd === null ? null : bonusFx,
+        bonus_fx: bonusFx,
       },
       { onConflict: "month" },
     );
@@ -209,9 +244,6 @@ export async function saveHerbalifeStatement(
   }
 
   revalidateClosingPaths();
-  redirect(
-    `/financeiro/fechamento?mes=${month.slice(0, 7)}&ok=${
-      clearingStatement ? "extrato_removido" : "extrato"
-    }`,
-  );
+  const okParam = clearingStatement ? "extrato_removido" : "extrato";
+  redirect(`/financeiro/fechamento?mes=${month.slice(0, 7)}&ok=${okParam}`);
 }

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import {
   addDays,
+  formString,
   nextMonthFirstDay,
   parseDateInput,
   todayISO,
@@ -38,7 +39,7 @@ export async function saveDailyKpis(
   const values = {} as Record<MdoField, number>;
 
   for (const field of MDO_FIELDS) {
-    const raw = String(formData.get(field.name) ?? "").trim();
+    const raw = formString(formData, field.name).trim();
     if (!raw) {
       values[field.name] = 0;
       continue;

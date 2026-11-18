@@ -87,9 +87,11 @@ function columnKind(header: string): ColumnKind | null {
 }
 
 function cellText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (value instanceof Date) return "";
-  return String(value).trim();
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+  return "";
 }
 
 function cellNumber(value: unknown): number | null {
@@ -98,8 +100,7 @@ function cellNumber(value: unknown): number | null {
     return Number.isFinite(value) ? value : null;
   }
   if (typeof value === "string") {
-    const parsed = parseMoneyInput(value);
-    return parsed === null ? null : parsed;
+    return parseMoneyInput(value) ?? null;
   }
   return null;
 }
@@ -107,6 +108,48 @@ function cellNumber(value: unknown): number | null {
 function round(value: number, decimals: number): number {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
+}
+
+const ALL_PRICE_TIERS: PriceTierCode[] = [
+  "retail",
+  "t0.25",
+  "t0.35",
+  "t0.42",
+  "t0.5",
+  "bronze",
+  "prata",
+  "ouro",
+];
+
+function extractRowPrices(
+  row: unknown[],
+  columns: Map<ColumnKind, number>,
+): Partial<Record<PriceTierCode, number>> {
+  const prices: Partial<Record<PriceTierCode, number>> = {};
+  for (const tier of ALL_PRICE_TIERS) {
+    const column = columns.get(tier);
+    if (column === undefined) continue;
+    const value = cellNumber(row[column]);
+    if (value !== null) {
+      prices[tier] = round(value, 2);
+    }
+  }
+  return prices;
+}
+
+function collectUnknownHeaders(
+  headerRow: unknown[],
+  columns: Map<ColumnKind, number>,
+): string[] {
+  const knownColumns = new Set(columns.values());
+  const unknownHeaders: string[] = [];
+  headerRow.forEach((cell, columnIndex) => {
+    const text = cellText(cell);
+    if (text && !knownColumns.has(columnIndex)) {
+      unknownHeaders.push(text);
+    }
+  });
+  return unknownHeaders;
 }
 
 function findHeaderRow(
@@ -126,6 +169,51 @@ function findHeaderRow(
     }
   }
   return null;
+}
+
+function parseSinglePriceRow(
+  row: unknown,
+  rowNumber: number,
+  columns: Map<ColumnKind, number>,
+  seen: Set<string>,
+  duplicateSkus: string[],
+  skipped: PriceSheetSkipped[],
+): PriceSheetRow | null {
+  if (!Array.isArray(row)) return null;
+
+  const sku = cellText(row[columns.get("sku") ?? -1]);
+  if (!sku) {
+    if (row.some((cell) => cellText(cell) !== "")) {
+      skipped.push({ row: rowNumber, reason: "linha sem SKU" });
+    }
+    return null;
+  }
+
+  // The workbook repeats the print header at page breaks ("#SKU | Produto ...").
+  if (sku.replace(/^#/, "").trim().toLowerCase() === "sku") {
+    skipped.push({ row: rowNumber, reason: "cabeçalho repetido" });
+    return null;
+  }
+
+  const key = sku.toLowerCase();
+  if (seen.has(key)) {
+    duplicateSkus.push(sku);
+    skipped.push({ row: rowNumber, reason: `SKU repetido (${sku})` });
+    return null;
+  }
+  seen.add(key);
+
+  const nameCell = columns.get("name");
+  const name = nameCell === undefined ? null : cellText(row[nameCell]) || null;
+  const pvColumn = columns.get("pv");
+  const pv = pvColumn === undefined ? null : cellNumber(row[pvColumn]);
+
+  return {
+    sku,
+    name,
+    pv: pv === null ? null : round(pv, 4),
+    prices: extractRowPrices(row, columns),
+  };
 }
 
 /**
@@ -149,72 +237,21 @@ export function parsePriceSheetRows(
   const seen = new Set<string>();
 
   for (let index = header.index + 1; index < rows.length; index += 1) {
-    const row = rows[index];
-    if (!Array.isArray(row)) continue;
-
-    const sku = cellText(row[header.columns.get("sku") ?? -1]);
-    if (!sku) {
-      if (row.some((cell) => cellText(cell) !== "")) {
-        skipped.push({ row: index + 1, reason: "linha sem SKU" });
-      }
-      continue;
-    }
-
-    // The workbook repeats the print header at page breaks ("#SKU | Produto ...").
-    if (sku.replace(/^#/, "").trim().toLowerCase() === "sku") {
-      skipped.push({ row: index + 1, reason: "cabeçalho repetido" });
-      continue;
-    }
-
-    const nameCell = header.columns.get("name");
-    const name = nameCell === undefined ? null : cellText(row[nameCell]) || null;
-
-    const pvColumn = header.columns.get("pv");
-    const pv =
-      pvColumn === undefined ? null : cellNumber(row[pvColumn]);
-
-    const prices: Partial<Record<PriceTierCode, number>> = {};
-    for (const tier of [
-      "retail",
-      "t0.25",
-      "t0.35",
-      "t0.42",
-      "t0.5",
-      "bronze",
-      "prata",
-      "ouro",
-    ] as PriceTierCode[]) {
-      const column = header.columns.get(tier);
-      if (column === undefined) continue;
-      const value = cellNumber(row[column]);
-      if (value === null) continue;
-      prices[tier] = round(value, 2);
-    }
-
-    const key = sku.toLowerCase();
-    if (seen.has(key)) {
-      duplicateSkus.push(sku);
-      skipped.push({ row: index + 1, reason: `SKU repetido (${sku})` });
-      continue;
-    }
-    seen.add(key);
-
-    parsed.push({
-      sku,
-      name,
-      pv: pv === null ? null : round(pv, 4),
-      prices,
-    });
+    const item = parseSinglePriceRow(
+      rows[index],
+      index + 1,
+      header.columns,
+      seen,
+      duplicateSkus,
+      skipped,
+    );
+    if (item) parsed.push(item);
   }
 
-  const unknownHeaders: string[] = [];
-  const headerRow = rows[header.index] as unknown[];
-  headerRow.forEach((cell, columnIndex) => {
-    const text = cellText(cell);
-    if (!text) return;
-    const known = [...header.columns.values()].includes(columnIndex);
-    if (!known) unknownHeaders.push(text);
-  });
+  const unknownHeaders = collectUnknownHeaders(
+    rows[header.index] as unknown[],
+    header.columns,
+  );
 
   return {
     sheet: sheetName,

@@ -20,12 +20,12 @@ export function UserMenu({
   profile,
   compact = false,
   tone = "light",
-}: {
+}: Readonly<{
   user: SessionUser;
   profile: Profile;
   compact?: boolean;
   tone?: "light" | "dark";
-}) {
+}>) {
   const initials = (profile.name || user.email || "?")
     .trim()
     .split(/\s+/)

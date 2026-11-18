@@ -14,9 +14,9 @@ type SearchParams = Promise<{ erro?: string }>;
 
 export default async function ConfirmadoPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const failed = params.erro === "link";
   const user = await getSessionUser();

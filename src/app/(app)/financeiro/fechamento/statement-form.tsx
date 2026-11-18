@@ -25,10 +25,10 @@ const initialState: StatementFormState = { error: null };
 export function StatementForm({
   month,
   initial,
-}: {
+}: Readonly<{
   month: string;
   initial: StatementInitial | null;
-}) {
+}>) {
   const [state, formAction, pending] = useActionState(
     saveHerbalifeStatement,
     initialState,
@@ -138,7 +138,7 @@ export function StatementForm({
               <span
                 aria-hidden
                 className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+              />{" "}
               Salvando…
             </span>
           ) : (
@@ -158,12 +158,12 @@ function StatementField({
   htmlFor,
   hint,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor: string;
   hint?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className="grid content-start gap-1.5">
       <Label htmlFor={htmlFor}>{label}</Label>

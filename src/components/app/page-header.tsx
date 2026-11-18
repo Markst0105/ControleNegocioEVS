@@ -4,11 +4,11 @@ export function PageHeader({
   title,
   description,
   actions,
-}: {
+}: Readonly<{
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
-}) {
+}>) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>

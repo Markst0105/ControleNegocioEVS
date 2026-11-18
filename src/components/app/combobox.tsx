@@ -38,7 +38,7 @@ export function Combobox({
   onValueChange,
   allowClear = false,
   id,
-}: {
+}: Readonly<{
   name: string;
   options: ComboboxOption[];
   placeholder?: string;
@@ -48,7 +48,7 @@ export function Combobox({
   onValueChange?: (value: string) => void;
   allowClear?: boolean;
   id?: string;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(defaultValue);
 

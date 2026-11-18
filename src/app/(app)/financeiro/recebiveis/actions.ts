@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth";
 import { isUuid } from "@/lib/clients";
-import { parseDateInput, parseMoneyInput } from "@/lib/format";
+import { formString, parseDateInput, parseMoneyInput } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export type ReceiptFormState = {
@@ -46,7 +46,7 @@ export async function receiveReceivable(
     return { error: "Sua conta não tem permissão para registrar recebimentos." };
   }
 
-  const paymentId = String(formData.get("payment_id") ?? "").trim();
+  const paymentId = formString(formData, "payment_id").trim();
   if (!isUuid(paymentId)) {
     return { error: "Parcela inválida." };
   }
@@ -64,7 +64,7 @@ export async function receiveReceivable(
     return { error: "O valor informado é alto demais." };
   }
 
-  const note = String(formData.get("note") ?? "").trim();
+  const note = formString(formData, "note").trim();
   const validationError = noteError(note);
   if (validationError) return { error: validationError };
 
@@ -105,7 +105,7 @@ export async function writeOffReceivable(
     return { error: "Apenas administradores podem baixar um saldo." };
   }
 
-  const paymentId = String(formData.get("payment_id") ?? "").trim();
+  const paymentId = formString(formData, "payment_id").trim();
   if (!isUuid(paymentId)) {
     return { error: "Parcela inválida." };
   }
@@ -115,7 +115,7 @@ export async function writeOffReceivable(
     return { error: "Informe uma data válida para a baixa." };
   }
 
-  const reason = String(formData.get("reason") ?? "").trim();
+  const reason = formString(formData, "reason").trim();
   if (reason.length < 3) {
     return { error: "Informe o motivo da baixa." };
   }
@@ -153,8 +153,8 @@ export async function deleteReceiptEvent(formData: FormData): Promise<void> {
     redirect("/financeiro/recebiveis?erro=permissao");
   }
 
-  const paymentId = String(formData.get("payment_id") ?? "").trim();
-  const eventId = String(formData.get("event_id") ?? "").trim();
+  const paymentId = formString(formData, "payment_id").trim();
+  const eventId = formString(formData, "event_id").trim();
   if (!isUuid(paymentId) || !isUuid(eventId)) {
     redirect("/financeiro/recebiveis?erro=invalida");
   }
@@ -200,12 +200,12 @@ export async function reconcileReceivables(formData: FormData): Promise<void> { 
     redirect("/financeiro/recebiveis?erro=data");
   }
 
-  const mode = String(formData.get("mode") ?? "").trim();
+  const mode = formString(formData, "mode").trim();
   if (mode !== "receipt" && mode !== "write_off") {
     redirect("/financeiro/recebiveis?erro=modo");
   }
 
-  const note = String(formData.get("note") ?? "").trim();
+  const note = formString(formData, "note").trim();
   const validationError = noteError(note);
   if (validationError) {
     redirect("/financeiro/recebiveis?erro=observacao");
@@ -233,13 +233,13 @@ export async function reconcileReceivables(formData: FormData): Promise<void> { 
   const count = Number(result?.reconciled_count ?? 0);
 
   revalidateReceivablePaths();
-  redirect(
-    count === 0
-      ? "/financeiro/recebiveis?ok=lote_vazio"
-      : mode === "receipt"
-        ? "/financeiro/recebiveis?ok=lote_recebido"
-        : "/financeiro/recebiveis?ok=lote_baixado",
-  );
+  let okParam = "lote_baixado";
+  if (count === 0) {
+    okParam = "lote_vazio";
+  } else if (mode === "receipt") {
+    okParam = "lote_recebido";
+  }
+  redirect(`/financeiro/recebiveis?ok=${okParam}`);
 }
 
 /**

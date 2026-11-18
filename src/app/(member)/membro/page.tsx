@@ -41,9 +41,9 @@ type SearchParams = Promise<{ ok?: string }>;
 
 export default async function MembroCreditosPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: SearchParams;
-}) {
+}>) {
   const params = await searchParams;
   const session = await getSession();
   const user = session?.user;

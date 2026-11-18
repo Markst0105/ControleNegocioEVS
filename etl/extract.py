@@ -81,8 +81,8 @@ def col_of(ref):
 
 
 def row_of(ref):
-    m = re.search(r"\d+$", ref)
-    return int(m.group()) if m else None
+    digits = "".join(ch for ch in ref if ch.isdigit())
+    return int(digits) if digits else None
 
 
 def sheet_rows(sheet_file):
@@ -263,6 +263,11 @@ emit("001_reference_data", "")
 # ---------------------------------------------------------------------------
 # 2. Products & prices
 # ---------------------------------------------------------------------------
+TIER_25 = "t0.25"
+TIER_35 = "t0.35"
+TIER_42 = "t0.42"
+TIER_50 = "t0.5"
+
 # 2a. Novos Preços HLF (sheet2) - master list: SKU, name, PV, retail + tiers
 hlf_products = {}
 for r, cells in sheet("Novos Preços HLF"):
@@ -279,8 +284,8 @@ for r, cells in sheet("Novos Preços HLF"):
         "sku": str(sku).strip(), "name": str(name),
         "pv": cells.get("C"),
         "retail": cells.get("D"),
-        "t0.25": cells.get("E"), "t0.35": cells.get("F"),
-        "t0.42": cells.get("G"), "t0.5": cells.get("H"),
+        TIER_25: cells.get("E"), TIER_35: cells.get("F"),
+        TIER_42: cells.get("G"), TIER_50: cells.get("H"),
         "bronze": cells.get("I"), "prata": cells.get("J"), "ouro": cells.get("K"),
     }
 
@@ -290,10 +295,10 @@ for r, cells in sheet("Novos Preços HLF"):
 # membership tiers in Novos Preços HLF.
 TABELA_PRICE_COLS = OrderedDict([
     ("E", "retail"),
-    ("F", "t0.25"),
-    ("G", "t0.35"),
-    ("H", "t0.42"),
-    ("I", "t0.5"),
+    ("F", TIER_25),
+    ("G", TIER_35),
+    ("H", TIER_42),
+    ("I", TIER_50),
     ("J", "bronze"),
     ("K", "prata"),
     ("L", "ouro"),
@@ -330,8 +335,8 @@ for key, p in hlf_products.items():
         "sku": p["sku"], "name": p["name"], "kind": "ni",
         "item_class": "N.I", "pv": p["pv"],
         "retail": p["retail"],
-        "t0.25": p["t0.25"], "t0.35": p["t0.35"], "t0.42": p["t0.42"],
-        "t0.5": p["t0.5"], "bronze": p["bronze"], "prata": p["prata"], "ouro": p["ouro"],
+        TIER_25: p[TIER_25], TIER_35: p[TIER_35], TIER_42: p[TIER_42],
+        TIER_50: p[TIER_50], "bronze": p["bronze"], "prata": p["prata"], "ouro": p["ouro"],
     }
 
 for key, p in tabela_products.items():
@@ -368,8 +373,8 @@ for key, p in tabela_products.items():
             product.update(prices)
         products[key] = product
 
-TIER_COLS = ["retail", "t0.25", "t0.35", "t0.42", "t0.5", "bronze", "prata", "ouro"]
-TIER_CODES = ["retail", "t0.25", "t0.35", "t0.42", "t0.5", "bronze", "prata", "ouro"]
+TIER_COLS = ["retail", TIER_25, TIER_35, TIER_42, TIER_50, "bronze", "prata", "ouro"]
+TIER_CODES = ["retail", TIER_25, TIER_35, TIER_42, TIER_50, "bronze", "prata", "ouro"]
 
 for p in products.values():
     sku = p["sku"]
@@ -540,7 +545,7 @@ for r, cells in sheet("Lançamento de Venda"):
     if dc in DEAL_MAP:
         deal_sub = f"(select code from deal_types where code = {sql_str(dc)})"
     elif dc in DISCOUNT_CODES:
-        deal_sub = f"(select code from deal_types where code = '0')"
+        deal_sub = "(select code from deal_types where code = '0')"
 
     pay_sub = "NULL"
     if pay_code and str(pay_code) in PAYMENT_MAP:
@@ -756,45 +761,43 @@ for name, lines in seeds.items():
 # ---------------------------------------------------------------------------
 # 8. Validation report
 # ---------------------------------------------------------------------------
-report = []
-report.append("# ETL Validation Report")
-report.append("")
-report.append(f"Source: `Controle do Negócio 2026-10.xlsx`")
-report.append("")
-
-report.append("## Counts")
-report.append(f"- Products: {len(products)}")
-report.append(f"- Products with retail price: {priced} / {len(products)}")
-report.append(f"- Clients (normalized): {len(clients)} / raw variants: {len(aliases)}")
-report.append(f"- Sales: {sale_counter}")
-report.append(f"- Installments: {payment_counter}")
-report.append(f"- Inventory movements: {movement_counter}")
-report.append(f"- Expenses: {expense_counter}")
-report.append(f"- MDO days: {mdo_counter} ({mdo_first} → {mdo_last})")
-report.append("")
-
-report.append("## Unknown codes (review manually)")
-report.append("```")
-report.append("Payment: " + str(dict(unknown_pay)))
-report.append("Deal:    " + str(dict(unknown_deals)))
-report.append("Class:   " + str(dict(unknown_classes)))
-report.append("```")
-report.append("")
-
-report.append("## Notes")
-report.append("- `MDO-Mês`, `Consolidado`, `Despesas Totais`, `Consumo e Investimento` are NOT imported; they are recomputed by SQL views.")
-report.append("- `Estoque (emprestimos 2)` (hidden legacy ledger, since 2012) is NOT imported.")
-report.append("- `Acompanhamento ND` and `Análise Organizacional` (hidden) are NOT imported.")
-report.append("- Sales rows without a date in column A were skipped.")
-report.append("- Inventory movement dates are best-effort (year 2025 assumed from column-header text).")
-report.append("- Product prices come from `Novos Preços HLF`; items missing there take retail/tier values from `Tabela de Preços` columns E–L. Supplies, packaging and financial placeholders get no shelf price.")
-report.append("- SKUs are matched case-insensitively; the workbook mixes `#497K` and `#497k`.")
-report.append("- `product_components` (composed EVS items cost build-up) is left empty; the admin defines components in the app.")
-report.append("- Expense scope is inferred from category; rows without a scope marker default to `pessoal`.")
-report.append("- `supabase/seed.sql` is the combined copy of seeds 001–007 used by `supabase db push --include-seed` / `supabase db reset`.")
-report.append("- `etl/check_seed_schema.py` statically validates the seeds against the schema (tables, columns, arity, NULLs, lookups).")
-report.append("- Cartela sales (`E.AC`) are imported with `product_cost = 0`: the workbook parks the cartela value in \"Custo Produto\" (`J = I`) to zero the line, but that is a deferral, not a cost. The amount paid for the credits stays as profit, and each access paid with a ticket (TK/NTT) keeps its product cost as a loss.")
-report.append("")
+report = [
+    "# ETL Validation Report",
+    "",
+    "Source: `Controle do Negócio 2026-10.xlsx`",
+    "",
+    "## Counts",
+    f"- Products: {len(products)}",
+    f"- Products with retail price: {priced} / {len(products)}",
+    f"- Clients (normalized): {len(clients)} / raw variants: {len(aliases)}",
+    f"- Sales: {sale_counter}",
+    f"- Installments: {payment_counter}",
+    f"- Inventory movements: {movement_counter}",
+    f"- Expenses: {expense_counter}",
+    f"- MDO days: {mdo_counter} ({mdo_first} → {mdo_last})",
+    "",
+    "## Unknown codes (review manually)",
+    "```",
+    "Payment: " + str(dict(unknown_pay)),
+    "Deal:    " + str(dict(unknown_deals)),
+    "Class:   " + str(dict(unknown_classes)),
+    "```",
+    "",
+    "## Notes",
+    "- `MDO-Mês`, `Consolidado`, `Despesas Totais`, `Consumo e Investimento` are NOT imported; they are recomputed by SQL views.",
+    "- `Estoque (emprestimos 2)` (hidden legacy ledger, since 2012) is NOT imported.",
+    "- `Acompanhamento ND` and `Análise Organizacional` (hidden) are NOT imported.",
+    "- Sales rows without a date in column A were skipped.",
+    "- Inventory movement dates are best-effort (year 2025 assumed from column-header text).",
+    "- Product prices come from `Novos Preços HLF`; items missing there take retail/tier values from `Tabela de Preços` columns E–L. Supplies, packaging and financial placeholders get no shelf price.",
+    "- SKUs are matched case-insensitively; the workbook mixes `#497K` and `#497k`.",
+    "- `product_components` (composed EVS items cost build-up) is left empty; the admin defines components in the app.",
+    "- Expense scope is inferred from category; rows without a scope marker default to `pessoal`.",
+    "- `supabase/seed.sql` is the combined copy of seeds 001–007 used by `supabase db push --include-seed` / `supabase db reset`.",
+    "- `etl/check_seed_schema.py` statically validates the seeds against the schema (tables, columns, arity, NULLs, lookups).",
+    "- Cartela sales (`E.AC`) are imported with `product_cost = 0`: the workbook parks the cartela value in \"Custo Produto\" (`J = I`) to zero the line, but that is a deferral, not a cost. The amount paid for the credits stays as profit, and each access paid with a ticket (TK/NTT) keeps its product cost as a loss.",
+    "",
+]
 
 with open(os.path.join(ROOT, "etl", "validation_report.md"), "w", encoding="utf-8") as fh:
     fh.write("\n".join(report))
