@@ -131,7 +131,8 @@ scripts/        db-rls.sh (RLS suite), db-report.sh (pre-cutover report),
                 check-repo-visibility.sh (repository privacy),
                 smoke-url.sh (public-surface smoke test),
                 test-price-import.ts (price-sheet parser)
-docs/           phase-0-setup.md, cutover-runbook.md, design-system.md, design/
+docs/           phase-0-setup.md, cutover-runbook.md, project-summary.md,
+                design-system.md, design/
 etl/            workbook → SQL seeds (extract.py), schema checker, validation
 supabase/
   migrations/   schema + RLS/views (idempotent)
